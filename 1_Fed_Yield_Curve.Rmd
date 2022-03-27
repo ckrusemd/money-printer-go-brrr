@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 library(pacman)
 pacman::p_load(fredr,dplyr,tidyr,lubridate,caret,partykit,pROC,gganimate,devtools)
-devtools::install_github("thomasp85/transformr")
+install.packages('transformr')
 source(file = "money_theme.R")
 
 ```
