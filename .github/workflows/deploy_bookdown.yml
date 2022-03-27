@@ -29,6 +29,14 @@ jobs:
         run: sudo apt-get -y install libcurl4-gnutls-dev
       - name: Install rvest
         run: Rscript -e 'install.packages(c("pacman"))'
+      - name: Renvison 1
+        run: echo ${{ secrets.TEST_KEY }}
+      - name: Renvison 2
+        run: echo ${{ secrets.FRED_API }}
+      - name: Renviron
+        run: echo FRED_API=${{ secrets.TEST_KEY }} >> Renviron.site
+      - name: Renviron cat
+        run: cat Renviron.site
       # - name: Enable Rjava
       #   run: sudo R CMD javareconf
       # - name: Install Rjava before tabulizer
@@ -40,8 +48,6 @@ jobs:
       #   run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
       # - name: Install tabulizer from source
       #   run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
-      - name: Renviron
-        run: echo FRED_API=secrets.FRED_API >> Renviron.site
       - name: Render Book
         run: Rscript -e 'bookdown::render_book("index.Rmd")'
       - name: Cache R packages
