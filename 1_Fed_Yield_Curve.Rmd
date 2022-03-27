@@ -1,7 +1,7 @@
 ---
 title: "FED Yield Curve"
 author: "CAKU"
-date: "2/16/2022"
+date: `
 output: html_document
 ---
 
@@ -20,7 +20,8 @@ devtools::install_github("thomasp85/transformr")
 ```
 
 ```{r }
-fredr::fredr_set_key(key = "XXXXXX")
+readRenviron(path = "Renviron.site")
+fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
 # Get Data
