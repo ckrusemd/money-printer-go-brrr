@@ -1,12 +1,12 @@
 ---
 title: "FED Yield Curve"
 author: "CAKU"
-date: `
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
 ```{r  include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 # Yield Curve
@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(pacman)
 pacman::p_load(fredr,dplyr,tidyr,lubridate,caret,partykit,pROC,gganimate,devtools)
 devtools::install_github("thomasp85/transformr")
+source(file = "money_theme.R")
 
 ```
 
@@ -43,18 +44,19 @@ df_yieldcurve =
   bind_rows(fredr(series_id = "MORTGAGE30US"))
 
 order_ = c("DFF",
-                                                    "DGS1MO",
-                                                    "DGS3MO",
-                                                    "DGS6MO",
-                                                    "DGS1",
-                                                    "DGS2",
-                                                    "DGS3",
-                                                    "DGS5",
-                                                    "DGS7",
-                                                    "DGS10",
-                                                    "DGS20",
-                                                    "DGS30",
-                                                    "MORTGAGE30US")
+           "DGS1MO",
+           "DGS3MO",
+           "DGS6MO",
+           "DGS1",
+           "DGS2",
+           "DGS3",
+           "DGS5",
+           "DGS7",
+           "DGS10",
+           "DGS20",
+           "DGS30",
+           "MORTGAGE30US")
+
 df_yieldcurve = 
   df_yieldcurve %>% 
   dplyr::select(date,series_id,value) %>% 
@@ -75,16 +77,60 @@ df_yieldcurve =
                                           365*as.integer(substr(series_id,4,5)))))) 
 ```
 
-## Mortgage-Treasury Spread
+## Time Series
+
+```{r}
+df_yieldcurve %>% 
+  dplyr::mutate(value=value/100) %>% 
+  ggplot(.,aes(x=date,y=value)) +
+  geom_line(aes(group=series_id,color=series_id)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.005)) + 
+  theme_money_printer_go_brrr +
+  labs(title="All Yields",
+       x="Date",
+       y="Spread (%)",
+       caption = timestamp_caption())
+```
+
+
+```{r}
+
+df_yieldcurve %>% 
+  filter(date>=Sys.Date()-years(1)) %>% 
+  dplyr::mutate(value=value/100) %>% 
+  ggplot(.,aes(x=date,y=value)) +
+  geom_line(aes(group=series_id,color=series_id)) +
+  theme(legend.position="bottom") +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.005)) + 
+  theme_money_printer_go_brrr +
+  labs(title="All Yields (Last Year)",
+       x="Date",
+       y="Spread (%)",
+       caption = timestamp_caption())
+
+```
+
+## Spreads
+
 ```{r}
 
 df_yieldcurve %>% 
   filter(series_id %in% c("MORTGAGE30US","DGS30")) %>% 
   spread(series_id,value) %>% 
-  dplyr::mutate(spread=MORTGAGE30US-DGS30) %>% 
+  dplyr::mutate(spread=(MORTGAGE30US-DGS30)/100) %>% 
   ggplot(.,aes(x=date,y=spread)) +
   geom_line() +
-  theme(legend.position="bottom")
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme_money_printer_go_brrr +
+  theme(legend.position="bottom") +
+  labs(title="Spread: Mortgage30US - DGS30",
+       x="Date",
+       y="Spread (%)",
+       caption = timestamp_caption())
 ```
 
 ## DGS2-DGS10 Spread
@@ -94,40 +140,38 @@ df_yieldcurve %>%
   dplyr::select(-time) %>% 
   filter(series_id %in% c("DGS10","DGS2")) %>% 
   spread(series_id,value) %>% 
-  dplyr::mutate(spread=DGS10-DGS2) %>% 
+  dplyr::mutate(spread=(DGS10-DGS2)/100) %>% 
   ggplot(.,aes(x=date,y=spread)) +
   geom_line() +
-  theme(legend.position="bottom")
+  geom_hline(yintercept = 0,linetype=2) + 
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) + 
+  theme_money_printer_go_brrr +
+  labs(title="Spread: DGS2 - DGS10",
+       x="Date",
+       y="Spread (%)",
+       caption = timestamp_caption())
 ```
 
-## DGS2-MORTGAGE30 Spread
+## DGS6MO-MORTGAGE30 Spread
+
 ```{r}
 
 df_yieldcurve %>% 
   dplyr::select(-time) %>% 
   filter(series_id %in% c("MORTGAGE30US","DGS6MO")) %>% 
   spread(series_id,value) %>% 
-  dplyr::mutate(spread=MORTGAGE30US-DGS6MO) %>% 
+  dplyr::mutate(spread=(MORTGAGE30US-DGS6MO)/100) %>% 
   ggplot(.,aes(x=date,y=spread)) +
   geom_line() +
-  theme(legend.position="bottom")
-```
-
-```{r}
-ggplot(df_yieldcurve,aes(x=date,y=value)) +
-  geom_line(aes(group=series_id,color=series_id)) +
-  theme(legend.position="bottom")
-```
-
-
-```{r}
-
-ggplot(df_yieldcurve,aes(x=date,y=value)) +
-  geom_line(aes(group=series_id,color=series_id)) +
-  theme(legend.position="bottom") +
-  scale_x_date(limits=c(Sys.Date()-years(1),NA)) +
-  scale_y_continuous(limits=c(0,NA))
-
+  geom_hline(yintercept = 0,linetype=2) + 
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.005)) + 
+  theme_money_printer_go_brrr +
+  labs(title="Spread: MORTGAGE30US - DGS6MO",
+       x="Date",
+       y="Spread (%)",
+       caption = timestamp_caption())
 ```
 
 
@@ -179,8 +223,7 @@ df_yieldcurve %>%
 # Yield Checkboard
 
 ```{r}
-# Animation
-library(gganimate)
+
 df_checkboard = expand.grid(series_id=unique(df_yieldcurve$series_id),
                             joined_series=unique(df_yieldcurve$series_id))
 
