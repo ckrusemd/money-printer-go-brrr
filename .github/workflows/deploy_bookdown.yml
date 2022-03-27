@@ -41,7 +41,7 @@ jobs:
       # - name: Install tabulizer from source
       #   run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
       - name: Renviron
-        run: echo FRED_API=secrets.FRED_API >> Renviron.site
+        run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
       - name: Render Book
         run: Rscript -e 'bookdown::render_book("index.Rmd")'
       - name: Cache R packages
