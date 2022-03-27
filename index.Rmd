@@ -37,15 +37,3 @@ print_danish_time = function() {
 ```
 
 This report was compiled `r print_danish_time() `.
-
-
-```{r}
-print(list.files())
-```
-
-
-```{r}
-readRenviron(path = "Renviron.site")
-print( Sys.getenv() )
-```
-

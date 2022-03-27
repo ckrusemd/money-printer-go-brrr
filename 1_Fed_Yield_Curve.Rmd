@@ -22,7 +22,6 @@ source(file = "money_theme.R")
 
 ```{r }
 readRenviron(path = "Renviron.site")
-print( Sys.getenv() )
 ```
 
 
