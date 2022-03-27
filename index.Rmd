@@ -14,7 +14,13 @@ description: "Since 1971, Money Printer Has Gone BRRR. Let's Make the Most of It
 
 # Money Printer Go BRRR
 
+
+
 ```{r include=FALSE}
+
+
+pacman::p_load( lubridate , scales )
+
 # automatically create a bib database for R packages
 knitr::write_bib(c(
   .packages(), 'bookdown', 'knitr', 'rmarkdown'
@@ -32,7 +38,7 @@ print_danish_time = function() {
 
 This report was compiled `r print_danish_time() `.
 
-```{r}
+```{r echo=FALSE}
 
 print( Sys.getenv("TEST_KEY") )
 ```
