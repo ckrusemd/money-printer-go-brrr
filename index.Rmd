@@ -1,0 +1,33 @@
+--- 
+title: "Money Printer Go BRRR"
+author: "Christian Kruse"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+output: bookdown::gitbook
+documentclass: book
+bibliography: [book.bib, packages.bib]
+biblio-style: apalike
+link-citations: yes
+github-repo: ckrusemd/Aarhus-daylight-weather
+description: "Since 1971, Money Printer Has Gone BRRR. Let's Make the Most of It. A Series of Macroeconomic Notebooks."
+---
+
+# Money Printer Go BRRR
+
+```{r include=FALSE}
+# automatically create a bib database for R packages
+knitr::write_bib(c(
+  .packages(), 'bookdown', 'knitr', 'rmarkdown'
+), 'packages.bib')
+
+options(scipen=999)
+
+print_danish_time = function() {
+  time = lubridate::with_tz(Sys.time(), "CET")
+  
+  paste0( strftime(time,tz="CET",format="%A %b")," ",scales::ordinal_format()(lubridate::day(time))," ",strftime(time,tz="CET",format="%Y %H:%M")," ",lubridate::tz(time))
+}
+
+```
+
+This report was compiled `r print_danish_time() `.
