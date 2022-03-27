@@ -55,6 +55,70 @@
 <script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
 
 
+<style type="text/css">
+code.sourceCode > span { display: inline-block; line-height: 1.25; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
 
 
 </head>
@@ -94,8 +158,158 @@
 </div>
 <div id="money-printer-go-brrr" class="section level1 hasAnchor">
 <h1><span class="header-section-number">1</span> Money Printer Go BRRR<a href="#money-printer-go-brrr" class="anchor-section" aria-label="Anchor link to header"></a></h1>
-<p>This report was compiled Sunday Mar 27th 2022 17:44 CET.</p>
-<pre><code>## [1] &quot;&quot;</code></pre>
+<p>This report was compiled Sunday Mar 27th 2022 20:04 CET.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">print</span>(<span class="kw">list.files</span>())</span></code></pre></div>
+<pre><code>##  [1] &quot;_book&quot;                       &quot;_bookdown.yml&quot;              
+##  [3] &quot;_main.Rmd&quot;                   &quot;1_Fed_Yield_Curve.Rmd&quot;      
+##  [5] &quot;book.bib&quot;                    &quot;index.Rmd&quot;                  
+##  [7] &quot;money_printer_go_brrr.Rproj&quot; &quot;money_theme.R&quot;              
+##  [9] &quot;packages.bib&quot;                &quot;README.md&quot;                  
+## [11] &quot;Renviron.site&quot;</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">readRenviron</span>(<span class="dt">path =</span> <span class="st">&quot;Renviron.site&quot;</span>)</span>
+<span id="cb3-2"><a href="#cb3-2"></a><span class="kw">print</span>( <span class="kw">Sys.getenv</span>() )</span></code></pre></div>
+<pre><code>## _R_CHECK_SYSTEM_CLOCK_
+##                         FALSE
+## ACCEPT_EULA             Y
+## AGENT_TOOLSDIRECTORY    /opt/hostedtoolcache
+## ANDROID_HOME            /usr/local/lib/android/sdk
+## ANDROID_NDK_HOME        /usr/local/lib/android/sdk/ndk-bundle
+## ANDROID_NDK_LATEST_HOME
+##                         /usr/local/lib/android/sdk/ndk/23.1.7779620
+## ANDROID_NDK_ROOT        /usr/local/lib/android/sdk/ndk-bundle
+## ANDROID_SDK_ROOT        /usr/local/lib/android/sdk
+## ANT_HOME                /usr/share/ant
+## AZURE_EXTENSION_DIR     /opt/az/azcliextensions
+## BOOTSTRAP_HASKELL_NONINTERACTIVE
+##                         1
+## CHROME_BIN              /usr/bin/google-chrome
+## CHROMEWEBDRIVER         /usr/local/share/chrome_driver
+## CI                      true
+## CONDA                   /usr/share/miniconda
+## DEBIAN_FRONTEND         noninteractive
+## DEPLOYMENT_BASEPATH     /opt/runner
+## DOTNET_MULTILEVEL_LOOKUP
+##                         0
+## DOTNET_NOLOGO           1
+## DOTNET_SKIP_FIRST_TIME_EXPERIENCE
+##                         1
+## EDITOR                  vi
+## FRED_API                HELLO_WORLD
+## GECKOWEBDRIVER          /usr/local/share/gecko_driver
+## GITHUB_ACTION           __run_13
+## GITHUB_ACTION_REF       
+## GITHUB_ACTION_REPOSITORY
+##                         
+## GITHUB_ACTIONS          true
+## GITHUB_ACTOR            ckrusemd
+## GITHUB_API_URL          https://api.github.com
+## GITHUB_BASE_REF         
+## GITHUB_ENV              /home/runner/work/_temp/_runner_file_commands/set_env_851c92e1-b48e-44ad-a778-6feb376a8456
+## GITHUB_EVENT_NAME       push
+## GITHUB_EVENT_PATH       /home/runner/work/_temp/_github_workflow/event.json
+## GITHUB_GRAPHQL_URL      https://api.github.com/graphql
+## GITHUB_HEAD_REF         
+## GITHUB_JOB              bookdown
+## GITHUB_PATH             /home/runner/work/_temp/_runner_file_commands/add_path_851c92e1-b48e-44ad-a778-6feb376a8456
+## GITHUB_REF              refs/heads/main
+## GITHUB_REF_NAME         main
+## GITHUB_REF_PROTECTED    false
+## GITHUB_REF_TYPE         branch
+## GITHUB_REPOSITORY       ckrusemd/money-printer-go-brrr
+## GITHUB_REPOSITORY_OWNER
+##                         ckrusemd
+## GITHUB_RETENTION_DAYS   90
+## GITHUB_RUN_ATTEMPT      1
+## GITHUB_RUN_ID           2048506202
+## GITHUB_RUN_NUMBER       13
+## GITHUB_SERVER_URL       https://github.com
+## GITHUB_SHA              974435cadd0d83f0e020ae12b094ff6320ce4b15
+## GITHUB_STEP_SUMMARY     /home/runner/work/_temp/_runner_file_commands/step_summary_851c92e1-b48e-44ad-a778-6feb376a8456
+## GITHUB_WORKFLOW         money-printer-go-brrr-render
+## GITHUB_WORKSPACE        /home/runner/work/money-printer-go-brrr/money-printer-go-brrr
+## GOROOT_1_15_X64         /opt/hostedtoolcache/go/1.15.15/x64
+## GOROOT_1_16_X64         /opt/hostedtoolcache/go/1.16.14/x64
+## GOROOT_1_17_X64         /opt/hostedtoolcache/go/1.17.7/x64
+## GRAALVM_11_ROOT         /usr/local/graalvm/graalvm-ce-java11-22.0.0.2
+## GRADLE_HOME             /usr/share/gradle-7.4
+## HOME                    /home/runner
+## HOMEBREW_CELLAR         /home/linuxbrew/.linuxbrew/Cellar
+## HOMEBREW_CLEANUP_PERIODIC_FULL_DAYS
+##                         3650
+## HOMEBREW_NO_AUTO_UPDATE
+##                         1
+## HOMEBREW_PREFIX         /home/linuxbrew/.linuxbrew
+## HOMEBREW_REPOSITORY     /home/linuxbrew/.linuxbrew/Homebrew
+## ImageOS                 ubuntu20
+## ImageVersion            20220227.1
+## INVOCATION_ID           8205df1fae9447f8a8ac825bacac47e4
+## JAVA_HOME               /usr/lib/jvm/temurin-11-jdk-amd64
+## JAVA_HOME_11_X64        /usr/lib/jvm/temurin-11-jdk-amd64
+## JAVA_HOME_17_X64        /usr/lib/jvm/temurin-17-jdk-amd64
+## JAVA_HOME_8_X64         /usr/lib/jvm/temurin-8-jdk-amd64
+## JOURNAL_STREAM          8:21903
+## LANG                    C.UTF-8
+## LD_LIBRARY_PATH         /opt/R/4.1.3/lib/R/lib:/usr/local/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/jvm/temurin-11-jdk-amd64/lib/server
+## LEIN_HOME               /usr/local/lib/lein
+## LEIN_JAR                /usr/local/lib/lein/self-installs/leiningen-2.9.8-standalone.jar
+## LN_S                    ln -s
+## MAKE                    make
+## NOT_CRAN                true
+## NVM_DIR                 /home/runner/.nvm
+## PAGER                   /usr/bin/pager
+## PATH                    /home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+## PERFLOG_LOCATION_SETTING
+##                         RUNNER_PERFLOG
+## PIPX_BIN_DIR            /opt/pipx_bin
+## PIPX_HOME               /opt/pipx
+## POWERSHELL_DISTRIBUTION_CHANNEL
+##                         GitHub-Actions-ubuntu20
+## PWD                     /home/runner/work/money-printer-go-brrr/money-printer-go-brrr
+## R_ARCH                  
+## R_BROWSER               xdg-open
+## R_BZIPCMD               /usr/bin/bzip2
+## R_DOC_DIR               /opt/R/4.1.3/lib/R/doc
+## R_GZIPCMD               /usr/bin/gzip
+## R_HOME                  /opt/R/4.1.3/lib/R
+## R_INCLUDE_DIR           /opt/R/4.1.3/lib/R/include
+## R_LIBS_SITE             
+## R_LIBS_USER             /home/runner/work/_temp/Library
+## R_PAPERSIZE             letter
+## R_PDFVIEWER             /usr/bin/xdg-open
+## R_PLATFORM              x86_64-pc-linux-gnu
+## R_PRINTCMD              /usr/bin/lpr
+## R_RD4PDF                times,inconsolata,hyper
+## R_SESSION_TMPDIR        /tmp/Rtmp8Hb01y
+## R_SHARE_DIR             /opt/R/4.1.3/lib/R/share
+## R_STRIP_SHARED_LIB      strip --strip-unneeded
+## R_STRIP_STATIC_LIB      strip --strip-debug
+## R_SYSTEM_ABI            linux,gcc,gxx,gfortran,gfortran
+## R_TEXI2DVICMD           /usr/bin/texi2dvi
+## R_UNZIPCMD              /usr/bin/unzip
+## R_ZIPCMD                /usr/bin/zip
+## RUNNER_ARCH             X64
+## RUNNER_NAME             GitHub Actions 2
+## RUNNER_OS               Linux
+## RUNNER_PERFLOG          /home/runner/perflog
+## RUNNER_TEMP             /home/runner/work/_temp
+## RUNNER_TOOL_CACHE       /opt/hostedtoolcache
+## RUNNER_TRACKING_ID      github_40c4b1ad-11b6-443f-ace2-83a54eabbfb3
+## RUNNER_USER             runner
+## RUNNER_WORKSPACE        /home/runner/work/money-printer-go-brrr
+## SED                     /usr/bin/sed
+## SELENIUM_JAR_PATH       /usr/share/java/selenium-server.jar
+## SGX_AESM_ADDR           1
+## SHLVL                   1
+## STATS_KEEPALIVE         false
+## STATS_PFS               true
+## SWIFT_PATH              /usr/share/swift/usr/bin
+## TAR                     /usr/bin/tar
+## TZ                      UTC
+## TZDIR                   /usr/share/zoneinfo
+## USER                    runner
+## VCPKG_INSTALLATION_ROOT
+##                         /usr/local/share/vcpkg
+## XDG_CONFIG_HOME         /home/runner/.config</code></pre>
 
 </div>
             </section>
