@@ -7,3 +7,4 @@ dgs2-dgs10-spread
 dgs6mo-mortgage30-spread
 yield-curve-1
 yield-checkboard
+obligationsrenter
