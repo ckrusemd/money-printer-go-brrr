@@ -3,13 +3,14 @@ on:
      branches:
        - main
   schedule:
-    - cron:  '10 1 * * *' # runs every night
+    - cron:  '10 12 * * *' # runs every day numbers are out at 14:10
 
 name: money-printer-go-brrr-render
 
 jobs:
   bookdown:
     name: renderbook
+    #runs-on: macOS-latest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -28,26 +29,17 @@ jobs:
       - name: Rvest dependencies 6
         run: sudo apt-get -y install libcurl4-gnutls-dev
       - name: Install rvest
-        run: Rscript -e 'install.packages(c("pacman"))'
-      - name: Renvison 1
-        run: echo ${{ secrets.TEST_KEY }}
-      - name: Renvison 2
-        run: echo ${{ secrets.FRED_API }}
-      - name: Renviron
-        run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
-      - name: Renviron cat
-        run: cat Renviron.site
-      # - name: Enable Rjava
-      #   run: sudo R CMD javareconf
-      # - name: Install Rjava before tabulizer
-        #run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");devtools::install_github("ropensci/tabulizer", args="--no-multiarch")'
-        # run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
+        run: Rscript -e 'install.packages(c("rvest"))'
+      - name: Enable Rjava
+        run: sudo R CMD javareconf
+      - name: Install Rjava before tabulizer
+        run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
       - name: Install rmarkdown
         run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools","RCurl","rPref","rvest","epibasix","png"))'
-      # - name: Install tabulizerjars from source
-      #   run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
-      # - name: Install tabulizer from source
-      #   run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
+      - name: Install tabulizerjars from source
+        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
+      - name: Install tabulizer from source
+        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
       - name: Render Book
         run: Rscript -e 'bookdown::render_book("index.Rmd")'
       - name: Cache R packages
@@ -55,6 +47,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ${{ env.R_LIBS_USER }}
+          #key: ${{ runner.os }}-r-${{ matrix.config.r }}-${{ hashFiles('DESCRIPTION') }}
           key: r-${{ hashFiles('DESCRIPTION') }}
       - uses: actions/upload-artifact@v1
         with:
@@ -76,9 +69,9 @@ jobs:
       uses: Cecilapp/GitHub-Pages-deploy@v3
       with:
         build_dir: _book/
-        email: ${{ secrets.EMAIL }}optional
+        email: ${{ secrets.EMAIL }}  #optional
         jekyll: no                     # optional
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        EMAIL: ${{ secrets.EMAIL }} 
+        EMAIL: ${{ secrets.EMAIL }}
         BUILD_DIR: _book/
