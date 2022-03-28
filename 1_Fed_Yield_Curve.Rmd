@@ -20,22 +20,14 @@ source(file = "money_theme.R")
 
 ```
 
+
 ```{r }
-readRenviron(path = "Renviron.site")
-```
-
-```{r}
-print( Sys.getenv() )
-```
-
-
-```{r eval=F }
 fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
 # Get Data
 
-```{r eval=F }
+```{r }
 df_yieldcurve = 
   fredr(series_id = "DGS1") %>% 
   bind_rows(fredr(series_id = "DGS2")) %>% 
@@ -87,7 +79,7 @@ df_yieldcurve =
 
 ## Time Series
 
-```{r eval=F}
+```{r }
 df_yieldcurve %>% 
   dplyr::mutate(value=value/100) %>% 
   ggplot(.,aes(x=date,y=value)) +
@@ -102,7 +94,7 @@ df_yieldcurve %>%
 ```
 
 
-```{r eval=F}
+```{r }
 
 df_yieldcurve %>% 
   filter(date>=Sys.Date()-years(1)) %>% 
@@ -122,7 +114,7 @@ df_yieldcurve %>%
 
 ## Spreads
 
-```{r eval=F}
+```{r }
 
 df_yieldcurve %>% 
   filter(series_id %in% c("MORTGAGE30US","DGS30")) %>% 
@@ -142,7 +134,7 @@ df_yieldcurve %>%
 ```
 
 ## DGS2-DGS10 Spread
-```{r eval=F}
+```{r }
 
 df_yieldcurve %>% 
   dplyr::select(-time) %>% 
@@ -163,7 +155,7 @@ df_yieldcurve %>%
 
 ## DGS6MO-MORTGAGE30 Spread
 
-```{r eval=F}
+```{r }
 
 df_yieldcurve %>% 
   dplyr::select(-time) %>% 
@@ -186,7 +178,7 @@ df_yieldcurve %>%
 
 ## Yield Curve
 
-```{r eval=F}
+```{r }
 
 df_yieldcurve %>% 
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,
@@ -213,7 +205,7 @@ df_yieldcurve %>%
 
 ```
 
-```{r eval=F}
+```{r }
 
 df_yieldcurve %>% 
   filter(date>(Sys.Date()-days(30))) %>%
@@ -230,7 +222,7 @@ df_yieldcurve %>%
 
 # Yield Checkboard
 
-```{r eval=F}
+```{r }
 df_checkboard = expand.grid(series_id=unique(df_yieldcurve$series_id),
                             joined_series=unique(df_yieldcurve$series_id))
 
@@ -258,7 +250,7 @@ df_yield_checkboard %>%
 ```
 
 
-```{r eval=F}
+```{r }
 df_yield_checkboard %>% 
   filter(date>ymd("20-01-01")) %>% 
   ggplot(.,aes(x=series_id,y=joined_series)) +
@@ -273,7 +265,7 @@ df_yield_checkboard %>%
 ```
 
 
-```{r eval=F}
+```{r }
 
 df_yield_checkboard %>% 
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,
