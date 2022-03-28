@@ -34,7 +34,7 @@ jobs:
       - name: Renvison 2
         run: echo ${{ secrets.FRED_API }}
       - name: Renviron
-        run: echo FRED_API=${{ secrets.TEST_KEY }} >> Renviron.site
+        run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
       - name: Renviron cat
         run: cat Renviron.site
       # - name: Enable Rjava
