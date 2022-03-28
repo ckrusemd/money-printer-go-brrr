@@ -1,3 +1,3 @@
-rmd_files: ["index.Rmd","1_Fed_Yield_Curve.Rmd"]
+rmd_files: ["index.Rmd","1_Fed_Yield_Curve.Rmd","2_Obligationsrenter.Rmd"]
 delete_merged_file: true
 
