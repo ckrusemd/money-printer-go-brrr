@@ -18,7 +18,7 @@ description: "Since 1971, Money Printer Has Gone BRRR. Let's Make the Most of It
 
 ```{r include=FALSE}
 
-
+if (!require(pacman)) { install.packages(pacman) }
 pacman::p_load( lubridate , scales )
 
 # automatically create a bib database for R packages

@@ -12,8 +12,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Obligationsrenter
 
 ```{r}
+
+if (!require(pacman)) { install.packages(pacman) }
 library(pacman)
-pacman::p_load(openxlsx,dplyr,tidyr,ggplot2,lubridate,rvest,zoo)
+pacman::p_load(openxlsx,dplyr,tidyr,ggplot2,lubridate,rvest,zoo,PlayerRatings)
 source(file = "money_theme.R")
 ```
 
@@ -199,3 +201,37 @@ df_interest %>%
        caption = timestamp_caption())
 
 ```
+
+
+```{r}
+
+df_glicko = data.frame(t(combn(df_interest %>% filter(Date>ymd("2001-01-01")) %>% pull(Date),2)))
+df_glicko$X1 = as.Date(df_glicko$X1,origin="1970-01-01")
+df_glicko$X2 = as.Date(df_glicko$X2,origin="1970-01-01")
+
+df_glicko_ratings = 
+  df_glicko %>% 
+  inner_join(df_interest,by=c("X1"="Date")) %>% 
+  inner_join(df_interest,by=c("X2"="Date")) %>% 
+  dplyr::mutate(Score1=ifelse(Lang.rente.x<Lang.rente.y,1,ifelse(Lang.rente.x>Lang.rente.y,-1,0))) %>% 
+  dplyr::mutate(Score2=ifelse(CurveLongShort.x<CurveLongShort.y,1,ifelse(CurveLongShort.x>CurveLongShort.y,-1,0))) %>% 
+  dplyr::mutate(Score=Score1+Score2) %>% 
+  dplyr::select(X1,X2,Score) %>% 
+  dplyr::mutate(result=ifelse(Score>0,1,
+                              ifelse(Score<0,0,0.5))) %>% 
+  na.omit() %>% 
+  dplyr::mutate(Time=1,
+                X1=paste0(X1),
+                X2=paste0(X2)) %>% 
+  dplyr::select(Time,X1,X2,result) %>% 
+  PlayerRatings::glicko(.) %>% 
+  .[["ratings"]] %>% 
+  dplyr::mutate(Rating=scales::rescale(Rating,to=c(0,100)))
+
+df_glicko_ratings$ratings %>% 
+  dplyr::mutate(Player=ymd(Player)) %>% 
+  ggplot(.,aes(x=Player,y=Rating)) +
+  geom_line()
+
+```
+
