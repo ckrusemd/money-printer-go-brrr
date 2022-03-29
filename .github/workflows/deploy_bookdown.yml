@@ -19,15 +19,7 @@ jobs:
       - name: Rvest dependencies 1
         run: sudo apt-get update
       - name: Rvest dependencies 2
-        run: sudo apt-get -y install xml2 openssl libxml2
-      - name: Rvest dependencies 3
-        run: sudo apt-get update
-      - name: Rvest dependencies 4
-        run: sudo apt-get -y install libxml2-dev libmariadb-dev
-      - name: Rvest dependencies 5
-        run: sudo apt-get update
-      - name: Rvest dependencies 6
-        run: sudo apt-get -y install libcurl4-gnutls-dev
+        run: sudo apt-get -y install xml2 openssl libxml2 libxml2-dev libmariadb-dev libcurl4-gnutls-dev
       - name: Renviron
         run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
 #      - name: Install rvest
@@ -36,8 +28,8 @@ jobs:
 #        run: sudo R CMD javareconf
 #      - name: Install Rjava before tabulizer
 #        run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
-#      - name: Install rmarkdown
-#        run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools","RCurl","rPref","rvest","epibasix","png"))'
+      - name: Install rmarkdown
+        run: Rscript -e 'install.packages(c("pacman","devtools"))'
 #      - name: Install tabulizerjars from source
 #        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
 #      - name: Install tabulizer from source
