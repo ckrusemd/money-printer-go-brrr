@@ -47,8 +47,8 @@ jobs:
       - name: Render document
         uses: lc5415/rmarkdown-action@v1
         with:
-          input_file: index.Rmd
-	        output_format: html_document
+	  input_file: index.Rmd
+	  output_format: html_document
       - name: Cache R packages
         if: runner.os != 'Windows'
         uses: actions/cache@v1
