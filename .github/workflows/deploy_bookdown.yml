@@ -28,6 +28,8 @@ jobs:
         run: sudo apt-get update
       - name: Rvest dependencies 6
         run: sudo apt-get -y install libcurl4-gnutls-dev
+      - name: Renviron
+        run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
       - name: Install rvest
         run: Rscript -e 'install.packages(c("rvest"))'
       - name: Enable Rjava
