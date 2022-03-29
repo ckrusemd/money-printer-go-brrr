@@ -29,18 +29,18 @@ jobs:
 #      - name: Install Rjava before tabulizer
 #        run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
       - name: Install rmarkdown
-        run: Rscript -e 'install.packages(c("pacman","devtools"))'
+        run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools"))'
 #      - name: Install tabulizerjars from source
 #        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
 #      - name: Install tabulizer from source
 #        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
-#      - name: Render Book
-#        run: Rscript -e 'bookdown::render_book("index.Rmd")'
-      - name: Render document
-        uses: happyRip/rmarkdown-action@v1.1
-        with:
-          input_file: index.Rmd
-          output_format: html_document
+      - name: Render Book
+        run: Rscript -e 'bookdown::render_book("index.Rmd")'
+#      - name: Render document
+#        uses: happyRip/rmarkdown-action@v1.1
+#        with:
+#          input_file: index.Rmd
+#          output_format: html_document
       - name: Cache R packages
         if: runner.os != 'Windows'
         uses: actions/cache@v1
