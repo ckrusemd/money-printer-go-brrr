@@ -32,10 +32,10 @@ jobs:
         run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
 #      - name: Install rvest
 #        run: Rscript -e 'install.packages(c("rvest"))'
-      - name: Enable Rjava
-        run: sudo R CMD javareconf
-      - name: Install Rjava before tabulizer
-        run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
+#      - name: Enable Rjava
+#        run: sudo R CMD javareconf
+#      - name: Install Rjava before tabulizer
+#        run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
       - name: Install rmarkdown
         run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools","RCurl","rPref","rvest","epibasix","png"))'
 #      - name: Install tabulizerjars from source
