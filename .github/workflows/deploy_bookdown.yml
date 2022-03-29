@@ -45,7 +45,7 @@ jobs:
 #      - name: Render Book
 #        run: Rscript -e 'bookdown::render_book("index.Rmd")'
       - name: Render document
-        uses: lc5415/rmarkdown-action@v1
+        uses: happyRip/rmarkdown-action@v1.1
         with:
           input_file: index.Rmd
           output_format: html_document
