@@ -40,8 +40,8 @@ jobs:
         run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools","RCurl","rPref","rvest","epibasix","png"))'
 #      - name: Install tabulizerjars from source
 #        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
-      - name: Install tabulizer from source
-        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
+#      - name: Install tabulizer from source
+#        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
       - name: Render Book
         run: Rscript -e 'bookdown::render_book("index.Rmd")'
       - name: Cache R packages
