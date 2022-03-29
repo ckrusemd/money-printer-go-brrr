@@ -193,7 +193,7 @@ df_interest %>%
   ggplot(.,aes(y=Lang.rente,x=CurveLongShort,color=Time_Ago)) +
   geom_point() +
   scale_y_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) +
-  scale_x_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),,labels = scales::percent) + 
+  scale_x_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) + 
   theme_money_printer_go_brrr +
   labs(title="Lowest Long Yield to Lowest Short-Long Spread (i.e. You Should Probably Go Fixed Right About Now)",
        x="Mortgage 30YR Yield",
@@ -224,14 +224,21 @@ df_glicko_ratings =
                 X1=paste0(X1),
                 X2=paste0(X2)) %>% 
   dplyr::select(Time,X1,X2,result) %>% 
-  PlayerRatings::glicko(.) %>% 
+  PlayerRatings::glicko(.)  %>% 
   .[["ratings"]] %>% 
   dplyr::mutate(Rating=scales::rescale(Rating,to=c(0,100)))
 
-df_glicko_ratings$ratings %>% 
+df_glicko_ratings %>% 
   dplyr::mutate(Player=ymd(Player)) %>% 
   ggplot(.,aes(x=Player,y=Rating)) +
-  geom_line()
+  geom_line() +
+  scale_y_continuous(limits=c(0,100),breaks = seq(0,100,by=10)) +
+  scale_x_date(date_breaks = "1 years",date_labels = "%Y") +
+  theme_money_printer_go_brrr +
+  labs(title="Best Time To Go Fixed (0-100)",
+       x="Year",
+       y="Rating (0-100)",
+       caption = timestamp_caption())
 
 ```
 
