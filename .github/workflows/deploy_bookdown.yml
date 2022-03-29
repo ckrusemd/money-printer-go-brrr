@@ -3,7 +3,7 @@ on:
      branches:
        - main
   schedule:
-    - cron:  '10 12 * * *' # runs every day numbers are out at 14:10
+    - cron:  '0 3 * * *' 
 
 name: money-printer-go-brrr-render
 
@@ -30,8 +30,8 @@ jobs:
         run: sudo apt-get -y install libcurl4-gnutls-dev
       - name: Renviron
         run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
-      - name: Install rvest
-        run: Rscript -e 'install.packages(c("rvest"))'
+#      - name: Install rvest
+#        run: Rscript -e 'install.packages(c("rvest"))'
       - name: Enable Rjava
         run: sudo R CMD javareconf
       - name: Install Rjava before tabulizer
