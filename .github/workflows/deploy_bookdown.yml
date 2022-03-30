@@ -15,21 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: r-lib/actions/setup-r@v1
-      - uses: r-lib/actions/setup-pandoc@v1
-      - name: Rvest dependencies 1
-        run: sudo apt-get update
-      - name: Rvest dependencies 2
-        run: sudo apt-get -y install xml2 openssl libxml2 libxml2-dev libmariadb-dev libcurl4-gnutls-dev
-      - name: Renviron
-        run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
+#      - uses: r-lib/actions/setup-pandoc@v1
 #      - name: Install rvest
 #        run: Rscript -e 'install.packages(c("rvest"))'
 #      - name: Enable Rjava
 #        run: sudo R CMD javareconf
 #      - name: Install Rjava before tabulizer
 #        run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
-      - name: Install rmarkdown
-        run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools"))'
+#      - name: Install rmarkdown
+#        run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools"))'
 #      - name: Install tabulizerjars from source
 #        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
 #      - name: Install tabulizer from source
