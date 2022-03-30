@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 if (!require(pacman)) { install.packages("pacman") }
 library(pacman)
-pacman::p_load(openxlsx,dplyr,tidyr,ggplot2,lubridate,rvest,zoo,PlayerRatings)
+pacman::p_load(openxlsx,dplyr,tidyr,ggplot2,lubridate,rvest,zoo,PlayerRatings,fredr)
 source(file = "money_theme.R")
 ```
 
