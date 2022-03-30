@@ -79,7 +79,11 @@ df_yieldcurve =
 
 ```{r}
 
-df_DK = openxlsx::read.xlsx(xlsxFile = "obligationsrente_fida_uge11-2022.xlsx",startRow = 3)
+source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
+current_url = xml2::read_html(source_url) %>%
+  html_node("#wrapper > div > div.sectionB > div.container > div > div.span8 > p:nth-child(10) > a") %>% 
+  rvest::html_attr("href")
+df_DK = paste0("https://finansdanmark.dk/",current_url)
 
 df_DK$date = as.Date(paste(df_DK$År, df_DK$Uge, 1, sep="-"), "%Y-%U-%u")
 df_DK = df_DK %>% 
