@@ -15,25 +15,27 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: r-lib/actions/setup-r@v1
-      - uses: r-lib/actions/setup-pandoc@v1
+#      - uses: r-lib/actions/setup-pandoc@v1
 #      - name: Install rvest
 #        run: Rscript -e 'install.packages(c("rvest"))'
 #      - name: Enable Rjava
 #        run: sudo R CMD javareconf
 #      - name: Install Rjava before tabulizer
 #        run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
-      - name: Install rmarkdown
-        run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools"))'
+#      - name: Install rmarkdown
+#        run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools"))'
 #      - name: Install tabulizerjars from source
 #        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
 #      - name: Install tabulizer from source
 #        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
-      - name: Render Book
-        run: Rscript -e 'bookdown::render_book("index.Rmd")'
-#      - name: Render Book from Action
-#        uses: ckrusemd/rmarkdown-action@v0.17
-#        with:
-#           input_file: index.Rmd
+#      - name: Render Book
+#        run: Rscript -e 'bookdown::render_book("index.Rmd")'
+      - name: Renviron
+        run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
+      - name: Render Book from Action
+        uses: ckrusemd/rmarkdown-action@v0.18
+        with:
+           input_file: index.Rmd
 #      - name: Render document
 #        uses: happyRip/rmarkdown-action@v1.1
 #        with:
