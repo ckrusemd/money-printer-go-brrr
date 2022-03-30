@@ -37,7 +37,7 @@ jobs:
 #      - name: Render Book
 #        run: Rscript -e 'bookdown::render_book("index.Rmd")'
       - name: Render Book from Action
-        uses: ckrusemd/rmarkdown-action@v0.15
+        uses: ckrusemd/rmarkdown-action@v0.16
         with:
            input_file: index.Rmd
 #      - name: Render document
