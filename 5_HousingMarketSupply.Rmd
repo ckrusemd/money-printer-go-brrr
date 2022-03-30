@@ -1,0 +1,292 @@
+---
+title: "Denmark: Housing Market Supply"
+author: "CAKU"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+
+```
+
+```{r }
+library(pacman)
+pacman::p_load(tidyr,dplyr,ggplot2,boot,openxlsx,lubridate,forcats,broom,purrr,caret,glue,devtools,dkstat,zoo)
+```
+
+```{r}
+loess_adjust = function(data) {
+  
+  grid <- expand.grid(span = seq(0.1, 0.5, len = 5), degree = c(1))
+  fit_gam = suppressWarnings(expr =  { train(y = data$VALUE, 
+        x = data %>% dplyr::select(DATE),
+        tuneGrid=grid,
+        method = "gamLoess") })
+  
+  data %>% 
+    dplyr::mutate(VALUE=predict(fit_gam)) %>% 
+    dplyr::mutate(VALUE=scale(VALUE,center=TRUE,scale=TRUE)) %>%
+    dplyr::mutate(ema=TTR::EMA(VALUE,9))
+  
+}
+```
+
+# UDBUD
+
+## Data
+
+```{r}
+df_udbud =
+  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
+  dplyr::rename(SUPPLY_TYPE=X1,
+                PROPERTY_TYPE=X2,
+                ZIP=X3) %>% 
+  tidyr::fill(SUPPLY_TYPE,.direction="down") %>% 
+  tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(ymd(glue("{substr(DATE,1,4)}-{substr(DATE,6,7)}-01")),unit="month")-days(1)) %>% 
+  group_by(PROPERTY_TYPE,ZIP) %>%
+  do(loess_adjust(.))
+
+```
+
+## Change Data
+
+```{r}
+df_udbud.change =
+  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
+  dplyr::rename(SUPPLY_TYPE=X1,
+                PROPERTY_TYPE=X2,
+                ZIP=X3) %>% 
+  tidyr::fill(SUPPLY_TYPE,.direction="down") %>% 
+  tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(ymd(glue("{substr(DATE,1,4)}-{substr(DATE,6,7)}-01")),unit="month")-days(1)) %>% 
+  group_by(PROPERTY_TYPE,ZIP) %>%  
+  do(loess_adjust(.)) %>% 
+  arrange(PROPERTY_TYPE,ZIP,DATE) %>% 
+  dplyr::mutate(next_period_chg=lead(value)-value)
+```
+
+## Bubble lows
+
+```{r}
+
+df_udbud.bubblelow = df_udbud %>% 
+  filter(DATE>ymd("2005-01-01")) %>% 
+  filter(DATE<ymd("2008-01-01")) %>% 
+  group_by(PROPERTY_TYPE,ZIP) %>% 
+  filter(INDEX==min(INDEX)) %>% 
+  dplyr::select(PROPERTY_TYPE,ZIP,DATE)
+
+df_udbud.bubblelow.DK = 
+  df_udbud.bubblelow %>% 
+  group_by(PROPERTY_TYPE) %>% 
+  dplyr::summarise(DATE=mean(DATE))
+
+```
+
+## Post-COVID19 lows
+
+```{r}
+
+df_udbud.covid19low = df_udbud %>% 
+  filter(DATE>ymd("2020-01-01")) %>% 
+  group_by(PROPERTY_TYPE,ZIP) %>% 
+  filter(value==min(value)) %>% 
+  dplyr::select(PROPERTY_TYPE,ZIP,DATE)
+
+df_udbud.covid19low.DK = 
+  df_udbud.covid19low %>% 
+  group_by(PROPERTY_TYPE) %>% 
+  dplyr::summarise(DATE=mean(DATE))
+
+```
+
+# COVARIATES
+
+## House Price Growth
+
+```{r}
+df.house_prices =
+  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
+  setNames(.,c("ZIP","DATE","STAT","HOUSE","FLAT")) %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(DATE,.direction="down") %>% 
+  gather(PROPERTY_TYPE,VALUE,HOUSE,FLAT) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1)) %>% 
+  group_by(PROPERTY_TYPE,STAT,ZIP) %>% 
+  do(loess_adjust(.)) %>% 
+  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed'))
+df.house_prices
+```
+
+## Liggetider
+
+
+```{r}
+
+df_liggetider =
+  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/202236191752365370194UDB030_2.xlsx",startRow = 3) %>% 
+  dplyr::rename(STAT=X1,
+                PROPERTY_TYPE=X2,
+                ZIP=X3) %>% 
+  tidyr::fill(STAT,.direction="down") %>% 
+  tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
+  filter(STAT=="Liggetider (dage)") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  group_by(PROPERTY_TYPE,STAT,ZIP) %>% 
+  dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(ymd(glue("{substr(DATE,1,4)}-{substr(DATE,6,7)}-01")),unit="month")-days(1))
+df_liggetider
+```
+
+## Byggekonjunkturer
+
+```{r }
+
+BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
+BYGV80 <- dst_get_data(table = "BYGV80", 
+                       BYGFASE="*",
+                       ANVENDELSE="*",
+                       Tid="*",
+                       lang = "da")
+df_BYGV80 = 
+  BYGV80 %>% 
+  group_by(BYGFASE,ANVENDELSE) %>% 
+  arrange(BYGFASE,ANVENDELSE,TID) %>% 
+  filter(ANVENDELSE %in% c("Etageboliger","Parcelhuse")) %>% 
+  dplyr::mutate(ANVENDELSE=gsub("Etageboliger","FLAT",ANVENDELSE)) %>% 
+  dplyr::mutate(ANVENDELSE=gsub("Parcelhuse","HOUSE",ANVENDELSE)) %>% 
+  dplyr::rename(PROPERTY_TYPE=ANVENDELSE) %>% 
+  dplyr::rename(STAT=BYGFASE) %>% 
+  dplyr::rename(DATE=TID) %>% 
+  dplyr::rename(VALUE=value) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>% 
+  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
+  dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  na.omit()
+df_BYGV80
+```
+## Renter
+
+```{r}
+
+df_interest = openxlsx::read.xlsx(xlsxFile = "obligationsrente_fida_uge08-2022.xlsx",startRow = 3)
+
+df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
+df_interest = df_interest %>% 
+  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
+  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
+  gather(STAT,VALUE,Kort.rente:CurveLongShort) %>% 
+  # dplyr::mutate(VALUE=TTR::RSI(VALUE,n=14)) %>% 
+  crossing(PROPERTY_TYPE=c("FLAT","HOUSE")) %>% 
+  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
+  dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  dplyr::rename(DATE=Date)
+df_interest
+```
+
+## Adjustments
+
+```{r}
+
+df.adjustments = 
+  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
+  setNames(.,c("ZIP","DATE","STAT","HOUSE","FLAT")) %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(DATE,.direction="down") %>% 
+  gather(PROPERTY_TYPE,VALUE,HOUSE,FLAT) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  unite(STAT,STAT,PROPERTY_TYPE) %>% 
+  spread(STAT,VALUE) %>% 
+  dplyr::mutate(ADJUST_HOUSE=(`Realiseret handelspris_HOUSE`/`Første udbudspris_HOUSE`)-1) %>% 
+  dplyr::mutate(ADJUST_FLAT=(`Realiseret handelspris_FLAT`/`Første udbudspris_FLAT`)-1) %>% 
+  dplyr::select(ZIP,DATE,ADJUST_HOUSE,ADJUST_FLAT) %>% 
+  gather(ADJUST_TYPE,VALUE,ADJUST_HOUSE,ADJUST_FLAT) %>% 
+  na.omit() %>% 
+  separate(ADJUST_TYPE,into=c("STAT","PROPERTY_TYPE")) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1)) %>% 
+  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
+  group_by(PROPERTY_TYPE,STAT,ZIP) %>% 
+  dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) 
+df.adjustments
+
+```
+
+## INSIGHTS
+
+### All time development
+
+```{r}
+
+df.adjustments %>% 
+  bind_rows( df.house_prices ) %>% 
+  bind_rows( df_liggetider ) %>% 
+  bind_rows( df_interest ) %>% 
+  bind_rows( df_BYGV80 ) %>% 
+  ggplot(.,aes(x=DATE,y=INDEX,color=STAT)) +
+  geom_smooth(fill=NA,span=0.03) +
+  facet_wrap(~PROPERTY_TYPE,ncol=1) +
+  geom_smooth(data=df_udbud,aes(x=DATE,y=INDEX),color="blue",linetype=2)  +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  theme(legend.position="bottom") +
+  geom_vline(data=df_udbud.covid19low.DK,aes(xintercept=DATE)) +
+  geom_vline(data=df_udbud.bubblelow.DK,aes(xintercept=DATE)) +
+  geom_hline(yintercept = 0)
+```
+
+```{r}
+
+df_BYGV80 %>% 
+  ggplot(.,aes(x=DATE,y=INDEX,color=STAT)) +
+  geom_line(color="gray30") +
+  geom_smooth(fill=NA) +
+  facet_wrap(~PROPERTY_TYPE,ncol=1) +
+  geom_smooth(data=df_udbud,aes(x=DATE,y=INDEX),color="blue",linetype=2)  +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y",limits=c(dmy("2004-01-01"),dmy("2008-01-01"))) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  theme(legend.position="bottom") +
+  geom_vline(data=df_udbud.covid19low.DK,aes(xintercept=DATE)) +
+  geom_vline(data=df_udbud.bubblelow.DK,aes(xintercept=DATE)) +
+  geom_hline(yintercept = 0) 
+
+```
+
+```{r}
+ggplot(df_udbud,aes(x=DATE,y=INDEX,color=ZIP)) +
+  geom_line(alpha=0.3) +
+  facet_wrap(~PROPERTY_TYPE)
+```
+### COVID 19 lows
+
+```{r}
+ggplot(df_udbud,aes(x=DATE,y=INDEX,color=ZIP)) +
+  geom_line(alpha=0.3) +
+  facet_wrap(~PROPERTY_TYPE)  +
+  scale_x_date(limits=c(ymd("2020-01-01"),NA),date_labels = "%b",date_breaks = "2 months")  +
+  geom_vline(data=df_udbud.covid19low,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7)
+```
+
+### Bubble lows
+
+```{r}
+ggplot(df_udbud,aes(x=DATE,y=INDEX,color=ZIP)) +
+  geom_line(alpha=0.3) +
+  facet_wrap(~PROPERTY_TYPE)  +
+  scale_x_date(limits=c(ymd("2005-01-01"),ymd("2008-01-01")))  +
+  geom_vline(data=df_udbud.bubblelow,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7)
+```
+
+

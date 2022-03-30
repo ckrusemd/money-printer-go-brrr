@@ -1,0 +1,686 @@
+---
+title: "Denmark: Housing Prices"
+author: "CAKU"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+## House Price Growth
+
+```{r }
+library(pacman)
+pacman::p_load(tidyr,dplyr,ggplot2,boot,openxlsx,lubridate,forcats,broom,purrr,caret,glue,devtools,dkstat,httr,rvest)
+```
+
+```{r}
+df =
+  openxlsx::read.xlsx(xlsxFile = "Data/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
+  setNames(.,c("ZIP","DATE","SALES_TYPE","HOUSE","FLAT")) %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(DATE,.direction="down") %>% 
+  gather(PROPERTY_TYPE,VALUE,HOUSE,FLAT) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1))
+df
+```
+
+
+```{r}
+growth = function(data,indices) {
+  lm_ = lm(log(VALUE)~DATE,data=data[indices,])
+  return((((1+lm_$coefficients[2])^365)-1)*100)
+}
+
+coefs = function(data) {
+  ci_auc = tryCatch(expr = {
+    boot_ = boot(data=data,statistic=growth,R=10000)
+    ci_ = boot.ci(boot_, type="bca")
+    data.frame(t0=ci_$t0,
+                        lwr=ci_$bca[4],
+                        upr=ci_$bca[5])
+  }, error= function(e) {
+    data.frame()
+  })
+  return(ci_auc)
+}
+
+df_increase = df %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  filter(VALUE>0) %>% 
+  group_by(ZIP,PROPERTY_TYPE) %>% 
+  do(coefs(data = .)) %>% 
+  arrange(desc(t0))
+```
+
+# HOUSES
+
+```{r}
+
+df_increase %>% 
+  filter(PROPERTY_TYPE=="HOUSE") %>% 
+  arrange(t0) %>% 
+  dplyr::mutate(ZIP=factor(ZIP,levels=.$ZIP)) %>% 
+  ggplot(.,aes(x=ZIP,y=t0)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=lwr,ymax=upr)) +
+  scale_y_continuous(limits=c(0,10)) +
+  geom_text(aes(label=paste0(scales::number(t0,accuracy = 0.1)," [",scales::number(lwr,accuracy = 0.1)," ; ",scales::number(upr,accuracy = 0.1),"]"),hjust=1.3),size=3) +
+  coord_flip()
+
+```
+
+# FLATS
+
+```{r}
+
+df_increase %>% 
+  filter(PROPERTY_TYPE=="FLAT") %>% 
+  arrange(t0) %>% 
+  dplyr::mutate(ZIP=factor(ZIP,levels=.$ZIP)) %>% 
+  ggplot(.,aes(x=ZIP,y=t0)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=lwr,ymax=upr)) +
+  scale_y_continuous(limits=c(0,10)) +
+  geom_text(aes(label=paste0(scales::number(t0,accuracy = 0.1)," [",scales::number(lwr,accuracy = 0.1)," ; ",scales::number(upr,accuracy = 0.1),"]"),hjust=1.3),size=3) +
+  coord_flip()
+
+```
+
+
+# FLATS SINCE DECEMBER 2019
+
+```{r}
+
+days = as.integer(ymd("2021-09-30") - ymd("2018-12-01"))
+
+growth = function(data,indices) {
+  lm_ = lm(log(VALUE)~DATE,data=data[indices,])
+  return((((1+lm_$coefficients[2])^days)-1)*100)
+}
+
+coefs_total = function(data) {
+  ci_auc = tryCatch(expr = {
+    boot_ = boot(data=data,statistic=growth,R=10000)
+    ci_ = boot.ci(boot_, type="bca")
+    data.frame(t0=ci_$t0,
+                        lwr=ci_$bca[4],
+                        upr=ci_$bca[5])
+  }, error= function(e) {
+    data.frame()
+  })
+  return(ci_auc)
+}
+
+df_increase_dec_2019 = df %>% 
+  filter(DATE>=ymd("2018-12-01")) %>% 
+  filter(PROPERTY_TYPE=="FLAT") %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  filter(VALUE>0) %>% 
+  group_by(ZIP,PROPERTY_TYPE) %>% 
+  do(coefs_total(data = .)) %>% 
+  arrange(desc(t0)) %>%  
+  arrange(t0) %>% 
+  dplyr::mutate(ZIP=factor(ZIP,levels=.$ZIP)) 
+
+df_increase_dec_2019 %>% 
+  ggplot(.,aes(x=ZIP,y=t0)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=lwr,ymax=upr)) +
+  scale_y_continuous(limits=c(0,30)) +
+  geom_text(aes(label=paste0(scales::number(t0,accuracy = 0.1)," [",scales::number(lwr,accuracy = 0.1)," ; ",scales::number(upr,accuracy = 0.1),"]"),hjust=1.3),size=3) +
+  coord_flip()
+
+```
+# ABSOLUTE TERMS
+
+```{r}
+
+df %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  filter(PROPERTY_TYPE=="HOUSE") %>% 
+  filter(VALUE>0) %>% 
+  group_by(ZIP) %>% 
+  filter(DATE==max(DATE)) %>% 
+  inner_join(df_increase) %>% 
+  dplyr::mutate(VALUE=VALUE*150) %>% 
+  dplyr:::mutate(increase_lwr=(-VALUE+(VALUE*((100+lwr)/100)^10))/(12*10),
+                 increase_t0=(-VALUE+(VALUE*((100+t0)/100)^10))/(12*10),
+                 increase_upr=(-VALUE+(VALUE*((100+upr)/100)^10))/(12*10)) %>% 
+  arrange(increase_t0) %>% 
+  dplyr::mutate(ZIP=factor(ZIP,levels=.$ZIP)) %>% 
+  dplyr::select(ZIP,PROPERTY_TYPE,increase_lwr:increase_upr) %>% 
+  # gather(STAT,VAL,increase_lwr:increase_upr) %>% 
+  ggplot(.,aes(x=ZIP,y=increase_t0)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=increase_lwr,ymax=increase_upr)) +
+  coord_flip() +
+  scale_y_continuous(limits=c(0,250000))
+  
+
+
+
+```
+
+
+## MARS
+
+```{r}
+
+hyper_grid <- expand.grid(
+  degree = seq(1,12,by=3), 
+  nprune = seq(1, 101, length.out = 50) %>% floor()
+  ) %>% sample_n(30)
+
+df_mars = df %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  filter(PROPERTY_TYPE=="HOUSE") %>% 
+  dplyr::filter(ZIP=="2800 Kgs.Lyngby")
+
+tr_control = trainControl(method = "repeatedcv",number=5,repeats=5)
+fit_mars = caret::train(x = df %>% dplyr::select(DATE),
+                        y=df$VALUE,method="earth",
+                        tuneGrid=hyper_grid,
+                        metric="RMSE",
+                        trControl=tr_control)
+df_mars = df_mars %>% dplyr::mutate(pred=predict(fit_mars,.))
+break_dates = tail(unique(as.Date(summary(fit_mars$finalModel)$cuts[,1], origin = "1970-01-01")),-1)
+ggplot(df_mars,aes(x=DATE,y=pred)) +
+  # geom_line() +
+  geom_vline(xintercept = break_dates) + 
+  annotate(geom = "label",x=break_dates,y = 10000,label=format(break_dates,"%Y %b"),size=2) +
+  geom_point(aes(y=VALUE)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") 
+
+
+
+```
+
+## Profit from waiting
+
+```{r}
+df_finanskrise = 
+  df %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  filter(PROPERTY_TYPE=="HOUSE") %>% 
+  filter(VALUE>0) %>% 
+  arrange(ZIP,DATE) %>% 
+  filter(DATE<=ymd("2015-01-01")) %>% 
+  group_by(ZIP) %>% 
+  dplyr::mutate(Peak_Date=ifelse(VALUE==max(VALUE),
+                                DATE,
+                                NA)) %>% 
+  tidyr::fill(Peak_Date,.direction="down") %>% 
+  na.omit() %>% 
+  dplyr::mutate(Max_M2_Price=max(VALUE)) %>% 
+  dplyr::mutate(Trough_Date=ifelse(VALUE==min(VALUE),
+                                DATE,
+                                NA)) %>% 
+  tidyr::fill(Peak_Date,.direction="up") %>% 
+  na.omit() %>% 
+  dplyr::mutate(Min_M2_Price=min(VALUE)) %>% 
+  arrange(ZIP,DATE) %>% 
+  dplyr::mutate(Days=as.integer(Trough_Date-Peak_Date)) %>% 
+  dplyr::mutate(Pct_Chg=Min_M2_Price/Max_M2_Price) %>% 
+  dplyr::mutate(Pct_Chg_Annualized=100*(Pct_Chg^(1/(Days/365.25))-1)) %>% 
+  dplyr::mutate(Pct_Chg=100*(Pct_Chg-1))
+df_finanskrise
+```
+
+
+```{r}
+df_finanskrise %>% 
+  ggplot(.,aes(x=Max_M2_Price,y=Pct_Chg)) +
+  geom_point() +
+  geom_smooth() +
+  geom_label(aes(label=ZIP),size=2)
+```
+
+
+```{r}
+df_finanskrise %>% 
+  gather(date,val,Peak_Date,Trough_Date) %>% 
+  dplyr::mutate(val=as.Date(as.numeric(val),origin="1970-01-01")) %>% 
+  ggplot(.,aes(x=ZIP,y=val,group=ZIP)) +
+  geom_line() +
+  geom_point() +
+  coord_flip() +
+  scale_y_date(date_labels = "%Y",date_breaks = "1 year")
+```
+
+
+```{r}
+df_finanskrise %>% 
+  gather(date,val,Peak_Date,Trough_Date) %>% 
+  dplyr::mutate(val=as.Date(as.numeric(val),origin="1970-01-01")) %>% 
+  ggplot(.,aes(x=ZIP,y=val,group=ZIP)) +
+  geom_line() +
+  geom_point() +
+  coord_flip() +
+  scale_y_date(date_labels = "%Y",date_breaks = "1 year")
+```
+
+```{r}
+# Fall from right now
+
+current_max = max(df$DATE)
+df %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  filter(PROPERTY_TYPE=="HOUSE") %>% 
+  filter(VALUE>0) %>% 
+  group_by(ZIP) %>% 
+  filter(DATE==max(DATE)) %>% 
+  crossing(Length=seq(3)) %>% 
+  dplyr::select(DATE,ZIP,PROPERTY_TYPE,VALUE,Length) %>% 
+  inner_join(df_finanskrise %>% dplyr::select(ZIP,PROPERTY_TYPE,Pct_Chg_Annualized)) %>% 
+  dplyr::mutate(VALUE=VALUE*(1+(Pct_Chg_Annualized)/100)^Length) %>% 
+  dplyr::mutate(DATE=DATE+years(Length)) %>% 
+  dplyr::select(DATE,ZIP,PROPERTY_TYPE,VALUE) %>% 
+  bind_rows(df) %>% 
+  ggplot(.,aes(x=DATE,VALUE,color=ZIP)) +
+  geom_point(alpha=0.1) + 
+  geom_line() +
+  geom_vline(xintercept = current_max,linetype=2) +
+  theme(legend.position="bottom")
+
+```
+
+
+  
+  
+```{r}
+
+current_max = max(df$DATE)
+
+df %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  filter(PROPERTY_TYPE=="HOUSE") %>% 
+  filter(VALUE>0) %>% 
+  group_by(ZIP) %>% 
+  filter(DATE==max(DATE)) %>% 
+  crossing(Length=seq(3)) %>% 
+  dplyr::select(DATE,ZIP,PROPERTY_TYPE,VALUE,Length) %>% 
+  inner_join(df_finanskrise %>% dplyr::select(ZIP,PROPERTY_TYPE,Pct_Chg_Annualized)) %>% 
+  dplyr::mutate(VALUE=VALUE*(1+(Pct_Chg_Annualized)/100)^Length) %>% 
+  dplyr::mutate(DATE=DATE+years(Length)) %>% 
+  dplyr::select(DATE,ZIP,PROPERTY_TYPE,VALUE) %>% 
+  bind_rows(df) %>% 
+  dplyr::mutate(VALUE=VALUE*150) %>% 
+  filter(DATE>=current_max) %>% 
+  ggplot(.,aes(x=DATE,VALUE,color=ZIP)) +
+  geom_point(alpha=0.1) + 
+  geom_line() +
+  geom_vline(aes(xintercept = DATE),linetype=3) +
+  geom_vline(xintercept = current_max,linetype=2) +
+  theme(legend.position="bottom") +
+  scale_y_continuous(labels = scales::number,breaks = seq(0,10000000,1000000))
+```
+
+```{r}
+
+current_max = max(df$Date)
+
+df %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  filter(PROPERTY_TYPE=="HOUSE") %>% 
+  filter(VALUE>0) %>% 
+  group_by(ZIP) %>% 
+  filter(DATE==max(DATE)) %>% 
+  crossing(Length=seq(3*12)) %>% 
+  dplyr::select(DATE,ZIP,PROPERTY_TYPE,VALUE,Length) %>% 
+  inner_join(df_finanskrise %>% dplyr::select(ZIP,PROPERTY_TYPE,Pct_Chg_Annualized)) %>% 
+  dplyr::mutate(VALUE=VALUE*((1+(Pct_Chg_Annualized)/100)^(1/12))^(Length)) %>% 
+  dplyr::mutate(DATE=DATE+months(Length)) %>% 
+  # dplyr::select(Date,Muni,Type,M2_Price) %>% 
+  bind_rows(df) %>% 
+  dplyr::mutate(VALUE=VALUE*150) %>% 
+  filter(DATE>=current_max) %>% 
+  group_by(ZIP) %>% 
+  arrange(ZIP,DATE) %>% 
+  dplyr::mutate(chg_from_max=VALUE-max(VALUE)) %>% 
+  dplyr::mutate(chg_from_max_monthly=chg_from_max/(Length)) %>% 
+  ggplot(.,aes(x=DATE,y=chg_from_max_monthly,color=ZIP)) +
+  geom_point() + 
+  geom_line() +
+  geom_vline(xintercept = current_max,linetype=2) +
+  theme(legend.position="bottom") +
+  scale_y_continuous(labels = scales::number,limits = c(-150000,0),breaks = seq(-150000,0,by=10000))
+```
+
+
+# Adjustments
+
+```{r}
+
+df %>% 
+  unite(SALES_TYPE,SALES_TYPE,PROPERTY_TYPE) %>% 
+  spread(SALES_TYPE,VALUE) %>% 
+  dplyr::mutate(ADJUST_HOUSE=(`Realiseret handelspris_HOUSE`/`Første udbudspris_HOUSE`)-1) %>% 
+  dplyr::mutate(ADJUST_FLAT=(`Realiseret handelspris_FLAT`/`Første udbudspris_FLAT`)-1) %>% 
+  dplyr::select(ZIP,DATE,ADJUST_HOUSE,ADJUST_FLAT) %>% 
+  gather(ADJUST_TYPE,ADJUST_VAL,ADJUST_HOUSE,ADJUST_FLAT) %>% 
+  na.omit() %>% 
+  separate(ADJUST_TYPE,into=c("SALES_TYPE","PROPERTY_TYPE")) %>% 
+  ggplot(.,aes(x=DATE,y=ADJUST_VAL,color=PROPERTY_TYPE)) +
+  geom_smooth() +
+  theme(legend.position="bottom") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_date(date_breaks = "2 year",date_labels = "%Y")
+
+
+```
+
+# LIGGE TIDER
+
+
+```{r}
+
+df_liggetider =
+  openxlsx::read.xlsx(xlsxFile = "Data/202236191752365370194UDB030_2.xlsx",startRow = 3) %>% 
+  dplyr::rename(TIME_TYPE=X1,
+                PROPERTY_TYPE=X2,
+                ZIP=X3) %>% 
+  tidyr::fill(TIME_TYPE,.direction="down") %>% 
+  tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
+  filter(TIME_TYPE=="Liggetider (dage)") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(ymd(glue("{substr(DATE,1,4)}-{substr(DATE,6,7)}-01")),unit="month")-days(1))
+df_liggetider
+```
+
+```{r}
+
+df_liggetider %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=PROPERTY_TYPE)) +
+  geom_smooth()+
+  scale_x_date(date_breaks = "2 year",date_labels = "%Y")
+
+```
+
+
+# UDBUD
+
+```{r}
+
+
+df_udbud =
+  openxlsx::read.xlsx(xlsxFile = "Data/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
+  dplyr::rename(SUPPLY_TYPE=X1,
+                PROPERTY_TYPE=X2,
+                ZIP=X3) %>% 
+  tidyr::fill(SUPPLY_TYPE,.direction="down") %>% 
+  tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(ymd(glue("{substr(DATE,1,4)}-{substr(DATE,6,7)}-01")),unit="month")-days(1))
+df_udbud
+
+
+```
+
+
+```{r}
+
+
+df_udbud %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=PROPERTY_TYPE)) +
+  geom_smooth()
+```
+
+
+
+# RSI
+
+## Renter
+
+```{r}
+
+source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
+current_url = xml2::read_html(source_url) %>%
+  html_node("#wrapper > div > div.sectionB > div.container > div > div.span8 > p:nth-child(10) > a") %>% 
+  rvest::html_attr("href")
+xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+
+df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 3)
+
+df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
+df_interest = df_interest %>% 
+  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
+  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
+  gather(STAT,VALUE,Kort.rente:CurveLongShort) %>% 
+  # dplyr::mutate(VALUE=TTR::RSI(VALUE,n=14)) %>% 
+  crossing(PROPERTY_TYPE=c("FLAT","HOUSE")) %>% 
+  dplyr::rename(DATE=Date)
+
+```
+
+## Byggekonjunktur
+
+```{r }
+BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
+BYGV80 <- dst_get_data(table = "BYGV80", 
+                       BYGFASE="*",
+                       ANVENDELSE="*",
+                       Tid="*",
+                       lang = "da")
+df_BYGV80 = 
+  BYGV80 %>% 
+  group_by(BYGFASE,ANVENDELSE) %>% 
+  arrange(BYGFASE,ANVENDELSE,TID) %>% 
+  filter(ANVENDELSE %in% c("Etageboliger","Parcelhuse")) %>% 
+  dplyr::mutate(ANVENDELSE=gsub("Etageboliger","FLAT",ANVENDELSE)) %>% 
+  dplyr::mutate(ANVENDELSE=gsub("Parcelhuse","HOUSE",ANVENDELSE)) %>% 
+  dplyr::rename(PROPERTY_TYPE=ANVENDELSE) %>% 
+  dplyr::rename(STAT=BYGFASE) %>% 
+  dplyr::rename(DATE=TID) %>% 
+  dplyr::rename(VALUE=value) %>% 
+  na.omit()
+
+```
+
+# Finansdanmark
+
+```{r }
+
+df_m2price = 
+  df %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  dplyr::select(ZIP,DATE,SALES_TYPE,VALUE,PROPERTY_TYPE) %>% 
+  dplyr::rename(STAT=SALES_TYPE)
+
+df_supply = 
+  df_udbud %>% 
+  filter(ZIP=="Lyngby-Taarbæk") %>% 
+  dplyr::mutate(ZIP="2800 Kgs.Lyngby") %>% 
+  dplyr::select(ZIP,DATE,SUPPLY_TYPE,VALUE,PROPERTY_TYPE) %>% 
+  dplyr::rename(STAT=SUPPLY_TYPE) %>% 
+  dplyr::mutate(PROPERTY_TYPE=gsub("Ejerlejlighed","FLAT",PROPERTY_TYPE)) %>% 
+  dplyr::mutate(PROPERTY_TYPE=gsub("Parcel-/rækkehuse","HOUSE",PROPERTY_TYPE))
+
+df_wait = 
+  df_liggetider %>% 
+  filter(ZIP=="Lyngby-Taarbæk") %>% 
+  dplyr::mutate(ZIP="2800 Kgs.Lyngby") %>% 
+  dplyr::select(ZIP,DATE,TIME_TYPE,VALUE,PROPERTY_TYPE) %>% 
+  dplyr::rename(STAT=TIME_TYPE) %>% 
+  dplyr::mutate(PROPERTY_TYPE=gsub("Ejerlejlighed","FLAT",PROPERTY_TYPE)) %>% 
+  dplyr::mutate(PROPERTY_TYPE=gsub("Parcel-/rækkehuse","HOUSE",PROPERTY_TYPE))
+
+df_m2price %>% 
+  bind_rows(df_supply) %>%
+  bind_rows(df_wait) %>% 
+  bind_rows(df_BYGV80) %>% 
+  bind_rows(df_interest) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>% 
+  dplyr::mutate(scale_=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  # dplyr::mutate(scale_sma=TTR::SMA(scale_,n=10)) %>% 
+  ggplot(.,aes(x=DATE,y=scale_,color=PROPERTY_TYPE)) +
+  geom_line() +
+  # geom_point(aes(x=DATE,y=scale_),size=0.3) +
+  facet_wrap(~STAT) +
+  theme(legend.position="bottom",
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_date(date_breaks = "3 year",date_labels = "%Y") +
+  geom_vline(xintercept = dmy("11-03-2020"),linetype=2) +
+  geom_vline(xintercept = dmy("01-10-2006"),linetype=2)
+
+
+
+```
+
+
+```{r}
+
+
+df_m2price %>% 
+  bind_rows(df_supply) %>%
+  bind_rows(df_wait) %>% 
+  bind_rows(df_BYGV80) %>% 
+  filter(STAT %in% c("Liggetider (dage)","Realiseret handelspris")) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>% 
+  dplyr::mutate(scale_=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  dplyr::mutate(scale_sma=TTR::SMA(scale_,n=10)) %>% 
+  ggplot(.,aes(x=DATE,y=scale_,color=STAT)) +
+  geom_line() +
+  # geom_point(aes(x=DATE,y=scale_),size=0.3) +
+  facet_wrap(~PROPERTY_TYPE) +
+  theme(legend.position="bottom",
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_date(date_breaks = "3 year",date_labels = "%Y") +
+  geom_vline(xintercept = c(ymd("2006-10-01"),ymd("2021-06-01")+days(457)),linetype=2) +
+  geom_vline(xintercept = c(ymd("2005-07-01"),ymd("2021-06-01")),linetype=2,color="red")
+
+```
+
+
+```{r}
+
+
+df_m2price %>% 
+  bind_rows(df_supply) %>%
+  bind_rows(df_wait) %>% 
+  bind_rows(df_BYGV80) %>% 
+  filter(STAT %in% c("Liggetider (dage)","Udbudte boliger")) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>% 
+  dplyr::mutate(scale_=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  dplyr::mutate(scale_sma=TTR::SMA(scale_,n=10)) %>% 
+  ggplot(.,aes(x=DATE,y=scale_,color=STAT)) +
+  geom_smooth(span=.7) +
+  # geom_point(aes(x=DATE,y=scale_),size=0.3) +
+  facet_wrap(~PROPERTY_TYPE) +
+  theme(legend.position="bottom",
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_date(date_breaks = "3 year",date_labels = "%Y") +
+  geom_vline(xintercept = c(ymd("2006-10-01"),ymd("2021-06-01")+days(457)),linetype=2) +
+  geom_vline(xintercept = c(ymd("2005-07-01"),ymd("2021-06-01")),linetype=2,color="red")
+
+```
+
+
+```{r}
+
+
+df_m2price %>% 
+  bind_rows(df_supply) %>%
+  bind_rows(df_wait) %>% 
+  bind_rows(df_BYGV80) %>% 
+  filter(STAT %in% c("Udbudte boliger","Realiseret handelspris")) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>% 
+  dplyr::mutate(scale_=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  dplyr::mutate(scale_sma=TTR::SMA(scale_,n=10)) %>% 
+  ggplot(.,aes(x=DATE,y=scale_,color=STAT)) +
+  geom_line() +
+  # geom_point(aes(x=DATE,y=scale_),size=0.3) +
+  facet_wrap(~PROPERTY_TYPE) +
+  theme(legend.position="bottom",
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_date(date_breaks = "3 year",date_labels = "%Y") +
+  geom_vline(xintercept = c(ymd("2006-10-01"),ymd("2021-06-01")+days(457)),linetype=2) +
+  geom_vline(xintercept = c(ymd("2005-07-01"),ymd("2021-06-01")),linetype=2,color="red")
+
+```
+
+
+
+```{r}
+
+
+df_m2price %>% 
+  bind_rows(df_supply) %>%
+  bind_rows(df_wait) %>% 
+  bind_rows(df_BYGV80) %>% 
+  filter(STAT %in% c("Udbudte boliger","Byggeri under opførelse")) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>% 
+  dplyr::mutate(scale_=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  dplyr::mutate(scale_sma=TTR::SMA(scale_,n=10)) %>% 
+  ggplot(.,aes(x=DATE,y=scale_,color=STAT)) +
+  geom_line() +
+  # geom_point(aes(x=DATE,y=scale_),size=0.3) +
+  facet_wrap(~PROPERTY_TYPE) +
+  theme(legend.position="bottom",
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_date(date_breaks = "3 year",date_labels = "%Y") +
+  geom_vline(xintercept = c(ymd("2006-10-01"),ymd("2021-06-01")+days(457)),linetype=2) +
+  geom_vline(xintercept = c(ymd("2005-07-01"),ymd("2021-06-01")),linetype=2,color="red")
+
+```
+
+
+
+```{r}
+
+
+df_m2price %>% 
+  bind_rows(df_supply) %>%
+  bind_rows(df_wait) %>% 
+  bind_rows(df_BYGV80) %>% 
+  bind_rows(df_interest) %>% 
+  filter(STAT %in% c("Kort.rente","Realiseret handelspris")) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>% 
+  dplyr::mutate(scale_=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  dplyr::mutate(scale_sma=TTR::SMA(scale_,n=10)) %>% 
+  ggplot(.,aes(x=DATE,y=scale_,color=STAT)) +
+  geom_line() +
+  # geom_point(aes(x=DATE,y=scale_),size=0.3) +
+  facet_wrap(~PROPERTY_TYPE) +
+  theme(legend.position="bottom",
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_date(date_breaks = "3 year",date_labels = "%Y") +
+  geom_vline(xintercept = c(ymd("2006-10-01"),ymd("2021-06-01")+days(457)),linetype=2) +
+  geom_vline(xintercept = c(ymd("2005-07-01"),ymd("2021-06-01")),linetype=2,color="red")
+
+```
+
+
+
+```{r}
+
+
+df_m2price %>% 
+  bind_rows(df_supply) %>%
+  bind_rows(df_wait) %>% 
+  bind_rows(df_BYGV80) %>% 
+  bind_rows(df_interest) %>% 
+  filter(STAT %in% c("Kort.rente","Lang.rente")) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>% 
+  dplyr::mutate(scale_=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
+  dplyr::mutate(scale_sma=TTR::SMA(scale_,n=10)) %>% 
+  ggplot(.,aes(x=DATE,y=scale_,color=STAT)) +
+  geom_line() +
+  # geom_point(aes(x=DATE,y=scale_),size=0.3) +
+  facet_wrap(~PROPERTY_TYPE) +
+  theme(legend.position="bottom",
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_date(date_breaks = "3 year",date_labels = "%Y") +
+  geom_vline(xintercept = c(ymd("2006-10-01"),ymd("2021-06-01")+days(457)),linetype=2) +
+  geom_vline(xintercept = c(ymd("2005-07-01"),ymd("2021-06-01")),linetype=2,color="red")
+
+```

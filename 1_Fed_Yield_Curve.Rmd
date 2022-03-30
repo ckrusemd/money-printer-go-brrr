@@ -1,6 +1,6 @@
 ---
 title: "FED Yield Curve"
-author: "CAKU"
+author: "Christian Kruse"
 date: "`r Sys.Date()`"
 output: html_document
 ---
