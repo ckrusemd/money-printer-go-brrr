@@ -28,7 +28,6 @@ BYGV80 = BYGV80 %>%
   filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
   dplyr::mutate(BYGFASE=factor(BYGFASE,levels=c("Tilladt byggeri","Påbegyndt byggeri","Byggeri under opførelse","Fuldført byggeri"))) %>% 
   group_by(BYGFASE,ANVENDELSE) %>%
-  seasthedata(.,frequency="month") %>% 
   group_by(BYGFASE,ANVENDELSE) %>%
   dplyr::mutate(value=scale(value,center=TRUE,scale=TRUE)) %>% 
   dplyr::mutate(ema=TTR::EMA(value,n=9)) %>% 
@@ -261,8 +260,7 @@ BYGV80 <- dst_get_data(table = "BYGV80",
 BYGV80 = BYGV80 %>% 
   filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
   dplyr::mutate(BYGFASE=factor(BYGFASE,levels=c("Tilladt byggeri","Påbegyndt byggeri","Byggeri under opførelse","Fuldført byggeri"))) %>% 
-  group_by(BYGFASE,ANVENDELSE) %>%
-  seasthedata(.,frequency="month") 
+  group_by(BYGFASE,ANVENDELSE)
 
 BYGV80 %>% 
   group_by(BYGFASE,ANVENDELSE) %>%
