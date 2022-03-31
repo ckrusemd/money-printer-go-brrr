@@ -4,18 +4,18 @@
 
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>4 Yield Checkboard | Obligationsrenter</title>
+  <title>4 Yield Checkboard | Predict Interest Rates</title>
   <meta name="description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   <meta name="generator" content="bookdown 0.25 and GitBook 2.6.7" />
 
-  <meta property="og:title" content="4 Yield Checkboard | Obligationsrenter" />
+  <meta property="og:title" content="4 Yield Checkboard | Predict Interest Rates" />
   <meta property="og:type" content="book" />
   
   <meta property="og:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   <meta name="github-repo" content="ckrusemd/Aarhus-daylight-weather" />
 
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="4 Yield Checkboard | Obligationsrenter" />
+  <meta name="twitter:title" content="4 Yield Checkboard | Predict Interest Rates" />
   
   <meta name="twitter:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   
@@ -23,7 +23,7 @@
 <meta name="author" content="CAKU" />
 
 
-<meta name="date" content="2022-03-30" />
+<meta name="date" content="2022-03-31" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -31,7 +31,7 @@
   
   
 <link rel="prev" href="get-data.html"/>
-
+<link rel="next" href="yield-curve-2.html"/>
 <script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
@@ -146,6 +146,14 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="4.1" data-path="yield-checkboard.html"><a href="yield-checkboard.html#obligationsrenter"><i class="fa fa-check"></i><b>4.1</b> Obligationsrenter<span></span></a></li>
 </ul></li>
+<li class="chapter" data-level="5" data-path="yield-curve-2.html"><a href="yield-curve-2.html"><i class="fa fa-check"></i><b>5</b> Yield Curve<span></span></a></li>
+<li class="chapter" data-level="6" data-path="get-data-1.html"><a href="get-data-1.html"><i class="fa fa-check"></i><b>6</b> Get Data<span></span></a></li>
+<li class="chapter" data-level="7" data-path="yield-checkboard-1.html"><a href="yield-checkboard-1.html"><i class="fa fa-check"></i><b>7</b> Yield Checkboard<span></span></a></li>
+<li class="chapter" data-level="8" data-path="predict.html"><a href="predict.html"><i class="fa fa-check"></i><b>8</b> Predict<span></span></a></li>
+<li class="chapter" data-level="9" data-path="observed-data.html"><a href="observed-data.html"><i class="fa fa-check"></i><b>9</b> Observed Data<span></span></a></li>
+<li class="chapter" data-level="10" data-path="prediction-dataframes.html"><a href="prediction-dataframes.html"><i class="fa fa-check"></i><b>10</b> Prediction Dataframes<span></span></a></li>
+<li class="chapter" data-level="11" data-path="dk-short.html"><a href="dk-short.html"><i class="fa fa-check"></i><b>11</b> DK Short<span></span></a></li>
+<li class="chapter" data-level="12" data-path="forward-yield.html"><a href="forward-yield.html"><i class="fa fa-check"></i><b>12</b> Forward yield<span></span></a></li>
 </ul>
 
       </nav>
@@ -155,7 +163,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
       <div class="body-inner">
         <div class="book-header" role="navigation">
           <h1>
-            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Obligationsrenter</a>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Predict Interest Rates</a>
           </h1>
         </div>
 
@@ -166,7 +174,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div id="yield-checkboard" class="section level1 hasAnchor" number="4">
 <h1><span class="header-section-number">4</span> Yield Checkboard<a href="yield-checkboard.html#yield-checkboard" class="anchor-section" aria-label="Anchor link to header"></a></h1>
 <pre><code>## Joining, by = &quot;series_id&quot;</code></pre>
-<pre><code>## Warning: Removed 92 rows containing missing values (geom_text).</code></pre>
+<pre><code>## Warning: Removed 91 rows containing missing values (geom_text).</code></pre>
 <p><img src="_main_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
 <pre><code>## Warning: No renderer available. Please install the gifski, av, or magick package
 ## to create animated output</code></pre>
@@ -174,8 +182,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <pre><code>## Warning in mask$eval_all_mutate(quo): NAs introduced by coercion
 
 ## Warning in mask$eval_all_mutate(quo): NAs introduced by coercion</code></pre>
-<pre><code>## Warning: Removed 4637 row(s) containing missing values (geom_path).</code></pre>
-<pre><code>## Warning: Removed 4729 rows containing missing values (geom_text).</code></pre>
+<pre><code>## Warning: Removed 4726 row(s) containing missing values (geom_path).</code></pre>
+<pre><code>## Warning: Removed 4819 rows containing missing values (geom_text).</code></pre>
 <p><img src="_main_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
 
 <div id="obligationsrenter" class="section level2 hasAnchor" number="4.1">
@@ -386,8 +394,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
           </div>
         </div>
       </div>
-<a href="get-data.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
-
+<a href="get-data.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="yield-curve-2.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
     </div>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>

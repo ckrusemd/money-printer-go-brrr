@@ -4,18 +4,18 @@
 
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Predict Interest Rates</title>
+  <title>7 Yield Checkboard | Predict Interest Rates</title>
   <meta name="description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   <meta name="generator" content="bookdown 0.25 and GitBook 2.6.7" />
 
-  <meta property="og:title" content="Predict Interest Rates" />
+  <meta property="og:title" content="7 Yield Checkboard | Predict Interest Rates" />
   <meta property="og:type" content="book" />
   
   <meta property="og:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   <meta name="github-repo" content="ckrusemd/Aarhus-daylight-weather" />
 
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Predict Interest Rates" />
+  <meta name="twitter:title" content="7 Yield Checkboard | Predict Interest Rates" />
   
   <meta name="twitter:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   
@@ -30,8 +30,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   
   
-
-<link rel="next" href="yield-curve.html"/>
+<link rel="prev" href="get-data-1.html"/>
+<link rel="next" href="predict.html"/>
 <script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
@@ -171,23 +171,29 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
           <div class="page-inner">
 
             <section class="normal" id="section-">
-<div id="header">
-<h1 class="title">Predict Interest Rates</h1>
-<p class="author"><em>CAKU</em></p>
-<p class="date"><em>2022-03-31</em></p>
-</div>
-<div id="money-printer-go-brrr" class="section level1 hasAnchor" number="1">
-<h1><span class="header-section-number">1</span> Money Printer Go BRRR<a href="index.html#money-printer-go-brrr" class="anchor-section" aria-label="Anchor link to header"></a></h1>
-<p>This report was compiled Thursday Mar 31st 2022 18:13 CET.</p>
-
+<div id="yield-checkboard-1" class="section level1 hasAnchor" number="7">
+<h1><span class="header-section-number">7</span> Yield Checkboard<a href="yield-checkboard-1.html#yield-checkboard-1" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="yield-checkboard-1.html#cb43-1" aria-hidden="true" tabindex="-1"></a>df_checkboard <span class="ot">=</span> <span class="fu">expand.grid</span>(<span class="at">series_id=</span><span class="fu">unique</span>(df_yieldcurve<span class="sc">$</span>series_id),</span>
+<span id="cb43-2"><a href="yield-checkboard-1.html#cb43-2" aria-hidden="true" tabindex="-1"></a>                            <span class="at">joined_series=</span><span class="fu">unique</span>(df_yieldcurve<span class="sc">$</span>series_id))</span>
+<span id="cb43-3"><a href="yield-checkboard-1.html#cb43-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-4"><a href="yield-checkboard-1.html#cb43-4" aria-hidden="true" tabindex="-1"></a>df_yield_checkboard <span class="ot">=</span> </span>
+<span id="cb43-5"><a href="yield-checkboard-1.html#cb43-5" aria-hidden="true" tabindex="-1"></a>  df_checkboard <span class="sc">%&gt;%</span> </span>
+<span id="cb43-6"><a href="yield-checkboard-1.html#cb43-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(df_yieldcurve) <span class="sc">%&gt;%</span> </span>
+<span id="cb43-7"><a href="yield-checkboard-1.html#cb43-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(df_yieldcurve,<span class="at">by=</span><span class="fu">c</span>(<span class="st">&quot;joined_series&quot;</span><span class="ot">=</span><span class="st">&quot;series_id&quot;</span>,<span class="st">&quot;date&quot;</span><span class="ot">=</span><span class="st">&quot;date&quot;</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb43-8"><a href="yield-checkboard-1.html#cb43-8" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">spread=</span>value.x<span class="sc">-</span>value.y) <span class="sc">%&gt;%</span> </span>
+<span id="cb43-9"><a href="yield-checkboard-1.html#cb43-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">label=</span><span class="fu">ifelse</span>(spread<span class="sc">&lt;</span><span class="dv">0</span>,spread,<span class="cn">NA</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb43-10"><a href="yield-checkboard-1.html#cb43-10" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(series_id,joined_series,date,spread,label) <span class="sc">%&gt;%</span> </span>
+<span id="cb43-11"><a href="yield-checkboard-1.html#cb43-11" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">series_id=</span><span class="fu">factor</span>(series_id,<span class="at">levels=</span>order_),</span>
+<span id="cb43-12"><a href="yield-checkboard-1.html#cb43-12" aria-hidden="true" tabindex="-1"></a>                <span class="at">joined_series=</span><span class="fu">factor</span>(joined_series,<span class="at">levels=</span>order_))</span></code></pre></div>
+<pre><code>## Joining, by = &quot;series_id&quot;</code></pre>
 </div>
             </section>
 
           </div>
         </div>
       </div>
-
-<a href="yield-curve.html" class="navigation navigation-next navigation-unique" aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+<a href="get-data-1.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="predict.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
     </div>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>

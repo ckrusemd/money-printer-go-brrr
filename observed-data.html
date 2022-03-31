@@ -4,18 +4,18 @@
 
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Predict Interest Rates</title>
+  <title>9 Observed Data | Predict Interest Rates</title>
   <meta name="description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   <meta name="generator" content="bookdown 0.25 and GitBook 2.6.7" />
 
-  <meta property="og:title" content="Predict Interest Rates" />
+  <meta property="og:title" content="9 Observed Data | Predict Interest Rates" />
   <meta property="og:type" content="book" />
   
   <meta property="og:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   <meta name="github-repo" content="ckrusemd/Aarhus-daylight-weather" />
 
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Predict Interest Rates" />
+  <meta name="twitter:title" content="9 Observed Data | Predict Interest Rates" />
   
   <meta name="twitter:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   
@@ -30,8 +30,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   
   
-
-<link rel="next" href="yield-curve.html"/>
+<link rel="prev" href="predict.html"/>
+<link rel="next" href="prediction-dataframes.html"/>
 <script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
@@ -171,23 +171,59 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
           <div class="page-inner">
 
             <section class="normal" id="section-">
-<div id="header">
-<h1 class="title">Predict Interest Rates</h1>
-<p class="author"><em>CAKU</em></p>
-<p class="date"><em>2022-03-31</em></p>
-</div>
-<div id="money-printer-go-brrr" class="section level1 hasAnchor" number="1">
-<h1><span class="header-section-number">1</span> Money Printer Go BRRR<a href="index.html#money-printer-go-brrr" class="anchor-section" aria-label="Anchor link to header"></a></h1>
-<p>This report was compiled Thursday Mar 31st 2022 18:13 CET.</p>
-
+<div id="observed-data" class="section level1 hasAnchor" number="9">
+<h1><span class="header-section-number">9</span> Observed Data<a href="observed-data.html#observed-data" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="observed-data.html#cb46-1" aria-hidden="true" tabindex="-1"></a>df_DFF <span class="ot">=</span> </span>
+<span id="cb46-2"><a href="observed-data.html#cb46-2" aria-hidden="true" tabindex="-1"></a>  df_yieldcurve <span class="sc">%&gt;%</span> </span>
+<span id="cb46-3"><a href="observed-data.html#cb46-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(series_id<span class="sc">==</span><span class="st">&quot;DFF&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-4"><a href="observed-data.html#cb46-4" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(date,value)</span>
+<span id="cb46-5"><a href="observed-data.html#cb46-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-6"><a href="observed-data.html#cb46-6" aria-hidden="true" tabindex="-1"></a>df_DGS2 <span class="ot">=</span> </span>
+<span id="cb46-7"><a href="observed-data.html#cb46-7" aria-hidden="true" tabindex="-1"></a>  df_yieldcurve <span class="sc">%&gt;%</span> </span>
+<span id="cb46-8"><a href="observed-data.html#cb46-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(series_id<span class="sc">==</span><span class="st">&quot;DGS2&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-9"><a href="observed-data.html#cb46-9" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(date,value)</span>
+<span id="cb46-10"><a href="observed-data.html#cb46-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-11"><a href="observed-data.html#cb46-11" aria-hidden="true" tabindex="-1"></a>df_DGS10 <span class="ot">=</span> </span>
+<span id="cb46-12"><a href="observed-data.html#cb46-12" aria-hidden="true" tabindex="-1"></a>  df_yieldcurve <span class="sc">%&gt;%</span> </span>
+<span id="cb46-13"><a href="observed-data.html#cb46-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(series_id<span class="sc">==</span><span class="st">&quot;DGS10&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-14"><a href="observed-data.html#cb46-14" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(date,value)</span>
+<span id="cb46-15"><a href="observed-data.html#cb46-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-16"><a href="observed-data.html#cb46-16" aria-hidden="true" tabindex="-1"></a>df_DGS30 <span class="ot">=</span> </span>
+<span id="cb46-17"><a href="observed-data.html#cb46-17" aria-hidden="true" tabindex="-1"></a>  df_yieldcurve <span class="sc">%&gt;%</span> </span>
+<span id="cb46-18"><a href="observed-data.html#cb46-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(series_id<span class="sc">==</span><span class="st">&quot;DGS30&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-19"><a href="observed-data.html#cb46-19" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(date,value)</span>
+<span id="cb46-20"><a href="observed-data.html#cb46-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-21"><a href="observed-data.html#cb46-21" aria-hidden="true" tabindex="-1"></a>df_MORTGAGE30US <span class="ot">=</span> </span>
+<span id="cb46-22"><a href="observed-data.html#cb46-22" aria-hidden="true" tabindex="-1"></a>  df_yieldcurve <span class="sc">%&gt;%</span> </span>
+<span id="cb46-23"><a href="observed-data.html#cb46-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(series_id<span class="sc">==</span><span class="st">&quot;MORTGAGE30US&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-24"><a href="observed-data.html#cb46-24" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(date,value)</span>
+<span id="cb46-25"><a href="observed-data.html#cb46-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-26"><a href="observed-data.html#cb46-26" aria-hidden="true" tabindex="-1"></a>df_MORTGAGE30US <span class="ot">=</span> </span>
+<span id="cb46-27"><a href="observed-data.html#cb46-27" aria-hidden="true" tabindex="-1"></a>  df_yieldcurve <span class="sc">%&gt;%</span> </span>
+<span id="cb46-28"><a href="observed-data.html#cb46-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(series_id<span class="sc">==</span><span class="st">&quot;MORTGAGE30US&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-29"><a href="observed-data.html#cb46-29" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(date,value)</span>
+<span id="cb46-30"><a href="observed-data.html#cb46-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-31"><a href="observed-data.html#cb46-31" aria-hidden="true" tabindex="-1"></a>df_DK_Short <span class="ot">=</span></span>
+<span id="cb46-32"><a href="observed-data.html#cb46-32" aria-hidden="true" tabindex="-1"></a>  df_DK <span class="sc">%&gt;%</span> </span>
+<span id="cb46-33"><a href="observed-data.html#cb46-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(series_id<span class="sc">==</span><span class="st">&quot;DK_Short&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-34"><a href="observed-data.html#cb46-34" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(date,value) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-35"><a href="observed-data.html#cb46-35" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">complete</span>(<span class="at">date=</span><span class="fu">seq.Date</span>(<span class="at">from=</span><span class="fu">min</span>(date,<span class="at">na.rm=</span>T),<span class="at">to=</span><span class="fu">max</span>(date,<span class="at">na.rm=</span>T),<span class="at">by=</span><span class="st">&quot;1 day&quot;</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-36"><a href="observed-data.html#cb46-36" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">fill</span>(value,<span class="at">.direction =</span> <span class="st">&quot;down&quot;</span>)</span>
+<span id="cb46-37"><a href="observed-data.html#cb46-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-38"><a href="observed-data.html#cb46-38" aria-hidden="true" tabindex="-1"></a>df_DK_Long <span class="ot">=</span> </span>
+<span id="cb46-39"><a href="observed-data.html#cb46-39" aria-hidden="true" tabindex="-1"></a>  df_DK <span class="sc">%&gt;%</span> </span>
+<span id="cb46-40"><a href="observed-data.html#cb46-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(series_id<span class="sc">==</span><span class="st">&quot;DK_Long&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-41"><a href="observed-data.html#cb46-41" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(date,value) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-42"><a href="observed-data.html#cb46-42" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">complete</span>(<span class="at">date=</span><span class="fu">seq.Date</span>(<span class="at">from=</span><span class="fu">min</span>(date,<span class="at">na.rm=</span>T),<span class="at">to=</span><span class="fu">max</span>(date,<span class="at">na.rm=</span>T),<span class="at">by=</span><span class="st">&quot;1 day&quot;</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb46-43"><a href="observed-data.html#cb46-43" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">fill</span>(value,<span class="at">.direction =</span> <span class="st">&quot;down&quot;</span>)</span></code></pre></div>
 </div>
             </section>
 
           </div>
         </div>
       </div>
-
-<a href="yield-curve.html" class="navigation navigation-next navigation-unique" aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+<a href="predict.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="prediction-dataframes.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
     </div>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>

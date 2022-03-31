@@ -8,3 +8,11 @@ dgs6mo-mortgage30-spread
 yield-curve-1
 yield-checkboard
 obligationsrenter
+yield-curve-2
+get-data-1
+yield-checkboard-1
+predict
+observed-data
+prediction-dataframes
+dk-short
+forward-yield
