@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 options(scipen=999)
 library(pacman)
-pacman::p_load(devtools,zoo,dplyr,tidyr,ggplot2,lubridate,dkstat)
+pacman::p_load(devtools,zoo,dplyr,tidyr,ggplot2,lubridate,dkstat,TTR)
 ```
 
 # Danmarks Statistik
