@@ -412,7 +412,7 @@ df_predict_DFF %>%
   dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
   dplyr::mutate(date=date+years(1)) %>%
   filter(date>=Sys.Date()) %>% 
-  filter(date %in% seq.Date(from = Sys.Date(),to=Sys.Date()+months(13),by = "3 months")) %>% 
+  filter(date %in% seq.Date(from = min(date),to=max(date),by = "3 months")) %>%
   gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>% 
   dplyr::mutate(pred=factor(pred,levels=c("pred_DFF",
                                           "pred_DGS2",
