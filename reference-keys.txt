@@ -16,3 +16,9 @@ observed-data
 prediction-dataframes
 dk-short
 forward-yield
+danmarks-statistik
+byggekonjunktur
+change
+backlog
+byggebeskæftigelse
+rolling-sums-of-changes

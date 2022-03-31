@@ -4,18 +4,18 @@
 
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Denmark: Housing Market Construction Cycles</title>
+  <title>14 Rolling sums of changes | Denmark: Housing Market Construction Cycles</title>
   <meta name="description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   <meta name="generator" content="bookdown 0.25 and GitBook 2.6.7" />
 
-  <meta property="og:title" content="Denmark: Housing Market Construction Cycles" />
+  <meta property="og:title" content="14 Rolling sums of changes | Denmark: Housing Market Construction Cycles" />
   <meta property="og:type" content="book" />
   
   <meta property="og:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   <meta name="github-repo" content="ckrusemd/Aarhus-daylight-weather" />
 
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Denmark: Housing Market Construction Cycles" />
+  <meta name="twitter:title" content="14 Rolling sums of changes | Denmark: Housing Market Construction Cycles" />
   
   <meta name="twitter:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
   
@@ -30,8 +30,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   
   
+<link rel="prev" href="danmarks-statistik.html"/>
 
-<link rel="next" href="yield-curve.html"/>
 <script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
@@ -179,14 +179,34 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
           <div class="page-inner">
 
             <section class="normal" id="section-">
-<div id="header">
-<h1 class="title">Denmark: Housing Market Construction Cycles</h1>
-<p class="author"><em>Christian Kruse</em></p>
-<p class="date"><em>2022-03-31</em></p>
-</div>
-<div id="money-printer-go-brrr" class="section level1 hasAnchor" number="1">
-<h1><span class="header-section-number">1</span> Money Printer Go BRRR<a href="index.html#money-printer-go-brrr" class="anchor-section" aria-label="Anchor link to header"></a></h1>
-<p>This report was compiled Thursday Mar 31st 2022 19:58 CET.</p>
+<div id="rolling-sums-of-changes" class="section level1 hasAnchor" number="14">
+<h1><span class="header-section-number">14</span> Rolling sums of changes<a href="rolling-sums-of-changes.html#rolling-sums-of-changes" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<div class="sourceCode" id="cb91"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb91-1"><a href="rolling-sums-of-changes.html#cb91-1" aria-hidden="true" tabindex="-1"></a>BYGV80_meta <span class="ot">&lt;-</span> <span class="fu">dst_meta</span>(<span class="at">table =</span> <span class="st">&quot;BYGV80&quot;</span>, <span class="at">lang =</span> <span class="st">&quot;da&quot;</span>)</span>
+<span id="cb91-2"><a href="rolling-sums-of-changes.html#cb91-2" aria-hidden="true" tabindex="-1"></a>BYGV80 <span class="ot">&lt;-</span> <span class="fu">dst_get_data</span>(<span class="at">table =</span> <span class="st">&quot;BYGV80&quot;</span>, </span>
+<span id="cb91-3"><a href="rolling-sums-of-changes.html#cb91-3" aria-hidden="true" tabindex="-1"></a>                       <span class="at">BYGFASE=</span><span class="st">&quot;*&quot;</span>,</span>
+<span id="cb91-4"><a href="rolling-sums-of-changes.html#cb91-4" aria-hidden="true" tabindex="-1"></a>                       <span class="at">ANVENDELSE=</span><span class="st">&quot;*&quot;</span>,</span>
+<span id="cb91-5"><a href="rolling-sums-of-changes.html#cb91-5" aria-hidden="true" tabindex="-1"></a>                       <span class="at">Tid=</span><span class="st">&quot;*&quot;</span>,</span>
+<span id="cb91-6"><a href="rolling-sums-of-changes.html#cb91-6" aria-hidden="true" tabindex="-1"></a>                       <span class="at">lang =</span> <span class="st">&quot;da&quot;</span>)</span>
+<span id="cb91-7"><a href="rolling-sums-of-changes.html#cb91-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb91-8"><a href="rolling-sums-of-changes.html#cb91-8" aria-hidden="true" tabindex="-1"></a>BYGV80 <span class="ot">=</span> BYGV80 <span class="sc">%&gt;%</span> </span>
+<span id="cb91-9"><a href="rolling-sums-of-changes.html#cb91-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(ANVENDELSE <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;Parcelhuse&quot;</span>,<span class="st">&quot;Etageboliger&quot;</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb91-10"><a href="rolling-sums-of-changes.html#cb91-10" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">BYGFASE=</span><span class="fu">factor</span>(BYGFASE,<span class="at">levels=</span><span class="fu">c</span>(<span class="st">&quot;Tilladt byggeri&quot;</span>,<span class="st">&quot;Påbegyndt byggeri&quot;</span>,<span class="st">&quot;Byggeri under opførelse&quot;</span>,<span class="st">&quot;Fuldført byggeri&quot;</span>))) <span class="sc">%&gt;%</span> </span>
+<span id="cb91-11"><a href="rolling-sums-of-changes.html#cb91-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(BYGFASE,ANVENDELSE)</span>
+<span id="cb91-12"><a href="rolling-sums-of-changes.html#cb91-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb91-13"><a href="rolling-sums-of-changes.html#cb91-13" aria-hidden="true" tabindex="-1"></a>BYGV80 <span class="sc">%&gt;%</span> </span>
+<span id="cb91-14"><a href="rolling-sums-of-changes.html#cb91-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(BYGFASE,ANVENDELSE) <span class="sc">%&gt;%</span></span>
+<span id="cb91-15"><a href="rolling-sums-of-changes.html#cb91-15" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">chg=</span>value<span class="sc">-</span><span class="fu">lag</span>(value)) <span class="sc">%&gt;%</span> </span>
+<span id="cb91-16"><a href="rolling-sums-of-changes.html#cb91-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">na.omit</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb91-17"><a href="rolling-sums-of-changes.html#cb91-17" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">chg=</span><span class="fu">cumsum</span>(chg)) <span class="sc">%&gt;%</span> </span>
+<span id="cb91-18"><a href="rolling-sums-of-changes.html#cb91-18" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">ema=</span>TTR<span class="sc">::</span><span class="fu">EMA</span>(chg,<span class="at">n=</span><span class="dv">9</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb91-19"><a href="rolling-sums-of-changes.html#cb91-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb91-20"><a href="rolling-sums-of-changes.html#cb91-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(BYGFASE,ANVENDELSE,TID) <span class="sc">%&gt;%</span> </span>
+<span id="cb91-21"><a href="rolling-sums-of-changes.html#cb91-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(TID<span class="sc">&gt;=</span><span class="fu">ymd</span>(<span class="st">&quot;2000-01-01&quot;</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb91-22"><a href="rolling-sums-of-changes.html#cb91-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(.,<span class="fu">aes</span>(<span class="at">x=</span>TID,<span class="at">y=</span>ema,<span class="at">color=</span>ANVENDELSE)) <span class="sc">+</span></span>
+<span id="cb91-23"><a href="rolling-sums-of-changes.html#cb91-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb91-24"><a href="rolling-sums-of-changes.html#cb91-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>BYGFASE,<span class="at">scales =</span> <span class="st">&quot;free&quot;</span>) <span class="sc">+</span></span>
+<span id="cb91-25"><a href="rolling-sums-of-changes.html#cb91-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>)</span></code></pre></div>
+<p><img src="_main_files/figure-html/unnamed-chunk-53-1.png" width="672" /></p>
 
 </div>
             </section>
@@ -194,8 +214,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
           </div>
         </div>
       </div>
+<a href="danmarks-statistik.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
 
-<a href="yield-curve.html" class="navigation navigation-next navigation-unique" aria-label="Next page"><i class="fa fa-angle-right"></i></a>
     </div>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>
