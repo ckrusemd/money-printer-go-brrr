@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(pacman)
-pacman::p_load(fredr,dplyr,tidyr,lubridate,caret,partykit,pROC,gganimate,devtools)
+pacman::p_load(fredr,dplyr,tidyr,lubridate,caret,partykit,pROC,gganimate,devtools,httr,rvest)
 ```
 
 ```{r }
@@ -425,5 +425,41 @@ df_predict_DFF %>%
                 
 ```
 
+## Future FED Rate changes
 
+# Forward yield
+
+```{r}
+
+
+fomc_dates = c(ymd("2022-05-04"),
+               ymd("2022-06-15"),
+               ymd("2022-07-27"),
+               ymd("2022-09-21"),
+               ymd("2022-11-02"),
+               ymd("2022-12-14"),
+               ymd("2023-02-01"))
+df_predict_DFF %>% 
+  dplyr::mutate(pred_DFF=predict(fit_DFF,.),
+                pred_DGS2=predict(fit_DGS2,.),
+                pred_DGS10=predict(fit_DGS10,.),
+                pred_DGS30=predict(fit_DGS30,.),
+                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>% 
+  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
+  dplyr::mutate(date=date+years(1)) %>%
+  gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>%
+  crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
+  ggplot(.,aes(x=date,y=val,color=pred)) +
+  geom_line() +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_hline(yintercept = 0,linetype=2) +
+  facet_wrap(~one_year,scales="free",ncol=1)
+                
+```
 

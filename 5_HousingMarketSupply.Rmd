@@ -71,7 +71,7 @@ df_udbud.change =
   group_by(PROPERTY_TYPE,ZIP) %>%  
   do(loess_adjust(.)) %>% 
   arrange(PROPERTY_TYPE,ZIP,DATE) %>% 
-  dplyr::mutate(next_period_chg=lead(value)-value)
+  dplyr::mutate(next_period_chg=lead(VALUE)-VALUE)
 ```
 
 ## Bubble lows
