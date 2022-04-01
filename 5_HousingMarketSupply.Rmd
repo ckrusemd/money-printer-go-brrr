@@ -39,7 +39,7 @@ loess_adjust = function(data) {
 
 ```{r}
 df_udbud =
-  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
+  openxlsx::read.xlsx(xlsxFile = "Data/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
   dplyr::rename(SUPPLY_TYPE=X1,
                 PROPERTY_TYPE=X2,
                 ZIP=X3) %>% 
@@ -58,7 +58,7 @@ df_udbud =
 
 ```{r}
 df_udbud.change =
-  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
+  openxlsx::read.xlsx(xlsxFile = "Data/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
   dplyr::rename(SUPPLY_TYPE=X1,
                 PROPERTY_TYPE=X2,
                 ZIP=X3) %>% 
@@ -115,7 +115,7 @@ df_udbud.covid19low.DK =
 
 ```{r}
 df.house_prices =
-  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
+  openxlsx::read.xlsx(xlsxFile = "Data/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
   setNames(.,c("ZIP","DATE","STAT","HOUSE","FLAT")) %>% 
   tidyr::fill(ZIP,.direction="down") %>% 
   tidyr::fill(DATE,.direction="down") %>% 
@@ -135,7 +135,7 @@ df.house_prices
 ```{r}
 
 df_liggetider =
-  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/202236191752365370194UDB030_2.xlsx",startRow = 3) %>% 
+  openxlsx::read.xlsx(xlsxFile = "Data/202236191752365370194UDB030_2.xlsx",startRow = 3) %>% 
   dplyr::rename(STAT=X1,
                 PROPERTY_TYPE=X2,
                 ZIP=X3) %>% 
@@ -201,7 +201,7 @@ df_interest
 ```{r}
 
 df.adjustments = 
-  openxlsx::read.xlsx(xlsxFile = "~/Dropbox/R/economicSimulation/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
+  openxlsx::read.xlsx(xlsxFile = "Data/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
   setNames(.,c("ZIP","DATE","STAT","HOUSE","FLAT")) %>% 
   tidyr::fill(ZIP,.direction="down") %>% 
   tidyr::fill(DATE,.direction="down") %>% 
