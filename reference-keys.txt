@@ -16,6 +16,8 @@ observed-data
 prediction-dataframes
 dk-short
 forward-yield
+future-fed-rate-changes
+forward-yield-1
 danmarks-statistik
 byggekonjunktur
 change
