@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 ```
 
-## Obligationsrenter
+# Denmark Mortgage Bonds
 
 ```{r}
 
@@ -39,6 +39,7 @@ df_interest = df_interest %>%
   dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente )
 ```
 
+## Short, Long + Spread
 ```{r}
 
 df_interest %>% 
@@ -60,6 +61,7 @@ df_interest %>%
 
 ```
 
+### Previous 12 Months
 
 ```{r}
 
@@ -80,6 +82,39 @@ df_interest %>%
        y="(%)",
        caption = timestamp_caption())
 ```
+
+### Short w/ ECB Rate Changes
+
+```{r}
+
+df_interest %>% 
+  dplyr::mutate(Kort.rente=Kort.rente/100) %>% 
+  ggplot(.,aes(x=Date,y=Kort.rente)) +
+  geom_line() +
+  scale_y_continuous(limits=c(-0.01,NA),breaks = seq(-0.01,0.07,by=0.005),labels = scales::percent) +
+  geom_vline(xintercept = dmy("01-12-2018")) +
+  geom_vline(xintercept = c(dmy("09-11-2011"),
+                            dmy("14-12-2011"),
+                            dmy("11-07-2012"),
+                            dmy("13-11-2013"),
+                            dmy("08-05-2013"),
+                            dmy("11-06-2014"),
+                            dmy("10-09-2014"),
+                            dmy("09-12-2015"),
+                            dmy("16-03-2016"),
+                            dmy("18-09-2019")),color="blue",linetype=2) +
+  geom_vline(xintercept = c(dmy("13-04-2011"),
+                            dmy("13-07-2011")),color="red",linetype=2) + 
+  geom_hline(yintercept = 0,linetype=2) +
+  theme_money_printer_go_brrr +
+  labs(title="Short Yield",
+       x="Date",
+       y="Spread (%)",
+       caption = timestamp_caption())
+
+```
+
+## Parabolic Support and Resistance
 
 ```{r }
 
@@ -133,35 +168,8 @@ df_interest %>%
 
 ```
 
-```{r}
 
-df_interest %>% 
-  dplyr::mutate(Kort.rente=Kort.rente/100) %>% 
-  ggplot(.,aes(x=Date,y=Kort.rente)) +
-  geom_line() +
-  scale_y_continuous(limits=c(-0.01,NA),breaks = seq(-0.01,0.07,by=0.005),labels = scales::percent) +
-  geom_vline(xintercept = dmy("01-12-2018")) +
-  geom_vline(xintercept = c(dmy("09-11-2011"),
-                            dmy("14-12-2011"),
-                            dmy("11-07-2012"),
-                            dmy("13-11-2013"),
-                            dmy("08-05-2013"),
-                            dmy("11-06-2014"),
-                            dmy("10-09-2014"),
-                            dmy("09-12-2015"),
-                            dmy("16-03-2016"),
-                            dmy("18-09-2019")),color="blue",linetype=2) +
-  geom_vline(xintercept = c(dmy("13-04-2011"),
-                            dmy("13-07-2011")),color="red",linetype=2) + 
-  geom_hline(yintercept = 0,linetype=2) +
-  theme_money_printer_go_brrr +
-  labs(title="Short Yield",
-       x="Date",
-       y="Spread (%)",
-       caption = timestamp_caption())
-
-```
-
+## Historic 5-Year Forward Rate Increases
 
 ```{r}
 
@@ -184,6 +192,8 @@ df_interest %>%
 ```
 
 
+## Lowest Long Yield and Smallest Spread
+
 ```{r}
 
 df_interest %>% 
@@ -195,13 +205,14 @@ df_interest %>%
   scale_y_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) +
   scale_x_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) + 
   theme_money_printer_go_brrr +
-  labs(title="Lowest Long Yield to Lowest Short-Long Spread (i.e. You Should Probably Go Fixed Right About Now)",
-       x="Mortgage 30YR Yield",
-       y="Short-Long Spread",
+  labs(title="Lowest Long Yield to Lowest Short-Long Spread",
+       y="Mortgage 30YR Yield",
+       x="Short-Long Spread",
        caption = timestamp_caption())
 
 ```
 
+## Best Time to Go Fixed
 
 ```{r}
 

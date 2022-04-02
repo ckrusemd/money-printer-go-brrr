@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 ```
 
-# Yield Curve
+# Predict US Interest Rates
 
 ```{r}
 library(pacman)
@@ -27,7 +27,6 @@ num_trees=100
 tune_grid=data.frame(mtry=c(1,2))
 ```
 
-# Get Data
 
 ```{r}
 df_yieldcurve = 
@@ -97,8 +96,6 @@ df_DK = df_DK %>%
   gather(series_id,value,DK_Short:DK_Spread)
 ```
 
-# Yield Checkboard
-
 ```{r}
 
 df_checkboard = expand.grid(series_id=unique(df_yieldcurve$series_id),
@@ -117,15 +114,11 @@ df_yield_checkboard =
 ```
 
 
-# Predict
-
 ```{r}
 
 train_control = caret::trainControl(method = "repeatedcv",number = 5,repeats = 5)
 
 ```
-
-# Observed Data
 
 ```{r}
 df_DFF = 
@@ -174,7 +167,6 @@ df_DK_Long =
 
 ```
 
-# Prediction Dataframes
 
 ```{r}
 df_predict_DFF = df_yield_checkboard %>% 
@@ -325,7 +317,7 @@ fit_DK_Long = caret::train(x = df_predict_DK_Long %>%
                          trControl=train_control)
 ```
 
-# DK Short
+## Danish Short and Long
 
 ```{r}
 
@@ -366,11 +358,16 @@ df_predict_DK_Short %>%
   theme(axis.text.x=element_text(angle=45,hjust=1))  +
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
-  facet_wrap(~one_year,scales="free",ncol=1)
+  facet_wrap(~one_year,scales="free",ncol=1) +
+  theme_money_printer_go_brrr +
+  labs(title="Predicted/Observed Long and Short Interest Rate",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
 
 ```
 
-# Forward yield
+## Predicted Yield
 
 ```{r}
 
@@ -395,10 +392,16 @@ df_predict_DFF %>%
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
-  facet_wrap(~one_year,scales="free",ncol=1)
+  facet_wrap(~one_year,scales="free",ncol=1) +
+  theme_money_printer_go_brrr +
+  labs(title="Predicted/Observed T-Bond Yields",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
                 
 ```
-# Forward yield curve:
+
+## Future Yield Curves
 
 
 ```{r}
@@ -422,13 +425,15 @@ df_predict_DFF %>%
                                           "pred_MORTGAGE30US"))) %>% 
   ggplot(.,aes(x=pred,y=val,color=factor(date),group=date)) +
   geom_line() +
-  theme(axis.text.x=element_text(angle=45,hjust=1))
+  theme_money_printer_go_brrr +
+  labs(title="Predicted Yield Curves",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
                 
 ```
 
-## Future FED Rate changes
-
-# Forward yield
+## Future FED FOMC Meeting Rate changes
 
 ```{r}
 
@@ -464,7 +469,12 @@ df_predict_DFF %>%
   geom_line() +
   scale_y_continuous(breaks = seq(0,0.1,by=0.0025),labels = scales::percent,limits = c(0,NA)) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
-  geom_vline(data=fomc_dates,aes(xintercept=date_fomc),linetype=2)
+  geom_vline(data=fomc_dates,aes(xintercept=date_fomc),linetype=2) +
+  theme_money_printer_go_brrr +
+  labs(title="Predicted FOMC Meeting Rates",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
 
                 
 ```
