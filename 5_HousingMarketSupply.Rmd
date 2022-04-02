@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 options(scipen=999)
 
 ```
@@ -14,6 +14,7 @@ options(scipen=999)
 ```{r }
 library(pacman)
 pacman::p_load(tidyr,dplyr,ggplot2,boot,openxlsx,lubridate,forcats,broom,purrr,caret,glue,devtools,dkstat,zoo)
+source(file = "money_theme.R")
 ```
 
 ```{r}
@@ -82,7 +83,7 @@ df_udbud.bubblelow = df_udbud %>%
   filter(DATE>ymd("2005-01-01")) %>% 
   filter(DATE<ymd("2008-01-01")) %>% 
   group_by(PROPERTY_TYPE,ZIP) %>% 
-  filter(INDEX==min(INDEX)) %>% 
+  filter(VALUE==min(VALUE)) %>% 
   dplyr::select(PROPERTY_TYPE,ZIP,DATE)
 
 df_udbud.bubblelow.DK = 
@@ -99,7 +100,7 @@ df_udbud.bubblelow.DK =
 df_udbud.covid19low = df_udbud %>% 
   filter(DATE>ymd("2020-01-01")) %>% 
   group_by(PROPERTY_TYPE,ZIP) %>% 
-  filter(value==min(value)) %>% 
+  filter(VALUE==min(VALUE)) %>% 
   dplyr::select(PROPERTY_TYPE,ZIP,DATE)
 
 df_udbud.covid19low.DK = 

@@ -6,10 +6,11 @@ output: html_document
 ---
 
 ```{r include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 library(pacman)
 pacman::p_load(devtools,dkstat,zoo,dplyr,tidyr,ggplot2,lubridate)
 options(scipen=999)
+source(file = "money_theme.R")
 
 ```
 
