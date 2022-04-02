@@ -25,7 +25,6 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
 ```{r }
 dates = data.frame(date=seq.Date(from = ymd("1960-01-01"),to = ymd("2022-02-01"),by="1 day"))
-dates
 ```
 
 ```{r}
@@ -177,7 +176,7 @@ cicoords_rf = ci.coords(roc_rf,x="best",best.method="youden",best.policy="random
 cicoords_cutoff = cicoords_rf$threshold[2]
 ```
 
-# Extrapolate
+## Extrapolate
 
 ```{r}
 
@@ -191,7 +190,7 @@ ggplot(df.extrapolate,aes(x=date,y=risk)) +
 ```
 
 
-# Backtest
+## Backtest
 
 ```{r}
 

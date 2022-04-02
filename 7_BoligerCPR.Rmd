@@ -14,9 +14,7 @@ source(file = "money_theme.R")
 
 ```
 
-# Danmarks Statistik
-
-## Boliger CPR
+# Denmark: Building Occupation
 
 ```{r }
 BOL101_meta <- dst_meta(table = "BOL101", lang = "da")
@@ -56,7 +54,7 @@ df_BOL101 %>%
   theme(legend.position="bottom")
 ```
 
-# Ratio
+## Ratio
 
 ```{r}
 
@@ -88,15 +86,12 @@ BYGV80 = BYGV80 %>%
   filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
   dplyr::mutate(BYGFASE=factor(BYGFASE,levels=c("Tilladt byggeri","Påbegyndt byggeri","Byggeri under opførelse","Fuldført byggeri"))) %>% 
   group_by(BYGFASE,ANVENDELSE) %>%
-  seasthedata(.,frequency="month") %>% 
   group_by(BYGFASE,ANVENDELSE) %>%
   dplyr::mutate(value=scale(value,center=TRUE,scale=TRUE)) %>% 
   dplyr::mutate(ema=TTR::EMA(value,n=9)) %>% 
   ungroup() %>% 
   arrange(BYGFASE,ANVENDELSE,TID) %>% 
   filter(TID>=ymd("2000-01-01"))
-
-BYGV80
 
 ```
 
@@ -196,7 +191,7 @@ BYGV80 %>%
 ```
 
 
-### Change
+## Change
 
 ```{r}
 
@@ -240,7 +235,7 @@ BYGV80 %>%
 
 ```
 
-### Backlog
+## Backlog
 
 ```{r}
 
@@ -321,8 +316,7 @@ BYGV80 <- dst_get_data(table = "BYGV80",
 BYGV80 = BYGV80 %>% 
   filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
   dplyr::mutate(BYGFASE=factor(BYGFASE,levels=c("Tilladt byggeri","Påbegyndt byggeri","Byggeri under opførelse","Fuldført byggeri"))) %>% 
-  group_by(BYGFASE,ANVENDELSE) %>%
-  seasthedata(.,frequency="month") 
+  group_by(BYGFASE,ANVENDELSE) 
 
 BYGV80 %>% 
   group_by(BYGFASE,ANVENDELSE) %>%
@@ -342,41 +336,4 @@ BYGV80 %>%
 ```
 
 
-# Prophet
-
-```{r}
-
-BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
-BYGV80 <- dst_get_data(table = "BYGV80", 
-                       BYGFASE="*",
-                       ANVENDELSE="*",
-                       Tid="*",
-                       lang = "da")
-
-BYGV80 = BYGV80 %>% 
-  filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
-  dplyr::mutate(BYGFASE=factor(BYGFASE,levels=c("Tilladt byggeri","Påbegyndt byggeri","Byggeri under opførelse","Fuldført byggeri"))) %>% 
-  ungroup() %>% 
-  arrange(BYGFASE,ANVENDELSE,TID) %>% 
-  filter(TID>=ymd("2000-01-01"))
-
-df.faerdigt_byggeri = 
-  BYGV80 %>% 
-  filter(ANVENDELSE=="Etageboliger") %>% 
-  filter(BYGFASE=="Fuldført byggeri") %>% 
-  dplyr::select(TID,value) %>% 
-  setNames(.,c("ds","y")) 
-
-prophoet.faerdigt_byggeri =  prophet( df.faerdigt_byggeri , seasonality.mode = 'multiplicative')
-
-future <- make_future_dataframe(include_history = TRUE,m = prophet.faerdigt_byggeri, periods = 5*365,freq = "days")
-forecast <- predict(prophoet.faerdigt_byggeri, future)
-
-forecast %>% 
-  dplyr::mutate(yhat=yhat) %>% 
-  ggplot(.,aes(x=ds,y=yhat)) +
-  geom_line(alpha=0.3,color="blue") +
-  geom_line(data=df.faerdigt_byggeri,aes(x=as.POSIXct(ds),y=y))
-
-```
 

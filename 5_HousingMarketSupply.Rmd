@@ -125,7 +125,7 @@ df.house_prices =
   dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
   dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1)) %>% 
   group_by(PROPERTY_TYPE,STAT,ZIP) %>% 
-  do(loess_adjust(.)) %>% 
+  # do(loess_adjust(.)) %>% 
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed'))
 df.house_prices
 ```
@@ -182,7 +182,13 @@ df_BYGV80
 
 ```{r}
 
-df_interest = openxlsx::read.xlsx(xlsxFile = "obligationsrente_fida_uge08-2022.xlsx",startRow = 3)
+source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
+current_url = xml2::read_html(source_url) %>%
+  html_node("#wrapper > div > div.sectionB > div.container > div > div.span8 > p:nth-child(10) > a") %>% 
+  rvest::html_attr("href")
+xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+
+df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 3)
 
 df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
 df_interest = df_interest %>% 
@@ -194,7 +200,6 @@ df_interest = df_interest %>%
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
   dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
   dplyr::rename(DATE=Date)
-df_interest
 ```
 
 ## Adjustments
@@ -221,7 +226,6 @@ df.adjustments =
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
   group_by(PROPERTY_TYPE,STAT,ZIP) %>% 
   dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) 
-df.adjustments
 
 ```
 
@@ -239,7 +243,7 @@ df.adjustments %>%
   ggplot(.,aes(x=DATE,y=INDEX,color=STAT)) +
   geom_smooth(fill=NA,span=0.03) +
   facet_wrap(~PROPERTY_TYPE,ncol=1) +
-  geom_smooth(data=df_udbud,aes(x=DATE,y=INDEX),color="blue",linetype=2)  +
+  geom_smooth(data=df_udbud,aes(x=DATE,y=VALUE),color="blue",linetype=2)  +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   theme(legend.position="bottom") +
@@ -255,7 +259,7 @@ df_BYGV80 %>%
   geom_line(color="gray30") +
   geom_smooth(fill=NA) +
   facet_wrap(~PROPERTY_TYPE,ncol=1) +
-  geom_smooth(data=df_udbud,aes(x=DATE,y=INDEX),color="blue",linetype=2)  +
+  geom_smooth(data=df_udbud,aes(x=DATE,y=VALUE),color="blue",linetype=2)  +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y",limits=c(dmy("2004-01-01"),dmy("2008-01-01"))) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   theme(legend.position="bottom") +
@@ -266,24 +270,24 @@ df_BYGV80 %>%
 ```
 
 ```{r}
-ggplot(df_udbud,aes(x=DATE,y=INDEX,color=ZIP)) +
+ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   geom_line(alpha=0.3) +
   facet_wrap(~PROPERTY_TYPE)
 ```
 ### COVID 19 lows
 
 ```{r}
-ggplot(df_udbud,aes(x=DATE,y=INDEX,color=ZIP)) +
+ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   geom_line(alpha=0.3) +
   facet_wrap(~PROPERTY_TYPE)  +
-  scale_x_date(limits=c(ymd("2020-01-01"),NA),date_labels = "%b",date_breaks = "2 months")  +
+  scale_x_date(limits=c(ymd("2020-01-01"),NA),date_labels = "%b",date_breaks = "3 months")  +
   geom_vline(data=df_udbud.covid19low,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7)
 ```
 
 ### Bubble lows
 
 ```{r}
-ggplot(df_udbud,aes(x=DATE,y=INDEX,color=ZIP)) +
+ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   geom_line(alpha=0.3) +
   facet_wrap(~PROPERTY_TYPE)  +
   scale_x_date(limits=c(ymd("2005-01-01"),ymd("2008-01-01")))  +
