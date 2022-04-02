@@ -24,3 +24,9 @@ change
 backlog
 byggebeskæftigelse
 rolling-sums-of-changes
+ecb-yield
+yield-curve-3
+spreads-1
+s10s
+predict-yield
+extrapolate
