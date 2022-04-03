@@ -127,7 +127,7 @@ plot(as.party(fit.rpart$finalModel))
 ```
 
 
-```{r}
+```{r eval=F}
 # GLM STEP AIC
 fit.glmStepAIC = MASS::stepAIC(glm(Recession~.,
                   data = df_fit_recession6mos %>% dplyr::select(-date) %>% na.omit(),
