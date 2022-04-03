@@ -35,7 +35,7 @@ recession_bool = fredr::fredr("USREC") %>%
 ```
 
 
-# Recession Next 6 Months
+## Recession Next 6 Months
 
 ```{r}
 # Skeleton
@@ -127,12 +127,12 @@ plot(as.party(fit.rpart$finalModel))
 ```
 
 
-```{r eval=F}
-# GLM STEP AIC
-fit.glmStepAIC = MASS::stepAIC(glm(Recession~.,
+```{r }
+# GLM 
+fit.glm = glm(Recession~.,
                   data = df_fit_recession6mos %>% dplyr::select(-date) %>% na.omit(),
-                  family="binomial"))
-summary( fit.glmStepAIC )
+                  family="binomial")
+summary( fit.glm )
 ```
 
 
@@ -143,7 +143,7 @@ fit.rf = caret::train(x = df.training.na_omit %>% dplyr::select(-Recession,-date
                          metric="ROC",
                          ntree=100,
                          method="rf",
-                         tuneGrid=data.frame(mtry=c(1,2,5,10,20,50)),
+                         tuneGrid=data.frame(mtry=c(1,2,5)),
                          trControl=trcontrol)
 fit.rf
 varImp(fit.rf)
@@ -153,11 +153,11 @@ varImp(fit.rf)
 ```{r}
 # Validate
 pred_rpart = predict(fit.rpart,df.test,type = "prob")[,2]
-# pred_glmStepAIC = predict(fit.glmStepAIC,df.test,type = "response")
+pred_glm = predict(fit.glm,df.test,type = "response")
 pred_rf = predict(fit.rf,df.test,type = "prob")[,2]
 
 roc_rpart = pROC::roc(predictor = pred_rpart,response = df.test$Recession)
-# roc_glm = pROC::roc(predictor = pred_glmStepAIC,response = df.test$Recession)
+roc_glm = pROC::roc(predictor = pred_glm,response = df.test$Recession)
 roc_rf = pROC::roc(predictor = pred_rf,response = df.test$Recession)
 ```
 
