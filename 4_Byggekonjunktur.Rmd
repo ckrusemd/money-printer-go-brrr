@@ -42,7 +42,7 @@ BYGV80 = BYGV80 %>%
 BYGV80 %>% 
   filter(ANVENDELSE == "Etageboliger") %>% 
   ggplot(.,aes(x=TID,y=value,color=BYGFASE)) +
-  geom_line() +
+  geom_point() +
   geom_line(aes(x=TID,y=ema),linetype=2,color="black") +
   scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
   theme(legend.position = "bottom") +
@@ -66,7 +66,7 @@ BYGV80 %>%
 BYGV80 %>% 
   filter(ANVENDELSE == "Parcelhuse") %>% 
   ggplot(.,aes(x=TID,y=value,color=BYGFASE)) +
-  geom_line() +
+  geom_point() +
   geom_line(aes(x=TID,y=ema),linetype=2,color="black") +
   scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
   theme(legend.position = "bottom") +

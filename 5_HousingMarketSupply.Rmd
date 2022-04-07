@@ -20,23 +20,28 @@ source(file = "money_theme.R")
 ```{r}
 loess_adjust = function(data) {
   
-  grid <- expand.grid(span = seq(0.1, 0.5, len = 5), degree = c(1))
-  fit_gam = suppressWarnings(expr =  { train(y = data$VALUE, 
-        x = data %>% dplyr::select(DATE),
-        tuneGrid=grid,
-        method = "gamLoess") })
+  # grid <- expand.grid(span = seq(0.1, 0.5, len = 5), degree = c(1))
+  # fit_gam = suppressWarnings(expr =  { train(y = data$VALUE, 
+  #       x = data %>% dplyr::select(DATE),
+  #       tuneGrid=grid,
+  #       method = "gamLoess") })
+  
+  
+  fit_smooth = smooth.spline(x = data$DATE, 
+                             y = data$VALUE, 
+                             all.knots = TRUE, 
+                             control.spar = list(low = -2, hight = 2))
   
   data %>% 
-    dplyr::mutate(VALUE=predict(fit_gam)) %>% 
+    dplyr::mutate(VALUE=fit_smooth$y) %>% 
     dplyr::mutate(VALUE=scale(VALUE,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(ema=TTR::EMA(VALUE,9))
   
 }
 ```
 
-# UDBUD
+# Denmark Housing Supply
 
-## Data
 
 ```{r}
 df_udbud =
@@ -54,8 +59,6 @@ df_udbud =
   do(loess_adjust(.))
 
 ```
-
-## Change Data
 
 ```{r}
 df_udbud.change =
@@ -75,8 +78,6 @@ df_udbud.change =
   dplyr::mutate(next_period_chg=lead(VALUE)-VALUE)
 ```
 
-## Bubble lows
-
 ```{r}
 
 df_udbud.bubblelow = df_udbud %>% 
@@ -93,8 +94,6 @@ df_udbud.bubblelow.DK =
 
 ```
 
-## Post-COVID19 lows
-
 ```{r}
 
 df_udbud.covid19low = df_udbud %>% 
@@ -110,10 +109,6 @@ df_udbud.covid19low.DK =
 
 ```
 
-# COVARIATES
-
-## House Price Growth
-
 ```{r}
 df.house_prices =
   openxlsx::read.xlsx(xlsxFile = "Data/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
@@ -127,11 +122,8 @@ df.house_prices =
   group_by(PROPERTY_TYPE,STAT,ZIP) %>% 
   # do(loess_adjust(.)) %>% 
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed'))
-df.house_prices
+
 ```
-
-## Liggetider
-
 
 ```{r}
 
@@ -148,10 +140,9 @@ df_liggetider =
   group_by(PROPERTY_TYPE,STAT,ZIP) %>% 
   dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
   dplyr::mutate(DATE=lubridate::ceiling_date(ymd(glue("{substr(DATE,1,4)}-{substr(DATE,6,7)}-01")),unit="month")-days(1))
-df_liggetider
+
 ```
 
-## Byggekonjunkturer
 
 ```{r }
 
@@ -176,9 +167,9 @@ df_BYGV80 =
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
   dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
   na.omit()
-df_BYGV80
+
 ```
-## Renter
+
 
 ```{r}
 
@@ -202,7 +193,6 @@ df_interest = df_interest %>%
   dplyr::rename(DATE=Date)
 ```
 
-## Adjustments
 
 ```{r}
 
@@ -229,7 +219,6 @@ df.adjustments =
 
 ```
 
-## INSIGHTS
 
 ### All time development
 
@@ -249,7 +238,8 @@ df.adjustments %>%
   theme(legend.position="bottom") +
   geom_vline(data=df_udbud.covid19low.DK,aes(xintercept=DATE)) +
   geom_vline(data=df_udbud.bubblelow.DK,aes(xintercept=DATE)) +
-  geom_hline(yintercept = 0)
+  geom_hline(yintercept = 0) +
+  theme_money_printer_go_brrr 
 ```
 
 ```{r}
@@ -265,14 +255,16 @@ df_BYGV80 %>%
   theme(legend.position="bottom") +
   geom_vline(data=df_udbud.covid19low.DK,aes(xintercept=DATE)) +
   geom_vline(data=df_udbud.bubblelow.DK,aes(xintercept=DATE)) +
-  geom_hline(yintercept = 0) 
+  geom_hline(yintercept = 0)  +
+  theme_money_printer_go_brrr 
 
 ```
 
 ```{r}
 ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   geom_line(alpha=0.3) +
-  facet_wrap(~PROPERTY_TYPE)
+  facet_wrap(~PROPERTY_TYPE) +
+  theme_money_printer_go_brrr 
 ```
 ### COVID 19 lows
 
@@ -281,7 +273,8 @@ ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   geom_line(alpha=0.3) +
   facet_wrap(~PROPERTY_TYPE)  +
   scale_x_date(limits=c(ymd("2020-01-01"),NA),date_labels = "%b",date_breaks = "3 months")  +
-  geom_vline(data=df_udbud.covid19low,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7)
+  geom_vline(data=df_udbud.covid19low,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7) +
+  theme_money_printer_go_brrr 
 ```
 
 ### Bubble lows
@@ -291,7 +284,8 @@ ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   geom_line(alpha=0.3) +
   facet_wrap(~PROPERTY_TYPE)  +
   scale_x_date(limits=c(ymd("2005-01-01"),ymd("2008-01-01")))  +
-  geom_vline(data=df_udbud.bubblelow,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7)
+  geom_vline(data=df_udbud.bubblelow,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7) +
+  theme_money_printer_go_brrr 
 ```
 
 

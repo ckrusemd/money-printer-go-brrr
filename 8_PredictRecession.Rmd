@@ -167,13 +167,13 @@ plot(roc_rf)
 ```
 
 ```{r}
-roc_glm
+plot(roc_glm)
 ```
 
 
 ```{r}
-cicoords_rf = ci.coords(roc_rf,x="best",best.method="youden",best.policy="random")
-cicoords_cutoff = cicoords_rf$threshold[2]
+cicoords_glm = ci.coords(roc_glm,x="best",best.method="youden",best.policy="random")
+cicoords_cutoff = cicoords_glm$threshold[2]
 ```
 
 ## Extrapolate
@@ -181,7 +181,7 @@ cicoords_cutoff = cicoords_rf$threshold[2]
 ```{r}
 
 df.extrapolate = df.test
-df.extrapolate$risk = predict(fit.rf,df.extrapolate,type = "prob") %>% pull(Yes)
+df.extrapolate$risk = predict(fit.glm,df.extrapolate,type = "response") 
 
 ggplot(df.extrapolate,aes(x=date,y=risk)) +
   geom_line() +
@@ -198,11 +198,11 @@ df.backtest = df.training %>%
   dplyr::mutate(type="Training") %>% 
   bind_rows(df.test) %>% 
   dplyr::mutate(type=tidyr::replace_na(type,"Test"))
-df.backtest$risk = predict(fit.rf,df.backtest,type = "prob") %>% pull(Yes)
+df.backtest$risk = predict(fit.glm,df.backtest,type = "response") 
 
 ggplot(df.backtest,aes(x=date,y=risk)) +
   geom_line(aes(color=type)) +
-  scale_y_continuous(labels=scales::percent) +
+  scale_y_continuous(labels=scales::percent,limits=c(0,0.02)) +
   scale_x_date(date_breaks = "3 years",date_labels = "%Y",limits=c(ymd("1980-01-01",NA))) +
   geom_hline(yintercept = cicoords_cutoff,linetype=2) +
   theme_bw() +

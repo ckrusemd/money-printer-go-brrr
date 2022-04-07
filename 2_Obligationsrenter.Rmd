@@ -40,17 +40,18 @@ df_interest = df_interest %>%
 ```
 
 ## Short, Long + Spread
+
 ```{r}
 
 df_interest %>% 
-  gather(stat,val,Kort.rente:CurveLongShort) %>% 
+  gather(stat,val,Kort.rente:Lang.rente) %>% 
   dplyr::mutate(stat=recode(stat,"Kort.rente"="Short","Lang.rente"="30yr","CurveLongShort"="Spread")) %>% 
   dplyr::mutate(val=val/100) %>% 
   ggplot(.,aes(x=Date,y=val,color=stat)) +
   geom_line() +
   scale_x_date(date_breaks = "2 years",date_labels = "%Y") +
-  scale_y_continuous(labels = scales::percent,breaks = seq(-0.03,0.1,by=0.01)) +
-  geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) + 
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.03,0.1,by=0.005)) +
+  # geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) + 
   geom_hline(yintercept = 0,linetype=2) +
   theme_money_printer_go_brrr +
   labs(title="Danish Long and Short Interest Rate",
@@ -60,6 +61,7 @@ df_interest %>%
        caption = timestamp_caption())
 
 ```
+
 
 ### Previous 12 Months
 
@@ -82,6 +84,32 @@ df_interest %>%
        y="(%)",
        caption = timestamp_caption())
 ```
+
+### Spread
+
+```{r}
+
+df_interest %>% 
+  gather(stat,val,CurveLongShort) %>% 
+  dplyr::mutate(stat=recode(stat,"Kort.rente"="Short","Lang.rente"="30yr","CurveLongShort"="Spread")) %>% 
+  dplyr::mutate(val=val/100) %>% 
+  ggplot(.,aes(x=Date,y=val,color=stat)) +
+  geom_line() +
+  scale_x_date(date_breaks = "2 years",date_labels = "%Y") +
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.03,0.1,by=0.005)) +
+  # geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) + 
+  geom_hline(yintercept = 0,linetype=2) +
+  geom_hline(yintercept = 0.035,color="red") +
+  theme_money_printer_go_brrr +
+  labs(title="Spread: Danish Long and Short Interest Rate",
+       subtitle=paste0("Source: ",source_url),
+       x="Date",
+       y="(%)",
+       caption = timestamp_caption())
+
+```
+
+
 
 ### Short w/ ECB Rate Changes
 
