@@ -182,6 +182,8 @@ cicoords_cutoff = cicoords_glm$threshold[2]
 
 df.extrapolate = df.test
 df.extrapolate$risk = predict(fit.glm,df.extrapolate,type = "response") 
+df.extrapolate$risk_rf = predict(fit.rf,df.extrapolate,type = "prob") %>% pull(Yes) 
+df.
 
 ggplot(df.extrapolate,aes(x=date,y=risk)) +
   geom_line() +

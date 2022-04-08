@@ -23,7 +23,7 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
 ```{r}
-num_trees=100
+num_trees=500
 tune_grid=data.frame(mtry=c(1,2))
 ```
 
