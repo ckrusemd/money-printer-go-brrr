@@ -48,10 +48,14 @@ supply
 insights-into-last-peak
 denmark-building-occupation
 ratio
+recession-prediction
+recession-next-6-months
+extrapolate
+backtest
 ecb-yield
 yield-curve-1
 spreads
 s10s
 predict-yield
-extrapolate
+extrapolate-1
 ecb-to-danish-yields
