@@ -1,0 +1,88 @@
+---
+title: "Denmark: Boligbyrde"
+author: "CAKU"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
+options(scipen=999)
+```
+
+# Denmark: Boligbyrde
+
+```{r }
+library(pacman)
+pacman::p_load(tidyr,dplyr,ggplot2,boot,openxlsx,lubridate,forcats,broom,purrr,caret,glue,devtools,dkstat,httr,rvest,zoo)
+source(file = "money_theme.R")
+```
+
+```{r}
+
+df =
+  openxlsx::read.xlsx(xlsxFile = "Data/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
+  setNames(.,c("ZIP","DATE","SALES_TYPE","HOUSE","FLAT")) %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(DATE,.direction="down") %>% 
+  gather(PROPERTY_TYPE,VALUE,HOUSE,FLAT) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1))
+
+df_m2price = 
+  df %>% 
+  # filter(ZIP=="2800 Kgs.Lyngby") %>% 
+  filter(SALES_TYPE=="Realiseret handelspris") %>% 
+  dplyr::select(ZIP,DATE,SALES_TYPE,VALUE,PROPERTY_TYPE) %>% 
+  dplyr::rename(STAT=SALES_TYPE)
+
+```
+
+```{r}
+
+source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
+current_url = xml2::read_html(source_url) %>%
+  html_node("#wrapper > div > div.sectionB > div.container > div > div.span8 > p:nth-child(10) > a") %>% 
+  rvest::html_attr("href")
+xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+
+df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 3)
+
+df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
+df_interest = 
+  df_interest %>% 
+  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
+  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
+  gather(RATE_TYPE,RATE_VALUE,Kort.rente:CurveLongShort) %>% 
+  dplyr::rename(DATE=Date) %>% 
+  group_by(RATE_TYPE) %>% 
+  tidyr::complete(DATE = seq.Date(from = min(DATE,na.rm=T), to = max(DATE,na.rm=T), by="day")) %>% 
+  tidyr::fill(RATE_VALUE,.direction="downup") %>% 
+  crossing(PROPERTY_TYPE=c("FLAT","HOUSE")) 
+  
+
+```
+
+
+```{r fig.height=5,fig.width=4}
+
+df_m2price %>% 
+  filter(ZIP %in% c("2800 Kgs.Lyngby")) %>% 
+  inner_join( df_interest ) %>% 
+  filter(RATE_TYPE %in% c("Kort.rente","Lang.rente")) %>% 
+  dplyr::mutate(RATE_BURDEN=VALUE*(RATE_VALUE/100)) %>% 
+  ggplot(.,aes(x=DATE,y=RATE_BURDEN,color=PROPERTY_TYPE)) +
+  geom_line() +
+  facet_wrap(~RATE_TYPE,ncol=1) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme_money_printer_go_brrr  +
+  labs(title="Boligbyrde: DK Interest Payment per SQMT",
+       x="Date",
+       y="DKK",
+       caption = timestamp_caption()
+       )
+
+```
+

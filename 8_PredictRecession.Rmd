@@ -150,34 +150,20 @@ varImp(fit.rf)
 ```
 
 
-```{r }
-# RANDOM FOREST
-fit.xgBoost = caret::train(x = df.training.na_omit %>% dplyr::select(-Recession,-date),
-                         y = df.training.na_omit$Recession,
-                         metric="ROC",
-                         method="xgbTree",
-                         # tuneGrid=data.frame(mtry=c(1,2,5)),
-                         trControl=trcontrol)
-fit.xgBoost
-varImp(fit.rf)
-```
-
 ```{r}
 # Validate
 pred_rpart = predict(fit.rpart,df.test,type = "prob")[,2]
 pred_glm = predict(fit.glm,df.test,type = "response")
 pred_rf = predict(fit.rf,df.test,type = "prob")[,2]
-pred_xgbtree = predict(fit.xgBoost,df.test,type = "prob")[,2]
 
 roc_rpart = pROC::roc(predictor = pred_rpart,response = df.test$Recession)
 roc_glm = pROC::roc(predictor = pred_glm,response = df.test$Recession)
 roc_rf = pROC::roc(predictor = pred_rf,response = df.test$Recession)
-roc_xgbtree = pROC::roc(predictor = pred_xgbtree,response = df.test$Recession)
 ```
 
 
 ```{r}
-plot(roc_xgbtree)
+plot(roc_rf)
 ```
 
 ```{r}
@@ -195,8 +181,9 @@ cicoords_cutoff = cicoords_glm$threshold[2]
 ```{r}
 
 df.extrapolate = df.test
-df.extrapolate$risk = predict(fit.xgBoost,df.extrapolate,type = "prob") %>% pull(Yes) 
+df.extrapolate$risk = predict(fit.glm,df.extrapolate,type = "response") 
 df.extrapolate$risk_rf = predict(fit.rf,df.extrapolate,type = "prob") %>% pull(Yes) 
+df.
 
 ggplot(df.extrapolate,aes(x=date,y=risk)) +
   geom_line() +
@@ -213,7 +200,7 @@ df.backtest = df.training %>%
   dplyr::mutate(type="Training") %>% 
   bind_rows(df.test) %>% 
   dplyr::mutate(type=tidyr::replace_na(type,"Test"))
-df.backtest$risk = predict(fit.xgBoost,df.backtest,type = "prob") %>% pull(Yes) 
+df.backtest$risk = predict(fit.glm,df.backtest,type = "response") 
 
 ggplot(df.backtest,aes(x=date,y=risk)) +
   geom_line(aes(color=type)) +
