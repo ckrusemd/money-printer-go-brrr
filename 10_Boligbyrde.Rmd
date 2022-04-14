@@ -86,3 +86,28 @@ df_m2price %>%
 
 ```
 
+## Household income 30%
+
+
+```{r fig.height=5,fig.width=4}
+#```{r }
+
+df_m2price %>% 
+  filter(ZIP %in% c("2800 Kgs.Lyngby")) %>% 
+  inner_join( df_interest ) %>% 
+  filter(RATE_TYPE %in% c("Kort.rente","Lang.rente")) %>% 
+  dplyr::mutate(RATE_BURDEN=180*VALUE*(RATE_VALUE/100)) %>% 
+  dplyr::mutate(RATE_BURDEN=RATE_BURDEN/(1/3)) %>% 
+  ggplot(.,aes(x=DATE,y=RATE_BURDEN,color=PROPERTY_TYPE)) +
+  geom_line() +
+  facet_wrap(~RATE_TYPE,ncol=1) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme_money_printer_go_brrr  +
+  labs(title="Boligbyrde: DK Interest Payment per SQMT",
+       x="Date",
+       y="DKK",
+       caption = timestamp_caption()
+       )
+
+```
