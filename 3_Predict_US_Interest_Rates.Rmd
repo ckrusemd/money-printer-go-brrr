@@ -215,8 +215,7 @@ df_predict_DK_Short = df_yield_checkboard %>%
   left_join(df_DK_Short,by=c("one_year_ahead"="date")) %>% 
   unite(series_id,series_id,joined_series) %>% 
   dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) %>% 
-  tidyr::fill(value,.direction="up")
+  spread(series_id,spread) 
 
 df_predict_DK_Long = df_yield_checkboard %>% 
   filter(series_id!=joined_series) %>% 
@@ -225,8 +224,8 @@ df_predict_DK_Long = df_yield_checkboard %>%
   unite(series_id,series_id,joined_series) %>% 
   dplyr::select(date,series_id,spread,value) %>% 
   spread(series_id,spread) %>% 
-  arrange(desc(date)) %>% 
-  tidyr::fill(value,.direction="up")
+  arrange(desc(date))
+
 ```
 
 
