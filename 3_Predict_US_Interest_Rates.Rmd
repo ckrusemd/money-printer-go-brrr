@@ -331,7 +331,7 @@ df_predict_DK_Short %>%
   # dplyr::select(date,pred_glm,value) %>% 
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_DK_Short:pred_spread) %>%
-  crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
   dplyr::mutate(date=ifelse(one_year,
                             ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
   filter(!is.na(date)) %>% 
@@ -341,14 +341,14 @@ df_predict_DK_Short %>%
   geom_line() +
   geom_line(data=df_DK_Short %>% 
                dplyr::mutate(pred="Observed") %>%
-  crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
   dplyr::mutate(date=ifelse(one_year,
                             ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
   filter(!is.na(date)) %>% 
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
   geom_line(data=df_DK_Long %>% 
                dplyr::mutate(pred="Observed") %>%
-  crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
   dplyr::mutate(date=ifelse(one_year,
                             ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
   filter(!is.na(date)) %>% 
