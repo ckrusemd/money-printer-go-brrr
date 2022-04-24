@@ -81,8 +81,8 @@ jobs:
         server_port: 465
         username: ${{secrets.MAIL_USERNAME}}
         password: ${{secrets.MAIL_PASSWORD}}
-        subject: Danish Electricity Prices - Daily Update
+        subject: Money Printer Go Brrr - Daily Update
         to: ${{secrets.MAIL_USERNAME}}
         from: Christian Kruse
         secure: true
-        body: https://ckrusemd.github.io/danish-electricity-prices/east-denmark.html
+        body: https://ckrusemd.github.io/money-printer-go-brrr/
