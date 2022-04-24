@@ -74,3 +74,15 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         EMAIL: ${{ secrets.EMAIL }}
         BUILD_DIR: _book/
+    - name: Send mail
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 465
+        username: ${{secrets.MAIL_USERNAME}}
+        password: ${{secrets.MAIL_PASSWORD}}
+        subject: Danish Electricity Prices - Daily Update
+        to: ${{secrets.MAIL_USERNAME}}
+        from: Christian Kruse
+        secure: true
+        body: https://ckrusemd.github.io/danish-electricity-prices/east-denmark.html
