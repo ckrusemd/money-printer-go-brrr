@@ -177,7 +177,7 @@ df_yieldcurve %>%
 
 ### 2-Year to 10-Year T-Bond
 
-```{r fig.width = 1024/72, fig.width = 768/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yieldcurve %>% 
   filter(date>ymd("1975-01-01")) %>% 
@@ -198,7 +198,7 @@ df_yieldcurve %>%
 ```
 
 
-```{r fig.width = 1024/72, fig.width = 768/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yieldcurve %>% 
   filter(date>Sys.Date()-years(1)) %>% 
@@ -221,7 +221,7 @@ df_yieldcurve %>%
 
 ### Federal Funds Rate to 30-Year Mortgage Spread
 
-```{r fig.width = 1024/72, fig.width = 768/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yieldcurve %>% 
   filter(date>ymd("1970-01-01")) %>% 
@@ -242,7 +242,7 @@ df_yieldcurve %>%
        caption = timestamp_caption())
 ```
 
-```{r fig.width = 1024/72, fig.width = 768/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yieldcurve %>% 
   filter(date>Sys.Date()-years(1)) %>% 
@@ -262,9 +262,10 @@ df_yieldcurve %>%
        y="Spread (%)",
        caption = timestamp_caption())
 ```
+
 ### 30-Year Mortgage to 30-Year T-Bond
 
-```{r fig.width = 1024/72, fig.width = 768/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yieldcurve %>% 
   filter(date>ymd("1975-01-01")) %>% 
@@ -305,7 +306,7 @@ df_yield_checkboard =
 ```
 
 
-```{r fig.width = 1024/72, fig.width = 768/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 df_yield_checkboard %>% 
   group_by(series_id,joined_series) %>% 
   filter(date==max(date)) %>% 
@@ -338,7 +339,7 @@ df_yield_checkboard %>%
 ```
 
 
-```{r fig.width = 1024/72, fig.width = 768/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 2048/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yield_checkboard %>% 
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,

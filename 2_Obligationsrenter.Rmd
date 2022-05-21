@@ -20,6 +20,19 @@ source(file = "money_theme.R")
 ```
 
 ```{r}
+fit_draw_abline = function(date1,date2,value1,value2) {
+  
+  data.frame(Date=c(date1,date2),
+             val=c(value1,value2)) %>% 
+    lm(data = .,formula = val~Date) %>% 
+    coef(.) %>% 
+    as.numeric(.) %>% 
+    geom_abline(intercept = .[1],slope = .[2])
+  
+}
+```
+
+```{r}
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
 current_url = xml2::read_html(source_url) %>%
@@ -37,6 +50,8 @@ df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), 
 df_interest = df_interest %>% 
   dplyr::select(Date,Kort.rente,Lang.rente) %>% 
   dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente )
+
+max_date = max(df_interest$Date,na.rm = T)
 ```
 
 ## Short, Long + Spread
@@ -58,7 +73,8 @@ df_interest %>%
        subtitle=paste0("Source: ",source_url),
        x="Date",
        y="(%)",
-       caption = timestamp_caption())
+       caption = paste0("Data from ",format(max_date,"%Y %b %d"),". ",timestamp_caption())) +
+  geom_vline(xintercept = max_date)
 
 ```
 
@@ -82,7 +98,8 @@ df_interest %>%
        subtitle=paste0("Source: ",source_url),
        x="Date",
        y="(%)",
-       caption = timestamp_caption())
+       caption = paste0("Data from ",format(max_date,"%Y %b %d"),". ",timestamp_caption())) +
+  geom_vline(xintercept = max_date)
 ```
 
 ### Spread
@@ -95,17 +112,18 @@ df_interest %>%
   dplyr::mutate(val=val/100) %>% 
   ggplot(.,aes(x=Date,y=val,color=stat)) +
   geom_line() +
-  scale_x_date(date_breaks = "2 years",date_labels = "%Y") +
+  scale_x_date(date_breaks = "1 years",date_labels = "%Y") +
   scale_y_continuous(labels = scales::percent,breaks = seq(-0.03,0.1,by=0.005)) +
   # geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) + 
-  geom_hline(yintercept = 0,linetype=2) +
+  # geom_hline(yintercept = 0,linetype=2) +
   geom_hline(yintercept = 0.035,color="red") +
+  fit_draw_abline(date1 = ymd("2021-01-01"),date2 = ymd("2022-05-21"),value1 = 0.015,value2 = 0.0255) +
   theme_money_printer_go_brrr +
   labs(title="Spread: Danish Long and Short Interest Rate",
        subtitle=paste0("Source: ",source_url),
        x="Date",
        y="(%)",
-       caption = timestamp_caption())
+       caption = paste0("Data from ",format(max_date,"%Y %b %d"),". ",timestamp_caption()))
 
 ```
 
