@@ -52,7 +52,7 @@ df_BOL101 %>%
   geom_line() +
   facet_wrap(~ANVENDELSE+BEBO,scales="free") +
   theme(legend.position="bottom") +
-  theme_money_printer_go_brrr 
+  theme_money_printer_go_brrr(base_size=12) 
 ```
 
 ## Ratio
@@ -73,7 +73,7 @@ df_BOL101 %>%
   geom_line() +
   facet_wrap(~OMRÅDE,scales="free") +
   theme(legend.position="bottom") +
-  theme_money_printer_go_brrr 
+  theme_money_printer_go_brrr(base_size=12) 
 ```
 
 

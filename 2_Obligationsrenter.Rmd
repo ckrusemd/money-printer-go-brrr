@@ -68,7 +68,7 @@ df_interest %>%
   scale_y_continuous(labels = scales::percent,breaks = seq(-0.03,0.1,by=0.005)) +
   # geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) + 
   geom_hline(yintercept = 0,linetype=2) +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Danish Long and Short Interest Rate",
        subtitle=paste0("Source: ",source_url),
        x="Date",
@@ -93,7 +93,7 @@ df_interest %>%
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   scale_y_continuous(labels = scales::percent,breaks = seq(-0.03,0.1,by=0.0025)) +
   geom_hline(yintercept = 0,linetype=2) +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Danish Long and Short Interest Rate",
        subtitle=paste0("Source: ",source_url),
        x="Date",
@@ -118,7 +118,7 @@ df_interest %>%
   # geom_hline(yintercept = 0,linetype=2) +
   geom_hline(yintercept = 0.035,color="red") +
   fit_draw_abline(date1 = ymd("2021-01-01"),date2 = ymd("2022-05-21"),value1 = 0.015,value2 = 0.0255) +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Spread: Danish Long and Short Interest Rate",
        subtitle=paste0("Source: ",source_url),
        x="Date",
@@ -152,7 +152,7 @@ df_interest %>%
   geom_vline(xintercept = c(dmy("13-04-2011"),
                             dmy("13-07-2011")),color="red",linetype=2) + 
   geom_hline(yintercept = 0,linetype=2) +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Short Yield",
        x="Date",
        y="Spread (%)",
@@ -200,12 +200,12 @@ df_interest %>%
   geom_vline(xintercept = c(dmy("01-02-2017"),
                             dmy("01-10-2017"),
                             dmy("01-12-2018")),color="green",linetype=2) + 
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="All Yields (Last Year)",
        x="Date",
        y="Spread (%)",
        caption = timestamp_caption()) +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Exponential Boundaries of 30yr Mortgage Rate (w/ EBC Rate Changes)",
        subtitle=paste0("Source: ",source_url),
        x="Date",
@@ -229,7 +229,7 @@ df_interest %>%
   ggplot(.,aes(x=Date,y=FutureMax,color=stat)) +
   geom_line() +
   scale_x_date(date_breaks = "1 years",date_labels = "%Y") +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Future Rate Increases within 5 yrs",
        x="Date",
        y="Spread (%)",
@@ -250,7 +250,7 @@ df_interest %>%
   geom_point() +
   scale_y_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) +
   scale_x_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) + 
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Lowest Long Yield to Lowest Short-Long Spread",
        y="Mortgage 30YR Yield",
        x="Short-Long Spread",
@@ -291,7 +291,7 @@ df_glicko_ratings %>%
   geom_line() +
   scale_y_continuous(limits=c(0,100),breaks = seq(0,100,by=10)) +
   scale_x_date(date_breaks = "1 years",date_labels = "%Y") +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Best Time To Go Fixed (0-100)",
        x="Year",
        y="Rating (0-100)",

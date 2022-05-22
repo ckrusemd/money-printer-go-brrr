@@ -91,7 +91,7 @@ df_ECB_yields %>%
   scale_x_continuous(labels = labels_,
                      breaks = breaks_) +
   scale_y_continuous(breaks = seq(-0.5,0.5,by=0.0025),labels = scales::percent)+
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   theme(axis.text.x=element_text(angle=45,hjust=1,size=8))
 
 ```
@@ -122,7 +122,7 @@ df_yield_checkboard %>%
   ggplot(.,aes(x=Yield,y=Joined_Yield)) +
   geom_tile(aes(fill=spread)) +
   scale_fill_gradient2(low="green",high="red",midpoint=0,na.value = "gray70") +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   theme(axis.text.x=element_text(angle=45,hjust=1),
         legend.position="bottom")+
   geom_text(aes(label=label_),size=3.5)
@@ -145,7 +145,7 @@ df_ECB_yields %>%
   geom_hline(yintercept = 0,linetype=2) + 
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
   scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) + 
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Spread: 2Y - 10Y",
        x="Date",
        y="Spread (%)",
@@ -209,7 +209,7 @@ df_predict_DF %>%
   geom_line() +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
   scale_y_continuous(labels = scales::percent) +
-  theme_money_printer_go_brrr +
+  theme_money_printer_go_brrr(base_size=12) +
   # theme(axis.text.x=element_text(angle=45,hjust=1)) +
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
@@ -252,7 +252,7 @@ df_ECB_DK %>%
   scale_y_continuous(labels = scales::percent,breaks = seq(-0.01,0.1,by=0.005)) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
   geom_hline(yintercept = 0,linetype=2) +
-  theme_money_printer_go_brrr  +
+  theme_money_printer_go_brrr(base_size=12)  +
   labs(title="Spread: DK Interbank 3MO - EU 3 Month Bond",
        x="Date",
        y="Spread (%)",

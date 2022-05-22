@@ -239,7 +239,7 @@ df.adjustments %>%
   geom_vline(data=df_udbud.covid19low.DK,aes(xintercept=DATE)) +
   geom_vline(data=df_udbud.bubblelow.DK,aes(xintercept=DATE)) +
   geom_hline(yintercept = 0) +
-  theme_money_printer_go_brrr 
+  theme_money_printer_go_brrr(base_size=12) 
 ```
 
 ```{r}
@@ -256,7 +256,7 @@ df_BYGV80 %>%
   geom_vline(data=df_udbud.covid19low.DK,aes(xintercept=DATE)) +
   geom_vline(data=df_udbud.bubblelow.DK,aes(xintercept=DATE)) +
   geom_hline(yintercept = 0)  +
-  theme_money_printer_go_brrr 
+  theme_money_printer_go_brrr(base_size=12) 
 
 ```
 
@@ -264,7 +264,7 @@ df_BYGV80 %>%
 ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   geom_line(alpha=0.3) +
   facet_wrap(~PROPERTY_TYPE) +
-  theme_money_printer_go_brrr 
+  theme_money_printer_go_brrr(base_size=12) 
 ```
 ### COVID 19 lows
 
@@ -274,7 +274,7 @@ ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   facet_wrap(~PROPERTY_TYPE)  +
   scale_x_date(limits=c(ymd("2020-01-01"),NA),date_labels = "%b",date_breaks = "3 months")  +
   geom_vline(data=df_udbud.covid19low,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7) +
-  theme_money_printer_go_brrr 
+  theme_money_printer_go_brrr(base_size=12) 
 ```
 
 ### Bubble lows
@@ -285,7 +285,7 @@ ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   facet_wrap(~PROPERTY_TYPE)  +
   scale_x_date(limits=c(ymd("2005-01-01"),ymd("2008-01-01")))  +
   geom_vline(data=df_udbud.bubblelow,aes(xintercept=DATE,color=ZIP),linetype=2,alpha=0.7) +
-  theme_money_printer_go_brrr 
+  theme_money_printer_go_brrr(base_size=12) 
 ```
 
 
