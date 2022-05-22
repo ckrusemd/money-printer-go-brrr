@@ -12,7 +12,7 @@ output: html_document
 }
 </style>
 
-```{r  include=FALSE}
+```{r fed_yield_curve, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 ```
 
