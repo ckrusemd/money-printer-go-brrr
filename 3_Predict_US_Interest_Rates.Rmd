@@ -359,7 +359,7 @@ df_predict_DK_Short %>%
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   facet_wrap(~one_year,scales="free",ncol=1) +
-  theme_money_printer_go_brrr(base_size=12)(base_size=12) +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Predicted/Observed Long and Short Interest Rate",
        x=NULL,
        y="(%)",
@@ -393,7 +393,7 @@ df_predict_DFF %>%
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   facet_wrap(~one_year,scales="free",ncol=1) +
-  theme_money_printer_go_brrr(base_size=12)(base_size=12) +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Predicted/Observed T-Bond Yields",
        x=NULL,
        y="(%)",
@@ -426,7 +426,7 @@ df_predict_DFF %>%
   ggplot(.,aes(x=pred,y=val,color=factor(date),group=date)) +
   geom_line() +
   scale_y_continuous(breaks = seq(0,10,0.5)) +
-  theme_money_printer_go_brrr(base_size=12)(base_size=12) +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Predicted Yield Curves",
        x=NULL,
        y="(%)",
@@ -472,7 +472,7 @@ df_predict_DFF %>%
   scale_y_continuous(breaks = seq(0,0.1,by=0.0025),labels = scales::percent,limits = c(0,NA)) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   geom_vline(data=fomc_dates,aes(xintercept=date_fomc),linetype=2) +
-  theme_money_printer_go_brrr(base_size=12)(base_size=12) +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Predicted FOMC Meeting Rates",
        x=NULL,
        y="(%)",
@@ -528,7 +528,7 @@ fit_DFF_previous %>%
   scale_y_continuous(breaks = seq(0,0.1,by=0.0025),labels = scales::percent,limits = c(0,NA)) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   geom_vline(data=fomc_dates,aes(xintercept=date_fomc),linetype=2) +
-  theme_money_printer_go_brrr(base_size=12)(base_size=12) +
+  theme_money_printer_go_brrr(base_size=12) +
   labs(title="Predicted FOMC Meeting Rates",
        x=NULL,
        y="(%)",
