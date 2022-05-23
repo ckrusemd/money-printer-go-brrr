@@ -7,6 +7,7 @@ yield-curve
 treasury-bonds-spreads
 year-to-10-year-t-bond
 federal-funds-rate-to-30-year-mortgage-spread
+year-mortgage-to-30-year-t-bond
 yield-checkboard
 denmark-mortgage-bonds
 short-long-spread
@@ -59,3 +60,5 @@ s10s
 predict-yield
 extrapolate-1
 ecb-to-danish-yields
+denmark-boligbyrde
+household-income-30
