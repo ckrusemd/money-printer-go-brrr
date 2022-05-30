@@ -306,7 +306,7 @@ df_yield_checkboard =
 ```
 
 
-```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 2048/72, fig.width = 2048/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 df_yield_checkboard %>% 
   group_by(series_id,joined_series) %>% 
   filter(date==max(date)) %>% 
@@ -339,7 +339,7 @@ df_yield_checkboard %>%
 ```
 
 
-```{r fig.width = 2048/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 2048/72, fig.width = 2048/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yield_checkboard %>% 
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,

@@ -23,10 +23,20 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
 ```{r}
+
+add_fomc_meeting_dates = function() {
+  geom_vline(xintercept = c(ymd("2022-06-15"),
+                            ymd("2022-07-27"),
+                            ymd("2022-09-21"),
+                            ymd("2022-11-02"),
+                            ymd("2022-12-14")),linetype=2,color="#eb493a")
+}
+```
+
+```{r}
 num_trees=1000
 tune_grid=data.frame(mtry=c(1,2))
 ```
-
 
 ```{r}
 df_yieldcurve = 
@@ -169,6 +179,7 @@ df_DK_Long =
 
 
 ```{r}
+
 df_predict_DFF = df_yield_checkboard %>% 
   filter(series_id!=joined_series) %>% 
   dplyr::mutate(one_year_ahead=date+years(1)) %>% 
@@ -230,6 +241,7 @@ df_predict_DK_Long = df_yield_checkboard %>%
 
 
 ```{r}
+
 fit_DFF = caret::train(x = df_predict_DFF %>% 
                               na.omit %>% 
                               dplyr::select(-date,-value) %>% 
@@ -316,60 +328,10 @@ fit_DK_Long = caret::train(x = df_predict_DK_Long %>%
                          trControl=train_control)
 ```
 
-## Danish Short and Long
 
-```{r fig.width=20,fig.height=20}
+## Predicted US Yield
 
-df_predict_DK_Short %>% 
-  # filter(date>=Sys.Date()-years(2)) %>% 
-  dplyr::mutate(pred_DK_Short=predict(fit_DK_Short,.),
-                pred_DK_Long=predict(fit_DK_Long,.)) %>% 
-  dplyr::mutate(pred_spread=pred_DK_Long-pred_DK_Short) %>% 
-  # dplyr::mutate(pred_glm=predict(lm_DFF,.),
-  #               pred_rpart=predict(fit_rpart,.)) %>% 
-  dplyr::select(date,pred_DK_Short,pred_DK_Long,pred_spread,value) %>%
-  # dplyr::select(date,pred_glm,value) %>% 
-  dplyr::mutate(date=date+years(1)) %>%
-  gather(pred,val,pred_DK_Short:pred_spread) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
-  dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
-  dplyr::mutate(date=as.Date(date,origin="1970-01-01"))  %>%
-  # gather(pred,val,pred_glm) %>% 
-  ggplot(.,aes(x=date,y=val,color=pred)) +
-  geom_line() +
-  geom_line(data=df_DK_Short %>% 
-               dplyr::mutate(pred="Observed") %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
-  dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
-  dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
-  geom_line(data=df_DK_Long %>% 
-               dplyr::mutate(pred="Observed") %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
-  dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
-  dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
-  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
-  scale_y_continuous(breaks = seq(0,10,0.5)) +
-  theme(axis.text.x=element_text(angle=45,hjust=1))  +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
-  geom_hline(yintercept = 0,linetype=2) +
-  facet_wrap(~one_year,scales="free",ncol=1) +
-  theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed Long and Short Interest Rate",
-       x=NULL,
-       y="(%)",
-       caption = timestamp_caption())
-
-```
-
-## Predicted Yield
-
-```{r fig.width=20,fig.height=20}
+```{r fig.width=15,fig.height=15}
 
 df_predict_DFF %>% 
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
@@ -385,15 +347,16 @@ df_predict_DFF %>%
                             ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
   filter(!is.na(date)) %>% 
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
+  filter(!one_year) %>% 
   ggplot(.,aes(x=date,y=val,color=pred)) +
-  geom_line() +
+  geom_line(size=1) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
   scale_y_continuous(breaks = seq(0,10,0.5)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
-  facet_wrap(~one_year,scales="free",ncol=1) +
-  theme_money_printer_go_brrr(base_size=12) +
+  # facet_wrap(~one_year,scales="free",ncol=1) +
+  theme_money_printer_go_brrr(base_size=20) +
   labs(title="Predicted/Observed T-Bond Yields",
        x=NULL,
        y="(%)",
@@ -401,11 +364,43 @@ df_predict_DFF %>%
                 
 ```
 
+```{r fig.width=15,fig.height=15}
+
+df_predict_DFF %>% 
+  dplyr::mutate(pred_DFF=predict(fit_DFF,.),
+                pred_DGS2=predict(fit_DGS2,.),
+                pred_DGS10=predict(fit_DGS10,.),
+                pred_DGS30=predict(fit_DGS30,.),
+                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>% 
+  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
+  dplyr::mutate(date=date+years(1)) %>%
+  gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>%
+  crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
+  filter(one_year) %>% 
+  ggplot(.,aes(x=date,y=val,color=pred)) +
+  geom_line(size=1) +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  scale_y_continuous(breaks = seq(0,10,0.5)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_hline(yintercept = 0,linetype=2) +
+  # facet_wrap(~one_year,scales="free",ncol=1) +
+  theme_money_printer_go_brrr(base_size=20) +
+  labs(title="Predicted/Observed T-Bond Yields",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption()) +
+  add_fomc_meeting_dates()
+                
+```
+
 ## Future Yield Curves
 
-
-```{r fig.width=20,fig.height=20}
-
+```{r fig.width=15,fig.height=15}
 
 df_predict_DFF %>% 
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
@@ -416,7 +411,7 @@ df_predict_DFF %>%
   dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
   dplyr::mutate(date=date+years(1)) %>%
   filter(date>=Sys.Date()) %>% 
-  filter(date %in% seq.Date(from = min(date),to=max(date),by = "3 months")) %>%
+  filter(date %in% unique(date)[seq(1,length(date),length.out=6)]) %>%
   gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>% 
   dplyr::mutate(pred=factor(pred,levels=c("pred_DFF",
                                           "pred_DGS2",
@@ -424,9 +419,9 @@ df_predict_DFF %>%
                                           "pred_DGS30",
                                           "pred_MORTGAGE30US"))) %>% 
   ggplot(.,aes(x=pred,y=val,color=factor(date),group=date)) +
-  geom_line() +
+  geom_line(size=1) +
   scale_y_continuous(breaks = seq(0,10,0.5)) +
-  theme_money_printer_go_brrr(base_size=12) +
+  theme_money_printer_go_brrr(base_size=20) +
   labs(title="Predicted Yield Curves",
        x=NULL,
        y="(%)",
@@ -436,7 +431,7 @@ df_predict_DFF %>%
 
 ## Future FED FOMC Meeting Rate changes
 
-```{r fig.width=20,fig.height=20}
+```{r fig.width=15,fig.height=15}
 
 fomc_dates = data.frame(date_fomc=c(ymd("2022-05-04"),
                ymd("2022-06-15"),
@@ -467,12 +462,12 @@ df_predict_DFF %>%
   filter(pred=="pred_DFF") %>% 
   dplyr::mutate(val=ceiling(val/0.25)*0.25/100) %>% 
   ggplot(.,aes(x=date_fomc,y=val)) +
-  geom_point() + 
-  geom_line() +
+  geom_point(size=3) + 
+  geom_line(size=1) +
   scale_y_continuous(breaks = seq(0,0.1,by=0.0025),labels = scales::percent,limits = c(0,NA)) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   geom_vline(data=fomc_dates,aes(xintercept=date_fomc),linetype=2) +
-  theme_money_printer_go_brrr(base_size=12) +
+  theme_money_printer_go_brrr(base_size=20) +
   labs(title="Predicted FOMC Meeting Rates",
        x=NULL,
        y="(%)",
@@ -483,7 +478,7 @@ df_predict_DFF %>%
 
 
 
-```{r}
+```{r fig.width=15,fig.height=15}
 
 fit_DFF_previous = rbindlist(lapply(c(7,30,180,365),function(days_ago) {
   
@@ -503,7 +498,7 @@ fit_DFF_previous = rbindlist(lapply(c(7,30,180,365),function(days_ago) {
                          metric = "RMSE",
                          trControl=train_control)
   
-  df_predict_DFF %>% 
+  temp_df %>% 
     dplyr::mutate(pred_DFF=predict(temp_fit,.)) %>% 
     dplyr::select(date,pred_DFF) %>% 
     dplyr::mutate(date=date+years(1),
@@ -537,3 +532,101 @@ fit_DFF_previous %>%
 
 ```
 
+
+## Danish Short and Long
+
+```{r fig.width=15,fig.height=15}
+
+df_predict_DK_Short %>% 
+  # filter(date>=Sys.Date()-years(2)) %>% 
+  dplyr::mutate(pred_DK_Short=predict(fit_DK_Short,.),
+                pred_DK_Long=predict(fit_DK_Long,.)) %>% 
+  dplyr::mutate(pred_spread=pred_DK_Long-pred_DK_Short) %>% 
+  # dplyr::mutate(pred_glm=predict(lm_DFF,.),
+  #               pred_rpart=predict(fit_rpart,.)) %>% 
+  dplyr::select(date,pred_DK_Short,pred_DK_Long,pred_spread,value) %>%
+  # dplyr::select(date,pred_glm,value) %>% 
+  dplyr::mutate(date=date+years(1)) %>%
+  gather(pred,val,pred_DK_Short:pred_spread) %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01"))  %>%
+    filter(!one_year) %>% 
+  ggplot(.,aes(x=date,y=val,color=pred)) +
+  geom_line() +
+  geom_line(data=df_DK_Short %>% 
+               dplyr::mutate(pred="Observed") %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
+  geom_line(data=df_DK_Long %>% 
+               dplyr::mutate(pred="Observed") %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  scale_y_continuous(breaks = seq(0,10,0.5)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1))  +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme_money_printer_go_brrr(base_size=20) +
+  labs(title="Predicted/Observed Long and Short Interest Rate",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
+
+```
+
+```{r fig.width=15,fig.height=15}
+
+df_predict_DK_Short %>% 
+  # filter(date>=Sys.Date()-years(2)) %>% 
+  dplyr::mutate(pred_DK_Short=predict(fit_DK_Short,.),
+                pred_DK_Long=predict(fit_DK_Long,.)) %>% 
+  dplyr::mutate(pred_spread=pred_DK_Long-pred_DK_Short) %>% 
+  # dplyr::mutate(pred_glm=predict(lm_DFF,.),
+  #               pred_rpart=predict(fit_rpart,.)) %>% 
+  dplyr::select(date,pred_DK_Short,pred_DK_Long,pred_spread,value) %>%
+  # dplyr::select(date,pred_glm,value) %>% 
+  dplyr::mutate(date=date+years(1)) %>%
+  gather(pred,val,pred_DK_Short:pred_spread) %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01"))  %>%
+  filter(one_year) %>% 
+  ggplot(.,aes(x=date,y=val,color=pred),size=2) +
+  geom_line() +
+  geom_line(data=df_DK_Short %>% 
+               dplyr::mutate(pred="Observed") %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
+  geom_line(data=df_DK_Long %>% 
+               dplyr::mutate(pred="Observed") %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b",limits=c(Sys.Date()-years(1),NA)) +
+  scale_y_continuous(breaks = seq(0,10,0.5),limits=c(NA,5)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1))  +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme_money_printer_go_brrr(base_size=20) +
+  labs(title="Predicted/Observed Long and Short Interest Rate",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
+
+```

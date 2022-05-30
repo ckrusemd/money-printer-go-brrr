@@ -65,7 +65,7 @@ df_interest =
 ```
 
 
-```{r fig.height=5,fig.width=4}
+```{r fig.width=10,fig.height=10}
 
 df_m2price %>% 
   filter(ZIP %in% c("2800 Kgs.Lyngby")) %>% 
@@ -89,7 +89,7 @@ df_m2price %>%
 ## Household income 30%
 
 
-```{r fig.height=5,fig.width=4}
+```{r fig.width=10,fig.height=10}
 #```{r }
 
 df_m2price %>% 
