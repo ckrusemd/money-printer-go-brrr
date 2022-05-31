@@ -19,10 +19,10 @@ historic-5-year-forward-rate-increases
 lowest-long-yield-and-smallest-spread
 best-time-to-go-fixed
 predict-us-interest-rates
-danish-short-and-long
-predicted-yield
+predicted-us-yield
 future-yield-curves
 future-fed-fomc-meeting-rate-changes
+danish-short-and-long
 byggekonjunktur
 flats
 rolling-sums-of-changes
