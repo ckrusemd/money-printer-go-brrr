@@ -23,6 +23,7 @@ predicted-us-yield
 future-yield-curves
 future-fed-fomc-meeting-rate-changes
 danish-short-and-long
+inflation-expectations
 byggekonjunktur
 flats
 rolling-sums-of-changes
@@ -49,16 +50,5 @@ supply
 insights-into-last-peak
 denmark-building-occupation
 ratio
-recession-prediction
-recession-next-6-months
-extrapolate
-backtest
-ecb-yield
-yield-curve-1
-spreads
-s10s
-predict-yield
-extrapolate-1
-ecb-to-danish-yields
 denmark-boligbyrde
 household-income-30
