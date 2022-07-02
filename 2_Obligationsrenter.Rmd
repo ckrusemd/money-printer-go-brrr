@@ -36,7 +36,7 @@ fit_draw_abline = function(date1,date2,value1,value2) {
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
 current_url = xml2::read_html(source_url) %>%
-  html_node("#wrapper > div > div.sectionB > div.container > div > div.span8 > p:nth-child(10) > a") %>% 
+  html_node("#wrapper > div > div.sectionB > div.container > div > div.span8 > p:nth-child(11) > a") %>% 
   rvest::html_attr("href")
 xlsx_url = paste0("https://finansdanmark.dk/",current_url)
 
