@@ -39,8 +39,8 @@ add_fomc_meeting_dates = function() {
 ```
 
 ```{r}
-num_trees=1000
-tune_grid=data.frame(mtry=c(1,2))
+num_trees=100
+tune_grid=data.frame(mtry=c(20))
 ```
 
 ```{r}
@@ -282,12 +282,9 @@ df_predict_CPIAUCSL = df_yield_checkboard %>%
 
 ```
 
-
 ```{r}
-
-
-tune_grid=data.frame(mtry=c(5))
-
+tune_grid=data.frame(mtry=c(30))
+num_trees = 100
 fit_DFF = caret::train(x = df_predict_DFF %>% 
                               na.omit %>% 
                               dplyr::select(-date,-value) %>% 
