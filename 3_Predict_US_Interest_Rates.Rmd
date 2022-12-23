@@ -100,11 +100,11 @@ current_url = xml2::read_html(source_url) %>%
   rvest::html_attr("href")
 xlsx_url = paste0("https://finansdanmark.dk/",current_url)
 
-openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
+df_DK = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
 
 
-df_interest$År[1] = 1997
-df_interest = df_interest %>% fill(År,.direction = "down")
+df_DK$År[1] = 1997
+df_DK = df_DK %>% fill(År,.direction = "down")
 
 df_DK$date = as.Date(paste(df_DK$År, df_DK$Uge, 1, sep="-"), "%Y-%U-%u")
 df_DK = df_DK %>% 
