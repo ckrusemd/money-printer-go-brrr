@@ -175,7 +175,7 @@ df_BYGV80 =
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
 current_url = xml2::read_html(source_url) %>%
-  html_node("#wrapper > div > div.sectionB > div.container > div > div.span8 > p:nth-child(11) > a") %>% 
+  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(11) > a") %>% 
   rvest::html_attr("href")
 xlsx_url = paste0("https://finansdanmark.dk/",current_url)
 

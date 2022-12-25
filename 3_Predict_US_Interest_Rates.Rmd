@@ -24,8 +24,7 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
 ```{r}
 
-add_fomc_meeting_dates = function() {
-  geom_vline(xintercept = c(ymd("2022-06-15"),
+fomc_dates = data.frame(date_fomc=c(ymd("2022-06-15"),
                             ymd("2022-07-27"),
                             ymd("2022-09-21"),
                             ymd("2022-11-02"),
@@ -34,7 +33,15 @@ add_fomc_meeting_dates = function() {
                             ymd("2023-03-15"),
                             ymd("2023-05-03"),
                             ymd("2023-06-14"),
-                            ymd("2023-07-26")),linetype=2,color="#eb493a")
+                            ymd("2023-07-26"),
+                            ymd("2023-09-20"),
+                            ymd("2023-11-01"),
+                            ymd("2023-12-13"),
+                            Sys.Date())) %>% 
+  filter(date_fomc>=Sys.Date())
+
+add_fomc_meeting_dates = function() {
+  geom_vline(xintercept = fomc_dates$date_fomc,linetype=2,color="#eb493a")
 }
 ```
 
@@ -404,6 +411,7 @@ df_predict_DFF %>%
   dplyr::mutate(pred_DFF=predict(fit_DFF,.)) %>% 
   dplyr::select(date,pred_DFF) %>% 
   dplyr::mutate(date=date+years(1)) %>%
+  filter(date>=ymd("2000-01-01")) %>% 
   gather(pred,val,pred_DFF) %>%
   crossing(one_year=c(TRUE,FALSE)) %>% 
   dplyr::mutate(date=ifelse(one_year,
@@ -445,6 +453,7 @@ df_predict_DFF %>%
   filter(!is.na(date)) %>% 
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
   filter(!one_year) %>% 
+  filter(date>=ymd("2000-01-01")) %>% 
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=1) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
@@ -478,6 +487,7 @@ df_predict_DFF %>%
   filter(!is.na(date)) %>% 
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
   filter(one_year) %>% 
+  filter(date>=ymd("2000-01-01")) %>% 
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=1) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
@@ -529,17 +539,6 @@ df_predict_DFF %>%
 ## Future FED FOMC Meeting Rate changes
 
 ```{r fig.width=15,fig.height=15}
-
-fomc_dates = data.frame(date_fomc=c(ymd("2022-05-04"),
-               ymd("2022-06-15"),
-               ymd("2022-07-27"),
-               ymd("2022-09-21"),
-               ymd("2022-11-02"),
-               ymd("2022-12-14"),
-               ymd("2023-02-01"),
-               Sys.Date())) %>% 
-  filter(date_fomc>=Sys.Date())
-
 
 df_predict_DFF %>% 
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
@@ -651,6 +650,7 @@ df_predict_DK_Short %>%
   filter(!is.na(date)) %>% 
   dplyr::mutate(date=as.Date(date,origin="1970-01-01"))  %>%
     filter(!one_year) %>% 
+  filter(date>=ymd("2000-01-01")) %>% 
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line() +
   geom_line(data=df_DK_Short %>% 
@@ -716,7 +716,7 @@ df_predict_DK_Short %>%
   filter(!is.na(date)) %>% 
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
   scale_x_date(date_breaks = "1 month",date_labels = "%b",limits=c(Sys.Date()-years(1),NA)) +
-  scale_y_continuous(breaks = seq(0,10,0.5),limits=c(NA,5)) +
+  scale_y_continuous(breaks = seq(0,10,0.5),limits=c(NA,7)) +
   theme(axis.text.x=element_text(angle=45,hjust=1))  +
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
@@ -746,7 +746,7 @@ df_predict_CPIAUCSL %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=1) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
-  scale_y_continuous(breaks = seq(0,10,0.1)) +
+  scale_y_continuous(breaks = seq(0,10,0.25)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
   add_fomc_meeting_dates() +
   geom_vline(xintercept = Sys.Date(),linetype=2) +
@@ -759,5 +759,33 @@ df_predict_CPIAUCSL %>%
        caption = timestamp_caption())
 
 ```
+
+
+## Previous Hiking Cycles
+
+```{r fig.width=15,fig.height=15}
+
+fomc_decisions = rbindlist(list(
+data.frame(type="hike",
+           start_date=c("1994-02-04","1997-03-25","1999-06-30","2004-06-30","2015-12-07","2022-03-17")),
+data.frame(type="cut",
+           start_date=c("1990-07-13","1995-07-06","1998-09-29","2001-01-03","2002-11-06","2007-09-18","2008-10-08","2019-08-01","2020-03-03"))
+)) %>% 
+  dplyr::mutate(start_date=ymd(start_date))
+
+# Crossing
+df_DFF %>% 
+  crossing( fomc_decisions ) %>% 
+  dplyr::mutate(date_diff=as.numeric(date-start_date)) %>% 
+  filter( date_diff <= 365,
+          date_diff >= -365) %>% 
+  dplyr::mutate(start_date=factor(start_date)) %>% 
+  ggplot(.,aes(x=date_diff,y=value,color=start_date,group=start_date)) +
+  geom_line() +
+  facet_wrap(~type)+
+  theme_money_printer_go_brrr(base_size=20) 
+
+```
+
 
 
