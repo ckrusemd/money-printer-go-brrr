@@ -13,7 +13,7 @@ options(scipen=999)
 
 ```{r }
 library(pacman)
-pacman::p_load(tidyr,dplyr,ggplot2,boot,openxlsx,lubridate,forcats,broom,purrr,caret,glue,devtools,dkstat,zoo)
+pacman::p_load(tidyr,dplyr,ggplot2,boot,openxlsx,lubridate,forcats,broom,purrr,caret,glue,devtools,dkstat,zoo,rvest)
 source(file = "money_theme.R")
 ```
 
@@ -45,9 +45,9 @@ loess_adjust = function(data) {
 
 ```{r}
 df_udbud =
-  openxlsx::read.xlsx(xlsxFile = "Data/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
-  dplyr::rename(SUPPLY_TYPE=X1,
-                PROPERTY_TYPE=X2,
+  openxlsx::read.xlsx(xlsxFile = "Data/UDB010.xlsx",startRow = 3) %>% 
+  dplyr::rename(SUPPLY_TYPE=X2,
+                PROPERTY_TYPE=X1,
                 ZIP=X3) %>% 
   tidyr::fill(SUPPLY_TYPE,.direction="down") %>% 
   tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
@@ -55,16 +55,16 @@ df_udbud =
   gather(DATE,VALUE,c(4:ncol(.))) %>% 
   filter(!VALUE=="..") %>% 
   dplyr::mutate(DATE=lubridate::ceiling_date(ymd(glue("{substr(DATE,1,4)}-{substr(DATE,6,7)}-01")),unit="month")-days(1)) %>% 
-  group_by(PROPERTY_TYPE,ZIP) %>%
+  group_by(PROPERTY_TYPE,SUPPLY_TYPE,ZIP) %>%
   do(loess_adjust(.))
 
 ```
 
 ```{r}
 df_udbud.change =
-  openxlsx::read.xlsx(xlsxFile = "Data/202236193052365370194UDB010_2.xlsx",startRow = 3) %>% 
-  dplyr::rename(SUPPLY_TYPE=X1,
-                PROPERTY_TYPE=X2,
+  openxlsx::read.xlsx(xlsxFile = "Data/UDB010.xlsx",startRow = 3) %>% 
+  dplyr::rename(SUPPLY_TYPE=X2,
+                PROPERTY_TYPE=X1,
                 ZIP=X3) %>% 
   tidyr::fill(SUPPLY_TYPE,.direction="down") %>% 
   tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
@@ -72,7 +72,7 @@ df_udbud.change =
   gather(DATE,VALUE,c(4:ncol(.))) %>% 
   filter(!VALUE=="..") %>% 
   dplyr::mutate(DATE=lubridate::ceiling_date(ymd(glue("{substr(DATE,1,4)}-{substr(DATE,6,7)}-01")),unit="month")-days(1)) %>% 
-  group_by(PROPERTY_TYPE,ZIP) %>%  
+  group_by(PROPERTY_TYPE,SUPPLY_TYPE,ZIP) %>%  
   do(loess_adjust(.)) %>% 
   arrange(PROPERTY_TYPE,ZIP,DATE) %>% 
   dplyr::mutate(next_period_chg=lead(VALUE)-VALUE)
@@ -111,15 +111,15 @@ df_udbud.covid19low.DK =
 
 ```{r}
 df.house_prices =
-  openxlsx::read.xlsx(xlsxFile = "Data/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
-  setNames(.,c("ZIP","DATE","STAT","HOUSE","FLAT")) %>% 
-  tidyr::fill(ZIP,.direction="down") %>% 
-  tidyr::fill(DATE,.direction="down") %>% 
-  gather(PROPERTY_TYPE,VALUE,HOUSE,FLAT) %>% 
+  openxlsx::read.xlsx(xlsxFile = "Data/BM010.xlsx",startRow = 3) %>% 
+  rename_with(~c("PROPERTY_TYPE","SALES_TYPE","ZIP"),1:3) %>% 
+  tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
+  tidyr::fill(SALES_TYPE,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
   filter(!VALUE=="..") %>% 
   dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
   dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1)) %>% 
-  group_by(PROPERTY_TYPE,STAT,ZIP) %>% 
+  group_by(PROPERTY_TYPE,SALES_TYPE,ZIP) %>% 
   # do(loess_adjust(.)) %>% 
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed'))
 
@@ -128,9 +128,9 @@ df.house_prices =
 ```{r}
 
 df_liggetider =
-  openxlsx::read.xlsx(xlsxFile = "Data/202236191752365370194UDB030_2.xlsx",startRow = 3) %>% 
-  dplyr::rename(STAT=X1,
-                PROPERTY_TYPE=X2,
+  openxlsx::read.xlsx(xlsxFile = "Data/UDB030.xlsx",startRow = 3) %>% 
+  dplyr::rename(STAT=X2,
+                PROPERTY_TYPE=X1,
                 ZIP=X3) %>% 
   tidyr::fill(STAT,.direction="down") %>% 
   tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
@@ -179,7 +179,9 @@ current_url = xml2::read_html(source_url) %>%
   rvest::html_attr("href")
 xlsx_url = paste0("https://finansdanmark.dk/",current_url)
 
-df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 3)
+df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
+df_interest$År[1] = 1997
+df_interest = df_interest %>% fill(År,.direction = "down")
 
 df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
 df_interest = df_interest %>% 
@@ -187,8 +189,6 @@ df_interest = df_interest %>%
   dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
   gather(STAT,VALUE,Kort.rente:CurveLongShort) %>% 
   # dplyr::mutate(VALUE=TTR::RSI(VALUE,n=14)) %>% 
-  crossing(PROPERTY_TYPE=c("FLAT","HOUSE")) %>% 
-  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
   dplyr::mutate(INDEX=scale(VALUE,center = TRUE,scale = TRUE)) %>% 
   dplyr::rename(DATE=Date)
 ```
@@ -197,19 +197,20 @@ df_interest = df_interest %>%
 ```{r}
 
 df.adjustments = 
-  openxlsx::read.xlsx(xlsxFile = "Data/20223617848365363032BM011_2.xlsx",startRow = 3) %>% 
-  setNames(.,c("ZIP","DATE","STAT","HOUSE","FLAT")) %>% 
+  openxlsx::read.xlsx(xlsxFile = "Data/BM010.xlsx",startRow = 3) %>% 
+  rename_with(~c("PROPERTY_TYPE","SALES_TYPE","ZIP"),1:3) %>% 
+  tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
+  tidyr::fill(SALES_TYPE,.direction="down") %>% 
   tidyr::fill(ZIP,.direction="down") %>% 
-  tidyr::fill(DATE,.direction="down") %>% 
-  gather(PROPERTY_TYPE,VALUE,HOUSE,FLAT) %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
   filter(!VALUE=="..") %>% 
   dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
-  unite(STAT,STAT,PROPERTY_TYPE) %>% 
-  spread(STAT,VALUE) %>% 
-  dplyr::mutate(ADJUST_HOUSE=(`Realiseret handelspris_HOUSE`/`Første udbudspris_HOUSE`)-1) %>% 
-  dplyr::mutate(ADJUST_FLAT=(`Realiseret handelspris_FLAT`/`Første udbudspris_FLAT`)-1) %>% 
-  dplyr::select(ZIP,DATE,ADJUST_HOUSE,ADJUST_FLAT) %>% 
-  gather(ADJUST_TYPE,VALUE,ADJUST_HOUSE,ADJUST_FLAT) %>% 
+  unite(SALES_TYPE,SALES_TYPE,PROPERTY_TYPE) %>% 
+  spread(SALES_TYPE,VALUE) %>% 
+  dplyr::mutate(ADJUST_HOUSE=(`Realiseret handelspris_Parcel-/rækkehus`/`Første udbudspris_Parcel-/rækkehus`)-1) %>% 
+  # dplyr::mutate(ADJUST_FLAT=(`Realiseret handelspris_FLAT`/`Første udbudspris_FLAT`)-1) %>% 
+  dplyr::select(ZIP,DATE,ADJUST_HOUSE) %>% 
+  gather(ADJUST_TYPE,VALUE,ADJUST_HOUSE) %>% 
   na.omit() %>% 
   separate(ADJUST_TYPE,into=c("STAT","PROPERTY_TYPE")) %>% 
   dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1)) %>% 
