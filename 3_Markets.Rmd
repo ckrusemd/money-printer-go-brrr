@@ -1,0 +1,1073 @@
+---
+title: "I Like the Stock"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE,dev = "svg")
+```
+
+
+```{r}
+if (!require(pacman)) { install.packages("pacman") }
+pacman::p_load(bookdown,
+               PlayerRatings,
+               rvest,
+               dplyr,
+               tidyr,
+               RCurl,
+               rPref,
+               readr,
+               DT,
+               bookdown,
+               XML,
+               lubridate,
+               data.table,
+               openxlsx,
+               stringr,
+               quantmod,
+               ggplot2,
+               TTR,
+               rPref,
+               igraph,
+               scales,
+               DBI,
+               RSQLite,
+               XML,
+               RCurl,
+               stringr,
+               httr,
+               openxlsx,
+               progress,
+               glue,
+               caret,
+               tidyquant,
+               fredr,
+               logger)
+
+options(scipen=999)
+options(warn=-1)
+
+source("money_theme.R")
+
+```
+```{r}
+
+readRenviron(path = "Renviron.site")
+fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
+```
+
+
+```{r}
+
+query_yahoo = function(ticker) {
+  getSymbols(ticker, env = NULL) %>% 
+  as.data.frame(.) %>% 
+  dplyr::mutate(Date=row.names(.)) %>% 
+  dplyr::mutate(Date=gsub("X","",Date)) %>% 
+  dplyr::mutate(Date=ymd(Date)) %>% 
+  dplyr::select(c(7,1,4,3,2)) %>% 
+  setNames(.,c("Date","Value","Open","Low","High")) %>% 
+  na.omit() %>% 
+  mutate(greenRed=ifelse(Open-Value>0,
+                         "Red",
+                         "Green"))  %>% 
+  dplyr::mutate(SMA_180=TTR::SMA(x = Value,n = 365.25*0.5)) %>% 
+  dplyr::mutate(SMA_365=TTR::SMA(x = Value,n = 365.25*1)) %>% 
+  dplyr::mutate(SMA_730=TTR::SMA(x = Value,n = 365.25*2))
+}
+```
+
+```{r}
+
+draw_chart = function(data,width_=1) {
+  ggplot(data,aes(x=Date,y=Value)) +
+    # geom_line() +
+    geom_segment(aes(x = Date,
+                     xend=Date,
+                     y =Open,
+                     yend =Value,
+                     colour=greenRed),
+                 size=width_)+
+    geom_segment(aes(x = Date,
+                     xend=Date,
+                     y =High,
+                     yend =Low,
+                     colour=greenRed))+
+    geom_line(aes(x=Date,y=SMA_180),linetype=2,color="green",size=1.5) +
+    geom_line(aes(x=Date,y=SMA_365),linetype=2,color="yellow",size=1.5) +
+    geom_line(aes(x=Date,y=SMA_730),linetype=2,color="red",size=1.5) +
+    scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+    geom_vline(xintercept = Sys.Date(),linetype=2,color="gray50") +
+    theme_i_like_the_stock(base_size = 30)
+}
+```
+
+```{r}
+fit_draw_abline = function(date1,date2,value1,value2) {
+  
+  data.frame(Date=c(date1,date2),
+             GSPC.Close=c(value1,value2)) %>% 
+    lm(data = .,formula = GSPC.Close~Date) %>% 
+    coef(.) %>% 
+    as.numeric(.) %>% 
+    geom_abline(intercept = .[1],slope = .[2])
+  
+}
+```
+
+```{r}
+draw_support_resistance = function(values) {
+  geom_hline(yintercept = values,color="lightseagreen")
+}
+```
+
+```{r}
+fit_draw_fibonacci = function(low,high) {
+  fibonaccis = round(low+(high-low)*c(0.236,0.382,0.50,0.618,0.786),digits = 1)
+  list(geom_hline(yintercept = fibonaccis,linetype=2,color="gray60" ),
+       annotate(geom="text",x=Sys.Date(),y=fibonaccis,label=fibonaccis,size=7))
+}
+```
+
+```{r}
+
+add_fomc_meeting_dates = function() {
+  geom_vline(xintercept = c(ymd("2022-06-15"),
+                            ymd("2022-07-27"),
+                            ymd("2022-09-21"),
+                            ymd("2022-11-02"),
+                            ymd("2022-12-14"),
+                            ymd("2023-02-01"),
+                            ymd("2023-03-15"),
+                            ymd("2023-05-03"),
+                            ymd("2023-06-14"),
+                            ymd("2023-07-26"),
+                            ymd("2023-09-20"),
+                            ymd("2023-11-01"),
+                            ymd("2023-12-13")),linetype=2,color="#eb493a")
+}
+```
+
+```{r}
+
+# Get Industry & Sector
+# https://www.nasdaq.com/market-activity/stocks/screener
+sector_industry_file = file.info(list.files(path = "Data",pattern = "nasdaq_screener",full.names = T)) %>% 
+  arrange(desc(mtime)) %>% 
+  slice(1) %>% 
+  row.names(.) %>% 
+  read.csv(file = .) %>% 
+  dplyr::select(Symbol,Sector,Industry)
+
+# Get all symbols
+df_stocks = stockSymbols() %>% 
+  dplyr::select(Symbol,Name,Exchange,ETF) %>% 
+  filter(Exchange %in% c("NASDAQ","NYSE")) %>% 
+  group_by(Symbol) %>% 
+  filter(n()==1) %>% 
+  ungroup() %>% 
+  filter(!grepl("File Creation",Symbol)) %>% 
+  filter(!grepl("AXAC-R",Symbol))%>% 
+  filter(!grepl("ZCZZT",Symbol)) %>% 
+  inner_join(sector_industry_file)
+
+
+```
+
+```{r echo=FALSE}
+num_trees=100
+tune_grid=data.frame(mtry=c(15))
+train_control = caret::trainControl(method = "repeatedcv",number = 5,repeats = 5)
+```
+
+```{r echo=FALSE}
+
+df_gspc = query_yahoo(ticker = "^GSPC") 
+df_C25 = query_yahoo(ticker = "^OMXC25") 
+df_BTCUSD = query_yahoo(ticker = "BTC-USD") 
+df_NASDAQ = query_yahoo(ticker = "^IXIC") 
+
+df_EURUSD = query_yahoo(ticker = "EURUSD=X") 
+df_EURAED = query_yahoo(ticker = "EURAED=X") 
+df_USDDKK = query_yahoo(ticker = "USDDKK=X") 
+df_JPYDKK = query_yahoo(ticker = "JPYDKK=X") 
+df_CHFDKK = query_yahoo(ticker = "CHFDKK=X") 
+
+df_SILVER = query_yahoo(ticker = "SI=F") 
+df_GOLD = query_yahoo(ticker = "GC=F") 
+df_OIL = query_yahoo(ticker = "CL=F") 
+df_TLT = query_yahoo(ticker = "TLT") 
+df_DXY = query_yahoo(ticker = "DX-Y.NYB") 
+df_VIX = query_yahoo(ticker = "^VIX") 
+
+
+# df_iShares_STOXX_REALESTATE = query_yahoo(ticker = "EXI5.DE") 
+
+# df_iShares_SP500_ENERGY = query_yahoo(ticker = "QDVF.DE") 
+# df_iShares_SP500_CDISCRETIONARIES = query_yahoo(ticker = "QDVK.DE") 
+# df_iShares_SP500_FINANCIALS = query_yahoo(ticker = "QDVH.DE") 
+# df_iShares_SP500_COMMUNICATION = query_yahoo(ticker = "IU5C.DE") 
+# df_iShares_SP500_HEALTHCARE = query_yahoo(ticker = "QDVG.DE") 
+# df_iShares_SP500_SMALLCAP = query_yahoo(ticker = "IUS3.DE") 
+# df_iShares_SP500_TECHNOLOGY = query_yahoo(ticker = "QDVE.DE") 
+
+
+```
+
+```{r echo=FALSE}
+order_ = c("DFF",
+            "DGS1MO",
+            "DGS3MO",
+            "DGS6MO",
+            "DGS1",
+            "DGS2",
+            "DGS3",
+            "DGS5",
+            "DGS7",
+            "DGS10",
+            "DGS20",
+            "DGS30",
+            "MORTGAGE30US")
+
+df_yieldcurve = 
+  fredr(series_id = "DGS1") %>% 
+  bind_rows(fredr(series_id = "DGS2")) %>% 
+  bind_rows(fredr(series_id = "DGS3")) %>% 
+  bind_rows(fredr(series_id = "DGS5")) %>% 
+  bind_rows(fredr(series_id = "DGS7")) %>% 
+  bind_rows(fredr(series_id = "DGS10")) %>% 
+  bind_rows(fredr(series_id = "DGS20")) %>% 
+  bind_rows(fredr(series_id = "DGS30")) %>% 
+  bind_rows(fredr(series_id = "DGS1MO")) %>% 
+  bind_rows(fredr(series_id = "DGS3MO")) %>% 
+  bind_rows(fredr(series_id = "DGS6MO")) %>% 
+  bind_rows(fredr(series_id = "DFF")) %>% 
+  bind_rows(fredr(series_id = "MORTGAGE30US")) %>% 
+  dplyr::select(date,series_id,value) %>% 
+  dplyr::mutate(series_id=factor(series_id,levels=order_)) %>% 
+  spread(series_id,value) %>% 
+  arrange(desc(date)) %>% 
+  tidyr::fill(c(2:ncol(.)),.direction="up") %>% 
+  na.omit() %>% 
+  # top_n(n=1,wt=date) %>% 
+  gather(series_id,value,c(2:ncol(.))) %>% 
+  ungroup() %>% 
+  dplyr::mutate(series_id=factor(series_id,levels=order_)) %>% 
+  dplyr::mutate(time=ifelse(series_id=="DFF",0,
+                            ifelse(substr(series_id,1,8)=="MORTGAGE",
+                                   365*30,
+                                   ifelse(substr(series_id,5,6)=="MO",
+                                          30*as.integer(substr(series_id,4,4)),
+                                          365*as.integer(substr(series_id,4,5)))))) 
+
+df_checkboard = expand.grid(series_id=unique(df_yieldcurve$series_id),
+                            joined_series=unique(df_yieldcurve$series_id))
+
+df_yield_checkboard = 
+  df_checkboard %>% 
+  inner_join(df_yieldcurve) %>% 
+  inner_join(df_yieldcurve,by=c("joined_series"="series_id","date"="date")) %>% 
+  dplyr::mutate(spread=value.x-value.y) %>% 
+  dplyr::mutate(label=ifelse(spread<0,spread,NA)) %>% 
+  dplyr::select(series_id,joined_series,date,spread,label) %>% 
+  dplyr::mutate(series_id=factor(series_id,levels=order_),
+                joined_series=factor(joined_series,levels=order_))
+```
+
+
+```{r}
+
+predict_by_yields = function(data)  {
+
+    df_values = 
+      data %>% 
+      dplyr::select(Date,Value) %>%
+      tidyr::complete(Date=seq.Date(from=min(Date,na.rm=T),to=max(Date,na.rm=T),by="1 day")) %>% 
+      tidyr::fill(Value,.direction = "down")
+    
+    df_predicting = df_yield_checkboard %>% 
+      filter(series_id!=joined_series) %>% 
+      dplyr::mutate(one_year_ahead=date+years(1)) %>% 
+      left_join(df_values,by=c("one_year_ahead"="Date")) %>% 
+      unite(series_id,series_id,joined_series) %>% 
+      dplyr::select(date,series_id,spread,Value) %>% 
+      spread(series_id,spread)
+    
+    df_predicting_1 = df_yield_checkboard %>% 
+      filter(series_id!=joined_series) %>% 
+      dplyr::mutate(one_year_ahead=date+months(1)) %>% 
+      left_join(df_values,by=c("one_year_ahead"="Date")) %>% 
+      unite(series_id,series_id,joined_series) %>% 
+      dplyr::select(date,series_id,spread,Value) %>% 
+      spread(series_id,spread)
+    df_predicting_3 = df_yield_checkboard %>% 
+      filter(series_id!=joined_series) %>% 
+      dplyr::mutate(one_year_ahead=date+months(3)) %>% 
+      left_join(df_values,by=c("one_year_ahead"="Date")) %>% 
+      unite(series_id,series_id,joined_series) %>% 
+      dplyr::select(date,series_id,spread,Value) %>% 
+      spread(series_id,spread)
+    df_predicting_6 = df_yield_checkboard %>% 
+      filter(series_id!=joined_series) %>% 
+      dplyr::mutate(one_year_ahead=date+months(6)) %>% 
+      left_join(df_values,by=c("one_year_ahead"="Date")) %>% 
+      unite(series_id,series_id,joined_series) %>% 
+      dplyr::select(date,series_id,spread,Value) %>% 
+      spread(series_id,spread)
+    df_predicting_12 = df_yield_checkboard %>% 
+      filter(series_id!=joined_series) %>% 
+      dplyr::mutate(one_year_ahead=date+months(12)) %>% 
+      left_join(df_values,by=c("one_year_ahead"="Date")) %>% 
+      unite(series_id,series_id,joined_series) %>% 
+      dplyr::select(date,series_id,spread,Value) %>% 
+      spread(series_id,spread)
+    
+    fit_rf_1 = caret::train(x = df_predicting_1 %>% 
+                                  na.omit %>% 
+                                  dplyr::select(-date,-Value) %>% 
+                                  data.frame(),
+                             y = df_predicting_1 %>% 
+                               na.omit %>% 
+                               .[["Value"]],
+                             method = "rf",
+                             tuneGrid=tune_grid,
+                             ntree=num_trees,
+                             metric = "RMSE",
+                             trControl=train_control)
+    fit_rf_3 = caret::train(x = df_predicting_3 %>% 
+                                  na.omit %>% 
+                                  dplyr::select(-date,-Value) %>% 
+                                  data.frame(),
+                             y = df_predicting_3 %>% 
+                               na.omit %>% 
+                               .[["Value"]],
+                             method = "rf",
+                             tuneGrid=tune_grid,
+                             ntree=num_trees,
+                             metric = "RMSE",
+                             trControl=train_control)
+    fit_rf_6 = caret::train(x = df_predicting_6 %>% 
+                                  na.omit %>% 
+                                  dplyr::select(-date,-Value) %>% 
+                                  data.frame(),
+                             y = df_predicting_6 %>% 
+                               na.omit %>% 
+                               .[["Value"]],
+                             method = "rf",
+                             tuneGrid=tune_grid,
+                             ntree=num_trees,
+                             metric = "RMSE",
+                             trControl=train_control)
+    fit_rf_12 = caret::train(x = df_predicting_12 %>% 
+                                  na.omit %>% 
+                                  dplyr::select(-date,-Value) %>% 
+                                  data.frame(),
+                             y = df_predicting_12 %>% 
+                               na.omit %>% 
+                               .[["Value"]],
+                             method = "rf",
+                             tuneGrid=tune_grid,
+                             ntree=num_trees,
+                             metric = "RMSE",
+                             trControl=train_control)
+    
+    df_predicted =
+      df_predicting %>% 
+      dplyr::mutate(pred_value_1=predict(fit_rf_1,.),
+                    pred_value_3=predict(fit_rf_3,.),
+                    pred_value_6=predict(fit_rf_6,.),
+                    pred_value_12=predict(fit_rf_12,.)) %>% 
+      dplyr::select(date,pred_value_1,pred_value_3,pred_value_6,pred_value_12,Value) %>% 
+      gather(dates,val,pred_value_1 : pred_value_12) %>% 
+      separate(dates,into=c("pred","stop","change")) %>% 
+      unite(pred,pred,stop) %>% 
+      dplyr::mutate(date=date+months(as.numeric(change))) %>%
+      # gather(pred,val,pred_value:Value) %>%
+      tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+      dplyr::mutate(date=ifelse(one_year,
+                                ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+      filter(!is.na(date)) %>% 
+      dplyr::mutate(date=as.Date(date,origin="1970-01-01"))
+    
+    return(df_predicted)
+}
+
+```
+
+```{r echo=FALSE}
+
+    df_STOCKS_SP500 = predict_by_yields(data = df_gspc)
+    df_STOCKS_NASDAQCOM = predict_by_yields(data = df_NASDAQ)
+    df_STOCKS_C25 = predict_by_yields(data = df_C25)
+    df_STOCKS_BTCUSD = predict_by_yields(data = df_BTCUSD)
+    # df_STOCKS_ENERGY = predict_by_yields(data = df_iShares_SP500_ENERGY)
+    # df_STOCKS_DISCRETIONARIES = predict_by_yields(data = df_iShares_SP500_CDISCRETIONARIES)
+    # df_STOCKS_FINANCIALS = predict_by_yields(data = df_iShares_SP500_FINANCIALS)
+    # df_STOCKS_COMMUNICATION = predict_by_yields(data = df_iShares_SP500_COMMUNICATION)
+    # df_STOCKS_HEALTHCARE = predict_by_yields(data = df_iShares_SP500_HEALTHCARE)
+    # df_STOCKS_SMALLCAP = predict_by_yields(data = df_iShares_SP500_SMALLCAP)
+    # df_STOCKS_TECHNOLOGY = predict_by_yields(data = df_iShares_SP500_TECHNOLOGY)
+    df_STOCKS_GOLD = predict_by_yields(data = df_GOLD)
+    df_STOCKS_OIL = predict_by_yields(data = df_OIL)
+    df_STOCKS_TLT = predict_by_yields(data = df_TLT)
+    df_STOCKS_DXY = predict_by_yields(data = df_DXY)
+    df_STOCKS_VIX = predict_by_yields(data = df_VIX)
+    df_STOCKS_EURUSD = predict_by_yields(data = df_EURUSD) 
+    # df_STOCKS_EURAED = predict_by_yields(data = df_EURAED) 
+    # df_STOCKS_USDDKK = predict_by_yields(data = df_USDDKK) 
+    # df_STOCKS_JPYDKK = predict_by_yields(data = df_JPYDKK) 
+    # df_STOCKS_CHFDKK = predict_by_yields(data = df_CHFDKK) 
+    
+```
+
+# Summary
+
+```{r}
+
+draw_charts = function(data) {
+  
+  ath = data %>% filter(pred=="Value") %>% pull(val) %>% max(na.rm=T)
+  atl = data %>% filter(pred=="Value") %>% pull(val) %>% min(na.rm=T)
+  p1 = data %>%
+        filter(!one_year) %>% 
+        # gather(pred,val,pred_glm) %>% 
+        ggplot(.,aes(x=date,y=val,color=change,group=change)) +
+        geom_line() +
+        scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+        scale_y_continuous(breaks = seq(0,1000000,100)) +
+        theme(axis.text.x=element_text(angle=45,hjust=1))  +
+        geom_vline(xintercept = Sys.Date(),linetype=2) +
+        add_fomc_meeting_dates() +
+        fit_draw_fibonacci(low = atl,high = ath) +
+        theme_i_like_the_stock(base_size = 12) +
+        labs(x=NULL,
+             y="(%)",
+             caption = timestamp_caption())
+  p2 = data %>%
+        filter(one_year) %>% 
+        # gather(pred,val,pred_glm) %>% 
+        ggplot(.,aes(x=date,y=val,color=change,group=change)) +
+        geom_line() +
+        scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+        scale_y_continuous(breaks = seq(0,1000000,100)) +
+        theme(axis.text.x=element_text(angle=45,hjust=1))  +
+        geom_vline(xintercept = Sys.Date(),linetype=2) +
+        add_fomc_meeting_dates() +
+        fit_draw_fibonacci(low = atl,high = ath) +
+        theme_i_like_the_stock(base_size = 12) +
+        labs(x=NULL,
+             y="(%)",
+             caption = timestamp_caption())
+  
+  p3 = data %>% 
+    filter(pred=="pred_value") %>% 
+    filter(!one_year) %>% 
+    filter(date>=Sys.Date()) %>% 
+    filter(date<=Sys.Date()+days(14)) %>% 
+    dplyr::mutate(value_chg=val/lag(val)-1) %>% 
+    # dplyr::mutate(date=factor(date)) %>% 
+    ggplot(.,aes(x=change,y=date,fill=value_chg)) +
+    geom_tile() +
+    geom_text(aes(label=paste0(scales::number(val,accuracy = 1)," (",scales::percent(value_chg,accuracy = 0.1),")")),color="white") +
+    scale_y_date(date_breaks = "1 day",date_labels = "%a %d %b") +
+    theme_i_like_the_stock(base_size = 12)
+  
+  p4 = data %>% 
+    filter(pred=="pred_value") %>% 
+    filter(!one_year) %>% 
+    filter(date>=Sys.Date()) %>% 
+    dplyr::mutate(value_chg=val/first(val)-1) %>% 
+    ggplot(.,aes(x=date,y=value_chg,color=change,group=change)) +
+    geom_line() +
+    scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+    scale_y_continuous(labels = scales::percent) +
+    theme(axis.text.x=element_text(angle=45,hjust=1))  +
+    geom_vline(xintercept = Sys.Date(),linetype=2) +
+    add_fomc_meeting_dates() +
+    # fit_draw_fibonacci(low = atl,high = ath) +
+    theme_i_like_the_stock(base_size = 12) +
+    labs(x=NULL,
+         y="(%)",
+         caption = timestamp_caption())
+    
+  
+  print( p1 )
+  print( p2 )
+  print( p3 )
+  print( p4 )
+  
+}
+
+```
+
+
+```{r eval=F}
+
+
+current_value = df_STOCKS_SP500 %>% filter(Sys.Date()-Date==min(Sys.Date()-Date)) %>% pull(Value)
+ath_value = max(df_STOCKS_SP500$Value)
+gap_to_ath = (current_value/ath_value)-1
+df_predict_SP500
+
+```
+
+
+## SP500
+
+```{r  }
+draw_charts(data = df_STOCKS_SP500)
+```
+
+## NASDAQ
+
+```{r  }
+draw_charts(data = df_STOCKS_NASDAQCOM)
+```
+
+## C25
+
+```{r  }
+draw_charts(data = df_STOCKS_C25)
+```
+
+## BTC-USD
+
+```{r  }
+draw_charts(data = df_STOCKS_BTCUSD)
+```
+
+## GOLD
+
+```{r  }
+draw_charts(data = df_STOCKS_GOLD)
+```
+
+## OIL
+
+```{r  }
+draw_charts(data = df_STOCKS_OIL)
+```
+
+## TLT
+
+```{r  }
+draw_charts(data = df_STOCKS_TLT)
+```
+
+## DXY
+
+```{r  }
+draw_charts(data = df_STOCKS_DXY)
+```
+
+## VIX
+
+```{r  }
+draw_charts(data = df_STOCKS_VIX)
+```
+
+## EUR/USD
+
+```{r  }
+draw_charts(data = df_STOCKS_EURUSD)
+```
+
+## JPY/DKK
+
+```{r eval=F }
+draw_charts(data = df_STOCKS_JPYDKK)
+```
+
+## CHF/DKK
+
+```{r eval=F }
+draw_charts(data = df_STOCKS_CHFDKK)
+```
+
+# Technical Analysis
+
+## SP500
+
+```{r fig.height=15,fig.width=15}
+
+df_gspc %>% 
+  draw_chart(.) +
+  fit_draw_abline(date1 = ymd("2022-01-01"),date2 = ymd("2020-01-01"),value1 = 4850,value2 = 3300) +
+  fit_draw_abline(date1 = ymd("2022-05-21"),date2 = ymd("2020-02-23"),value1 = 3901.36,value2 = 2191.86) +
+  fit_draw_abline(date1 = ymd("2022-02-24"),date2 = ymd("2022-05-21"),value1 = 4114.65,value2 = 3801.36) +
+  fit_draw_abline(date1 = ymd("2022-01-01"),date2 = ymd("2022-04-01"),value1 = 4850,value2 = 4600) +
+  fit_draw_fibonacci(low = 0,high = 4818.62) +
+  draw_support_resistance(values = c(4800,3400,2900,2250,2150)) +
+  scale_y_continuous(breaks=seq(0,5000,by=100))
+
+```
+
+
+```{r fig.height=20,fig.width=20}
+
+df_gspc %>% 
+  filter(Date>=Sys.Date()-days(30)) %>% 
+  draw_chart(.,width_ = 2) +
+  scale_x_date(date_breaks = "1 day",date_labels = "%d %a") +
+  fit_draw_abline(date1 = ymd("2022-01-01"),date2 = ymd("2020-01-01"),value1 = 4850,value2 = 3300) +
+  fit_draw_abline(date1 = ymd("2022-05-21"),date2 = ymd("2020-02-23"),value1 = 3901.36,value2 = 2191.86) +
+  fit_draw_abline(date1 = ymd("2022-02-24"),date2 = ymd("2022-05-21"),value1 = 4114.65,value2 = 3801.36) +
+  fit_draw_abline(date1 = ymd("2022-01-01"),date2 = ymd("2022-04-01"),value1 = 4850,value2 = 4600) +
+  fit_draw_fibonacci(low = 0,high = 4818.62) +
+  draw_support_resistance(values = c(4800,3400,2900,2250,2150)) +
+  scale_y_continuous(breaks=seq(0,5000,by=100))
+
+```
+
+## C25
+
+```{r fig.height=15,fig.width=15}
+
+df_C25 %>% 
+  draw_chart(.) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  scale_y_continuous(breaks=seq(0,5000,by=100),limits = c(900,NA)) +
+  fit_draw_abline(date1 = ymd("2020-02-01"),date2 = ymd("2021-08-01"),value1 = 1360,value2 = 2000) +
+  fit_draw_abline(date1 = ymd("2020-03-15"),date2 = ymd("2021-11-01"),value1 = 955,value2 = 1840) +
+  fit_draw_abline(date1 = ymd("2021-09-21"),date2 = ymd("2022-02-23"),value1 = 1820,value2 = 1570) +
+  fit_draw_abline(date1 = ymd("2022-01-01"),date2 = ymd("2022-03-01"),value1 = 2000,value2 = 1900) +
+  fit_draw_fibonacci(low = 0,high = 2023.45) +
+  draw_support_resistance(values = c(2000,1800,1580,1450,1150))
+
+```
+
+
+```{r fig.height=20,fig.width=20}
+
+df_C25 %>% 
+  filter(Date>=Sys.Date()-days(30)) %>% 
+  draw_chart(.,width_ = 2) +
+  scale_x_date(date_breaks = "1 day",date_labels = "%d %a") +
+  scale_y_continuous(breaks=seq(0,5000,by=50),limits = c(900,NA)) +
+  fit_draw_abline(date1 = ymd("2020-02-01"),date2 = ymd("2021-08-01"),value1 = 1360,value2 = 2000) +
+  fit_draw_abline(date1 = ymd("2020-03-15"),date2 = ymd("2021-11-01"),value1 = 955,value2 = 1840) +
+  fit_draw_abline(date1 = ymd("2021-09-21"),date2 = ymd("2022-02-23"),value1 = 1820,value2 = 1570) +
+  fit_draw_abline(date1 = ymd("2022-01-01"),date2 = ymd("2022-03-01"),value1 = 2000,value2 = 1900) +
+  fit_draw_fibonacci(low = 0,high = 2023.45) +
+  draw_support_resistance(values = c(2000,1800,1580,1450,1150))
+
+```
+
+# Crypto
+
+## BTC
+
+```{r  }
+
+df_BTCUSD %>% 
+  draw_chart(.) +
+  fit_draw_fibonacci(low = 0,high = 68789.62) +
+  draw_support_resistance(values = c(30000,20000)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  scale_y_continuous(breaks=seq(0,70000,by=5000))
+
+
+```
+
+
+```{r  }
+
+df_BTCUSD %>% 
+  filter(Date>=Sys.Date()-days(30)) %>% 
+  draw_chart(.,width_ = 2) +
+  fit_draw_fibonacci(low = 0,high = 68789.62) +
+  draw_support_resistance(values = c(30000,20000)) +
+  scale_x_date(date_breaks = "1 day",date_labels = "%d %a") +
+  scale_y_continuous(breaks=seq(0,70000,by=5000))
+
+
+```
+
+# Stocks
+
+```{r eval=F}
+
+metrics <- yahooQF(c("Name",
+                     "Currency",
+                     "Volume",
+                     "Market Capitalization",
+                     "P/E Ratio",
+                     "Price/EPS Estimate Next Year",
+                     "Price/Book",
+                     "Book Value",
+                     "Earnings/Share",
+                     "EPS Forward",
+                     "Dividend Yield",
+                     "Shares Outstanding",
+                     "Change From 52-week Low",
+                     "Percent Change From 52-week Low",
+                     "Change From 52-week High",
+                     "Percent Change From 52-week High",
+                     "52-week Low",
+                     "52-week High"))
+
+df_quotes = getQuote(Symbols = df_stocks$Symbol,what = metrics)
+df_quotes$Symbol = row.names(df_quotes)
+df_quotes = df_quotes %>% 
+  as_tibble() %>% 
+  dplyr::mutate(`Market Capitalization`=`Market Capitalization`/1000000000) %>% 
+  filter(`Market Capitalization`>0) %>% 
+  arrange(desc(`Market Capitalization`)) %>% 
+  inner_join(sector_industry_file)
+
+```
+
+
+```{r eval=F}
+
+tickers_filtered = df_quotes %>% 
+  group_by(Sector) %>%
+  top_n(n=10,wt=`Market Capitalization`) %>% 
+  ungroup()
+
+  symbols = unique(tickers_filtered$Symbol)
+  
+  pb <- progress_bar$new(
+    format = "  Downloader :what [:bar] :percent eta: :eta",
+    total = length(symbols),
+    width= 60)
+  
+  # Stock data
+  stock_data =   rbindlist(lapply(symbols,function(symbol) {
+    pb$tick()
+    stock_symbol <- tryCatch({
+          temp_df = as.data.frame(getSymbols(symbol, env = NULL))
+          temp_df$Symbol = symbol
+          temp_df$Date = rownames(temp_df)
+          temp_df$Close = temp_df[,4]
+          temp_df = temp_df[,c("Symbol","Date","Close")]
+          row.names(temp_df) <- NULL
+          temp_df
+  
+      },error=function(e) { data.frame() })
+
+  })) %>% 
+    dplyr::mutate(Date=ymd(Date))
+    
+```
+
+
+# Sectors & Industries
+
+## Sectors
+
+```{r eval=F}
+
+df_quotes %>% 
+  group_by(Sector) %>% 
+  dplyr::summarise(Market_Cap=sum(`Market Capitalization`)) %>% 
+  arrange(desc(Market_Cap)) %>% 
+  dplyr::mutate(Sector=factor(Sector,levels=rev(.$Sector))) %>% 
+  ggplot(.,aes(x=Sector,y=Market_Cap)) +
+  geom_col() +
+  coord_flip() +
+  theme_i_like_the_stock(base_size = 30) +
+  labs(title="Market Cap by Sector",
+       caption=timestamp_caption(),
+       y="Market Cap (Billions)",
+       x="Industry")
+
+```
+
+## Industries
+
+```{r eval=F}
+
+df_quotes %>% 
+  group_by(Industry) %>% 
+  dplyr::summarise(Market_Cap=sum(`Market Capitalization`)) %>% 
+  arrange(desc(Market_Cap)) %>% 
+  top_n(wt = Market_Cap,n = 40 ) %>% 
+  dplyr::mutate(Industry=factor(Industry,levels=rev(.$Industry))) %>% 
+  ggplot(.,aes(x=Industry,y=Market_Cap)) +
+  # theme(axis.text.y = element_text(size=2)) +
+  geom_col() +
+  coord_flip() +
+  theme_i_like_the_stock(base_size = 30) +
+  labs(title="Market Cap by Industry",
+       caption=timestamp_caption(),
+       y="Market Cap (Billions)",
+       x="Industry")
+
+```
+
+## Biggest Caps by Sector
+
+```{r eval=F}
+
+df_quotes %>% 
+  group_by(Sector) %>% 
+  top_n(wt = `Market Capitalization`,n = 10) %>% 
+  dplyr::mutate(labels=paste0(Sector,Name)) %>% 
+  arrange(Sector,desc(`Market Capitalization`)) %>% 
+  dplyr::mutate(labels=factor(labels,levels=rev(unique(.$labels)))) %>% 
+  ggplot(.,aes(x=labels,y=`Market Capitalization`)) +
+  geom_col() +
+  coord_flip() +
+  facet_wrap(~Sector,ncol=1,scales="free") +
+  scale_x_discrete(labels = function(x) gsub("Technology|Consumer Services|Capital Goods|Health Care|Miscellaneous|Consumer Non-Durables|Energy|Finance|Basic Industries|Public Utilities|Transportation||Consumer Durables", "", x)) +
+  theme_i_like_the_stock(base_size = 25) +
+  labs(title="Market Cap by Sector",
+       caption=timestamp_caption(),
+       y="Market Cap (Billions)",
+       x=NULL)
+
+```
+
+## Sector Rotations
+
+
+```{r eval=F}
+
+  stock_data %>% 
+  group_by(Symbol) %>% 
+  arrange(Symbol,desc(Date)) %>% 
+  dplyr::mutate(Date=rev(frank(Date))) %>% 
+  filter(Date<=730) %>% 
+  dplyr::mutate(Date=rev(frank(Date))) %>% 
+  dplyr::mutate(Index=Close/last(Close)) %>% 
+  dplyr::select(Symbol,Date,Index) %>% 
+  inner_join(df_quotes) %>% 
+  dplyr::select(Sector,Industry,Symbol,Date,Index) %>% 
+  ggplot(.,aes(x=Date,y=Index,group=Symbol,color=Sector)) +
+  geom_line() +
+  facet_wrap(~Sector,scales="free_y") +
+  geom_hline(yintercept = 1,linetype=2) + 
+  theme_i_like_the_stock(base_size = 25) +
+  theme(legend.position="null")
+
+
+```
+
+```{r eval=F}
+
+loess_adjust = function(data) {
+  # fit_smooth =  smooth.spline(x = data$Date,
+  #                 y = data$Growth, 
+  #                 all.knots = TRUE, 
+  #                 control.spar = list(low = -2, hight = 2))
+  # data %>% 
+  #   dplyr::mutate(VALUE=fit_smooth$y) %>% 
+  #   dplyr::mutate(VALUE=scale(VALUE,center=TRUE,scale=TRUE)) %>%
+  #   dplyr::mutate(ema=TTR::EMA(VALUE,9))
+  
+  grid <- expand.grid(span = seq(0.1, 0.5, len = 2), degree = c(1))
+  tr_control = trainControl(method = "repeatedcv",number = 5,repeats = 1)
+  fit_gam = suppressWarnings(expr =  { train(y = as.numeric(data$Growth),
+        x = data %>% dplyr::select(Date),
+        tuneGrid=grid,
+        method = "gamLoess") })
+  
+  data %>%
+    dplyr::mutate(Growth=predict(fit_gam,.)) # %>% 
+    # dplyr::mutate(Growth=scale(Growth,center=TRUE,scale=TRUE)) %>%
+    # dplyr::mutate(ema=TTR::EMA(VALUE,9))
+  
+}
+
+```
+
+
+```{r eval=F}
+df_gamed = stock_data %>% 
+  dplyr::mutate(six_months_ago=Date-months(6)) %>% 
+  inner_join( stock_data , by=c("six_months_ago"="Date","Symbol"="Symbol") ) %>% 
+  dplyr::mutate(Growth=Close.x/Close.y) %>% 
+  dplyr::select(Symbol,Date,Growth) %>% 
+  inner_join(df_quotes) %>% 
+  group_by(Date,Sector) %>% 
+  dplyr::summarise(Growth=sum(Growth)/n()) %>% 
+  group_by(Date) %>% 
+  dplyr::mutate(Growth=Growth/sum(Growth)) %>% 
+  dplyr::mutate(Growth=scale(Growth)) %>%
+  group_by(Sector) %>% 
+  na.omit() %>% 
+  do(loess_adjust(data = .)) 
+
+df_rotation_dates = df_gamed %>% 
+  dplyr::mutate(Uptrend=ifelse(Growth>0 & lag(Growth)<0,1,0),
+                Downtrend=ifelse(Growth<0 & lag(Growth)>0,1,0)) %>% 
+  gather(Trend,Value,Uptrend:Downtrend) %>% 
+  filter(Value==1)
+
+df_rotation_dates
+```
+
+```{r eval=F}
+
+df_gamed %>% 
+  dplyr::mutate(Uptrend=ifelse(Growth>0 & lag(Growth)<0,1,0),
+                Downtrend=ifelse(Growth<0 & lag(Growth)>0,1,0)) %>% 
+  gather(Trend,Value,Uptrend:Downtrend) %>% 
+  # filter(Trend=="Uptrend") %>% 
+  filter(Value==1) %>% 
+  filter(Date==max(Date)) %>% 
+  dplyr::mutate(Days_Since_Flip=as.numeric(Sys.Date()-Date)) %>% 
+  arrange(Trend,desc(Days_Since_Flip))
+```
+
+```{r eval=F}
+df_rotation_dates %>% 
+  arrange(Sector,desc(Date)) %>% 
+  dplyr::mutate(Days_Since_Last=as.numeric(Date-lead(Date))) %>% 
+  dplyr::summarise(n_=n())
+```
+
+```{r eval=F}
+
+df_trend_shifts = 
+  df_gamed %>% 
+  dplyr::mutate(Uptrend=ifelse(Growth>0 & lag(Growth)<0,1,0),
+                Downtrend=ifelse(Growth<0 & lag(Growth)>0,1,0)) %>% 
+  gather(Trend,Value,Uptrend:Downtrend) %>% 
+  # filter(Trend=="Uptrend") %>% 
+  filter(Value==1) %>% 
+  filter(Date==max(Date)) %>% 
+  ungroup() %>% 
+  rename(Shift_Date=Date)
+
+df_gamed %>% 
+  # inner_join( stock_data ) %>% 
+  left_join( df_trend_shifts %>% dplyr::select(Shift_Date,Sector,Trend,Value) ) %>% 
+  filter( Date >= Shift_Date ) %>% 
+  dplyr::select(Date,Shift_Date,Sector,Growth,Trend) %>% 
+  dplyr::mutate(Days_Since_Shift=as.numeric(Date-Shift_Date)) %>% 
+  group_by(Sector) %>% 
+  dplyr::mutate(Label=ifelse(Date==last(Date),Sector,NA)) %>% 
+  ungroup() %>% 
+  ggplot(.,aes(x=Days_Since_Shift,y=Growth,color=Sector)) +
+  geom_line(aes(color=Sector),size=2) +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme_i_like_the_stock(base_size = 30) +
+  theme(legend.position="bottom") +
+  facet_wrap(~Trend,ncol=1,scales = "free_y")  +
+  geom_text(aes(label=Label),vjust=1,size=10)
+
+
+```
+
+```{r eval=F}
+df_rotation_dates %>% 
+  arrange(Sector,desc(Date)) %>% 
+  dplyr::mutate(Days_Since_Last=as.numeric(Date-lead(Date))) %>% 
+  dplyr::summarise(sd_=sd(Days_Since_Last,na.rm=T))
+```
+
+
+```{r eval=F}
+df_gamed %>% 
+  # filter(Sector=="Basic Industries") %>% 
+  # filter(Industry %in% c("Internet and Information Services","Oil & Gas Production")) %>% 
+  ggplot(.,aes(x=Date,y=Growth,fill=Sector,color=Sector)) +
+  geom_line(size=1.5) +
+  # geom_line(aes(x=Date,y=VALUE)) +
+  # geom_smooth() +
+  theme_i_like_the_stock(base_size = 30) +
+  theme(legend.position = "bottom") +
+  geom_hline(yintercept = 0,linetype=2)
+```
+
+```{r eval=F}
+
+df_gamed %>% 
+  dplyr::mutate(six_months_ago=Date-months(6)) %>% 
+  # filter(Sector=="Basic Industries") %>% 
+  # filter(Industry %in% c("Internet and Information Services","Oil & Gas Production")) %>% 
+  ggplot(.,aes(x=Date,y=Growth,fill=Sector,color=Sector)) +
+  geom_line() +
+  # geom_line(aes(x=Date,y=VALUE)) +
+  # geom_smooth() +
+  theme_i_like_the_stock(base_size = 30) +
+  theme(legend.position = "bottom") +
+  geom_hline(yintercept = 0,linetype=2)
+```
+
+
+### Elo approach
+
+```{r eval=F}
+
+df_elo = stock_data %>% 
+  inner_join( df_quotes ) %>% 
+  filter(!Sector=="") %>% 
+  dplyr::select(Sector,Industry,Symbol,Date,Close) %>% 
+  group_by(Symbol) %>% 
+  arrange(Symbol,Date) %>% 
+  dplyr::mutate(Incr=ifelse(((Close/lag(Close))-1)>0,1,0)) %>% 
+  dplyr::mutate(Rolling_Incr=zoo::rollsum(x = Incr,k = 90,NA)) %>% 
+  na.omit() %>% 
+  dplyr::select(-Close,-Incr) %>% 
+  group_by(Sector,Date) %>% 
+  dplyr::summarise(Rolling_Incr=mean(Rolling_Incr))
+
+df_skeleton = data.frame(t(combn(unique(df_elo$Sector),2))) %>% 
+  tidyr::crossing(Date=unique(df_elo$Date))
+
+df_elo_results = df_skeleton %>% 
+  
+  inner_join(df_elo,by=c("X1"="Sector","Date"="Date")) %>% 
+  na.omit() %>% 
+  
+  inner_join(df_elo,by=c("X2"="Sector","Date"="Date")) %>% 
+  na.omit() %>% 
+  dplyr::mutate(Rating=ifelse(Rolling_Incr.x>Rolling_Incr.y,1,
+                              ifelse(Rolling_Incr.x<Rolling_Incr.y,0,0.5))) %>% 
+  group_by(X1,X2) %>% 
+  dplyr::mutate(Date=data.table::frank(x = Date)) %>% 
+  dplyr::select(Date,X1,X2,Rating) %>% 
+  ungroup()
+  
+df_elo_calculation = 
+  df_elo_results %>% 
+  PlayerRatings::elo(.)
+
+  pb <- progress_bar$new(
+    format = "  Downloader :what [:bar] :percent eta: :eta",
+    total = 365,
+    width= 60)
+  
+  
+df_elo_calculation_all_dates = rbindlist(
+  lapply(tail(unique(df_elo_results$Date),365),function(date) {
+    
+    pb$tick()
+    PlayerRatings::elo(x = df_elo_results[df_elo_results$Date<=date,]) %>%
+    .[["ratings"]] %>% 
+    data.frame() %>% 
+    dplyr::mutate(Date=date) %>% 
+    dplyr::select(Date,Player,Rating)
+
+  })
+)
+
+df_elo_calculation_all_dates %>% 
+  dplyr::mutate(Rating=rescale(Rating,to=c(0,100))) %>% 
+  group_by(Player) %>% 
+  dplyr::mutate(Label=ifelse(Date==last(Date),Player,NA)) %>% 
+  ungroup() %>% 
+  ggplot(.,aes(x=Date,y=Rating,color=Player)) +
+  geom_line() +
+  theme_i_like_the_stock(base_size = 30) +
+  geom_hline(yintercept = 50,linetype=2)  +
+  geom_text(aes(label=Label),vjust=1)
+
+
+df_elo_calculation_all_dates %>% 
+  dplyr::mutate(Rating=rescale(Rating,to=c(0,100))) %>% 
+  filter(Date==max(Date)) %>% 
+  group_by(Player) %>% 
+  dplyr::mutate(Label=paste0(ifelse(Date==last(Date),Player,NA)," (",scales::number(Rating,accuracy = 1),")")) %>% 
+  ungroup() %>% 
+  ggplot(.,aes(x=Date,y=Rating,color=Player)) +
+  geom_line() +
+  theme_i_like_the_stock(base_size = 30) +
+  geom_hline(yintercept = 50,linetype=2)  +
+  geom_text(aes(label=Label),vjust=1,size=5)
+
+```

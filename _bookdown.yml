@@ -1,3 +1,3 @@
-rmd_files: ["index.Rmd","1_Fed_Yield_Curve.Rmd","2_Obligationsrenter.Rmd","3_Predict_US_Interest_Rates.Rmd", "4_Byggekonjunktur.Rmd", "5_HousingMarketSupply.Rmd", "6_House_Prices_RKR.Rmd","7_BoligerCPR.Rmd","10_Boligbyrde.Rmd"]
+rmd_files: ["index.Rmd","1_Interest_Rates.Rmd","2_Indicators.Rmd","3_Markets.Rmd", "4_Housing.Rmd"]
 delete_merged_file: true
 
