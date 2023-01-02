@@ -1280,7 +1280,7 @@ df_predict_DFF %>%
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
                 pred_DGS2=predict(fit_DGS2,.),
                 pred_DGS10=predict(fit_DGS10,.),
-                pred_DGS30=predict(fit_DGS30,.),
+                # pred_DGS30=predict(fit_DGS30,.),
                 pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>% 
   dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
   dplyr::mutate(date=date+years(1)) %>%
@@ -1655,6 +1655,7 @@ df_DFF %>%
 
 ```{r}
 rds_files = list.files(path = "Data",pattern = ".csv",full.names = T)
+rds_files = rds_files[which(!rds_files %like% "nasdaq")]
 
 df_rds_yields = rbindlist(lapply(rds_files,function(x) {
   read.csv(file = x,sep = ";",header = TRUE,skip = 1) %>% 
@@ -2180,8 +2181,8 @@ df_ECB_yields %>%
   ggplot(.,aes(x=Yield_Numeric,y=obsvalue)) +
   geom_point() +
   geom_line() +
-  scale_x_continuous(labels = labels_,
-                     breaks = breaks_) +
+  # scale_x_continuous(labels = labels_,
+  #                    breaks = breaks_) +
   scale_y_continuous(breaks = seq(-0.5,0.5,by=0.0025),labels = scales::percent)+
   theme_money_printer_go_brrr(base_size=12) +
   theme(axis.text.x=element_text(angle=45,hjust=1,size=8))
