@@ -1280,7 +1280,7 @@ df_predict_DFF %>%
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
                 pred_DGS2=predict(fit_DGS2,.),
                 pred_DGS10=predict(fit_DGS10,.),
-                pred_DGS30=predict(fit_DGS30,.),
+                # pred_DGS30=predict(fit_DGS30,.),
                 pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>% 
   dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
   dplyr::mutate(date=date+years(1)) %>%
@@ -1357,7 +1357,7 @@ df_predict_DFF %>%
   dplyr::mutate(pred=factor(pred,levels=c("pred_DFF",
                                           "pred_DGS2",
                                           "pred_DGS10",
-                                          "pred_DGS30",
+                                          # "pred_DGS30",
                                           "pred_MORTGAGE30US"))) %>% 
   ggplot(.,aes(x=pred,y=val,color=factor(date),group=date)) +
   geom_line(size=1) +
