@@ -1814,7 +1814,7 @@ df_predict_DFF %>%
   dplyr::mutate(pred=factor(pred,levels=c("pred_DFF",
                                           "pred_DGS2",
                                           "pred_DGS10",
-                                          "pred_DGS30",
+                                          # "pred_DGS30",
                                           "pred_MORTGAGE30US"))) %>% 
   ggplot(.,aes(x=pred,y=val,color=factor(date),group=date)) +
   geom_line(size=1) +
