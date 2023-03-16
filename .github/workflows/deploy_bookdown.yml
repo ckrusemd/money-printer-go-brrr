@@ -33,7 +33,7 @@ jobs:
       - name: Renviron
         run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
       - name: Render Book from Action
-        uses: ckrusemd/rmarkdown-action@v0.18
+        uses: ckrusemd/rmarkdown-action@v0.19
         with:
            input_file: index.Rmd
 #      - name: Render document
@@ -41,13 +41,13 @@ jobs:
 #        with:
 #          input_file: index.Rmd
 #          output_format: html_document
-      - name: Cache R packages
-        if: runner.os != 'Windows'
-        uses: actions/cache@v1
-        with:
-          path: ${{ env.R_LIBS_USER }}
-          #key: ${{ runner.os }}-r-${{ matrix.config.r }}-${{ hashFiles('DESCRIPTION') }}
-          key: r-${{ hashFiles('DESCRIPTION') }}
+      # - name: Cache R packages
+      #   if: runner.os != 'Windows'
+      #   uses: actions/cache@v1
+      #   with:
+      #     path: ${{ env.R_LIBS_USER }}
+      #     #key: ${{ runner.os }}-r-${{ matrix.config.r }}-${{ hashFiles('DESCRIPTION') }}
+      #     key: r-${{ hashFiles('DESCRIPTION') }}
       - uses: actions/upload-artifact@v1
         with:
           name: _book
