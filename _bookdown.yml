@@ -1,4 +1,4 @@
 #rmd_files: ["index.Rmd","1_Interest_Rates.Rmd","2_Indicators.Rmd","3_Markets.Rmd", "4_Housing.Rmd"]
-rmd_files: ["index.Rmd"]
+rmd_files: ["index.Rmd","2_Indicators.Rmd"]
 delete_merged_file: true
 
