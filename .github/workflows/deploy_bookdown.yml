@@ -13,41 +13,14 @@ jobs:
     #runs-on: macOS-latest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: r-lib/actions/setup-r@v2
-#      - uses: r-lib/actions/setup-pandoc@v1
-#      - name: Install rvest
-#        run: Rscript -e 'install.packages(c("rvest"))'
-#      - name: Enable Rjava
-#        run: sudo R CMD javareconf
-#      - name: Install Rjava before tabulizer
-#        run:  Rscript -e 'install.packages("rJava"); library(rJava); install.packages("devtools");'
-#      - name: Install rmarkdown
-#        run: Rscript -e 'install.packages(c("rmarkdown","bookdown","pacman","devtools"))'
-#      - name: Install tabulizerjars from source
-#        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizerjars/tabulizerjars_1.0.1.tar.gz", repos = NULL, type="source")'
-#      - name: Install tabulizer from source
-#        run:  Rscript -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/tabulizer/tabulizer_0.2.2.tar.gz", repos = NULL, type="source")'
-#      - name: Render Book
-#        run: Rscript -e 'bookdown::render_book("index.Rmd")'
+      - name: Set up Git repository
+        uses: actions/checkout@v3
       - name: Renviron
         run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
       - name: Render Book from Action
         uses: ckrusemd/rmarkdown-action@v0.20
         with:
            input_file: index.Rmd
-#      - name: Render document
-#        uses: happyRip/rmarkdown-action@v1.1
-#        with:
-#          input_file: index.Rmd
-#          output_format: html_document
-      # - name: Cache R packages
-      #   if: runner.os != 'Windows'
-      #   uses: actions/cache@v1
-      #   with:
-      #     path: ${{ env.R_LIBS_USER }}
-      #     #key: ${{ runner.os }}-r-${{ matrix.config.r }}-${{ hashFiles('DESCRIPTION') }}
-      #     key: r-${{ hashFiles('DESCRIPTION') }}
       - uses: actions/upload-artifact@v1
         with:
           name: _book
