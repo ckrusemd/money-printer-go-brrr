@@ -33,7 +33,7 @@ jobs:
       - name: Renviron
         run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
       - name: Render Book from Action
-        uses: ckrusemd/rmarkdown-action@v0.19
+        uses: ckrusemd/rmarkdown-action@v0.20
         with:
            input_file: index.Rmd
 #      - name: Render document
