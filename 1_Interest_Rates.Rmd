@@ -12,13 +12,13 @@ output: html_document
 }
 </style>
 
-```{r fed_yield_curve, include=FALSE}
+```{r  chunka1, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 ```
 
 # FED
 
-```{r}
+```{r chunka2}
 
 if (!require(pacman)) { install.packages("pacman") }
 pacman::p_load(fredr,
@@ -54,13 +54,13 @@ source(file = "money_theme.R")
 ```
 
 
-```{r }
+```{r chunka3}
 readRenviron(path = "Renviron.site")
 fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
 ```
 
-```{r }
+```{r chunka4}
 df_yieldcurve = 
   fredr(series_id = "DGS1") %>% 
   bind_rows(fredr(series_id = "DGS2")) %>% 
@@ -112,7 +112,7 @@ df_yieldcurve =
 
 ## Treasury Bonds
 
-```{r }
+```{r chunka4}
 df_yieldcurve %>% 
   dplyr::mutate(value=value/100) %>% 
   ggplot(.,aes(x=date,y=value)) +
@@ -129,7 +129,7 @@ df_yieldcurve %>%
 
 ## Since 2001
 
-```{r }
+```{r chunka5}
 
 df_yieldcurve %>% 
   filter(date>ymd("2001-01-01")) %>% 
@@ -147,7 +147,7 @@ df_yieldcurve %>%
 
 ### Previous 12 Months
 
-```{r }
+```{r chunka6}
 
 df_yieldcurve %>% 
   filter(date>=Sys.Date()-years(1)) %>% 
@@ -168,7 +168,7 @@ df_yieldcurve %>%
 
 ## Yield Curve
 
-```{r }
+```{r chunka7}
 
 df_yieldcurve %>% 
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,
@@ -204,7 +204,7 @@ df_yieldcurve %>%
 
 ### DFF to All
 
-```{r}
+```{r chunka8}
 
 df_yieldcurve %>% 
   filter(date>ymd("1975-01-01")) %>% 
@@ -226,7 +226,8 @@ df_yieldcurve %>%
        caption = timestamp_caption())
 
 ```
-```{r}
+
+```{r chunka9}
 
 df_yieldcurve %>% 
   filter(date>Sys.Date()-years(1)) %>% 
@@ -449,7 +450,7 @@ df_yield_checkboard %>%
 
 ## FED Rate Expectations Over Time
 
-```{r}
+```{r eval=F}
 
 filename_ = file.info(list.files("FedMeetingHistory",path = "Data",full.names = T)) %>% filter(mtime==max(mtime)) %>% row.names(.)
 full_file = read.csv(file = filename_,header = FALSE)
@@ -495,7 +496,7 @@ rate_probs %>%
 ```
 
 
-```{r}
+```{r eval=F}
 # DFF
 df_dff = df_yieldcurve %>% 
   filter(series_id=="DFF")
@@ -562,7 +563,7 @@ df_dff %>%
 
 Terminal rate
 
-```{r}
+```{r eval=F}
 
 # DFF
 df_dff = df_yieldcurve %>% 
@@ -636,7 +637,7 @@ df_dff %>%
 Terminal rate expected data
 
 
-```{r}
+```{r eval=F}
 
 # DFF
 df_dff = df_yieldcurve %>% 
@@ -709,7 +710,7 @@ rate_probs %>%
 
 Terminal rate expectations
 
-```{r}
+```{r eval=F}
 
 # DFF
 df_dff = df_yieldcurve %>% 
@@ -786,7 +787,7 @@ rate_probs %>%
 
 ```
 
-```{r}
+```{r eval=F}
 
 # DFF
 df_dff = df_yieldcurve %>% 
@@ -1864,7 +1865,7 @@ df_predict_DFF %>%
 
 
 
-```{r fig.width=15,fig.height=15}
+```{r fig.width=15,fig.height=15,eval=F}
 
 fit_DFF_previous = rbindlist(lapply(c(7,30,180,365),function(days_ago) {
   
