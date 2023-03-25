@@ -112,7 +112,7 @@ df_yieldcurve =
 
 ## Treasury Bonds
 
-```{r chunka4}
+```{r chunka5}
 df_yieldcurve %>% 
   dplyr::mutate(value=value/100) %>% 
   ggplot(.,aes(x=date,y=value)) +
@@ -129,7 +129,7 @@ df_yieldcurve %>%
 
 ## Since 2001
 
-```{r chunka5}
+```{r chunka6}
 
 df_yieldcurve %>% 
   filter(date>ymd("2001-01-01")) %>% 
@@ -147,7 +147,7 @@ df_yieldcurve %>%
 
 ### Previous 12 Months
 
-```{r chunka6}
+```{r chunka7}
 
 df_yieldcurve %>% 
   filter(date>=Sys.Date()-years(1)) %>% 
@@ -168,7 +168,7 @@ df_yieldcurve %>%
 
 ## Yield Curve
 
-```{r chunka7}
+```{r chunka8}
 
 df_yieldcurve %>% 
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,
@@ -204,7 +204,7 @@ df_yieldcurve %>%
 
 ### DFF to All
 
-```{r chunka8}
+```{r chunka9}
 
 df_yieldcurve %>% 
   filter(date>ymd("1975-01-01")) %>% 
@@ -227,7 +227,7 @@ df_yieldcurve %>%
 
 ```
 
-```{r chunka9}
+```{r chunka10}
 
 df_yieldcurve %>% 
   filter(date>Sys.Date()-years(1)) %>% 
@@ -252,7 +252,7 @@ df_yieldcurve %>%
 
 ### 2-Year to 10-Year T-Bond
 
-```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r chunka11,fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yieldcurve %>% 
   filter(date>ymd("1975-01-01")) %>% 
