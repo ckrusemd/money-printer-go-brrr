@@ -274,7 +274,7 @@ df_yieldcurve %>%
 ```
 
 
-```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r chunka12,fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yieldcurve %>% 
   filter(date>Sys.Date()-years(1)) %>% 
@@ -296,7 +296,7 @@ df_yieldcurve %>%
 
 ### 30-Year Mortgage to 30-Year T-Bond
 
-```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r chunka13,fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
 df_yieldcurve %>% 
   filter(date>ymd("1975-01-01")) %>% 
@@ -319,7 +319,7 @@ df_yieldcurve %>%
 
 ## Yield Checkboard
 
-```{r }
+```{r chunka14}
 df_checkboard = expand.grid(series_id=unique(df_yieldcurve$series_id),
                             joined_series=unique(df_yieldcurve$series_id))
 
@@ -335,7 +335,7 @@ df_yield_checkboard =
 ```
 
 
-```{r }
+```{r chunka15}
 df_yield_checkboard %>% 
   group_by(series_id,joined_series) %>% 
   filter(date==max(date)) %>% 
@@ -353,7 +353,7 @@ df_yield_checkboard %>%
 ```
 
 
-```{r eval=F }
+```{r chunka16,eval=F }
 df_yield_checkboard %>% 
   filter(date>ymd("20-01-01")) %>% 
   ggplot(.,aes(x=series_id,y=joined_series)) +
@@ -368,7 +368,7 @@ df_yield_checkboard %>%
 ```
 
 
-```{r }
+```{r chunka17}
 
 df_yield_checkboard %>% 
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,
@@ -450,7 +450,7 @@ df_yield_checkboard %>%
 
 ## FED Rate Expectations Over Time
 
-```{r eval=F}
+```{r chunka18,eval=F}
 
 filename_ = file.info(list.files("FedMeetingHistory",path = "Data",full.names = T)) %>% filter(mtime==max(mtime)) %>% row.names(.)
 full_file = read.csv(file = filename_,header = FALSE)
@@ -496,7 +496,7 @@ rate_probs %>%
 ```
 
 
-```{r eval=F}
+```{r chunka19,eval=F}
 # DFF
 df_dff = df_yieldcurve %>% 
   filter(series_id=="DFF")
@@ -563,7 +563,7 @@ df_dff %>%
 
 Terminal rate
 
-```{r eval=F}
+```{r chunka20,eval=F}
 
 # DFF
 df_dff = df_yieldcurve %>% 
@@ -637,7 +637,7 @@ df_dff %>%
 Terminal rate expected data
 
 
-```{r eval=F}
+```{r chunka21,eval=F}
 
 # DFF
 df_dff = df_yieldcurve %>% 
@@ -710,7 +710,7 @@ rate_probs %>%
 
 Terminal rate expectations
 
-```{r eval=F}
+```{r chunka22,eval=F}
 
 # DFF
 df_dff = df_yieldcurve %>% 
