@@ -710,6 +710,16 @@ rate_probs %>%
 
 Terminal rate expectations
 
+```{r}
+# DFF
+df_dff = df_yieldcurve %>% 
+  filter(series_id=="DFF") %>% 
+  tidyr::complete(date=seq.Date(from=max(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
+  tidyr::fill(value,.direction = "down")  %>% 
+  tidyr::fill(series_id,.direction = "down") 
+```
+
+
 ```{r chunka22,eval=F}
 
 # DFF
@@ -788,13 +798,6 @@ rate_probs %>%
 ```
 
 ```{r eval=F}
-
-# DFF
-df_dff = df_yieldcurve %>% 
-  filter(series_id=="DFF") %>% 
-  tidyr::complete(date=seq.Date(from=max(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
-  tidyr::fill(value,.direction = "down")  %>% 
-  tidyr::fill(series_id,.direction = "down") 
 
 # Rate Probabilities
 filename_ = file.info(list.files("FedMeetingHistory",path = "Data",full.names = T)) %>% filter(mtime==max(mtime)) %>% row.names(.)
