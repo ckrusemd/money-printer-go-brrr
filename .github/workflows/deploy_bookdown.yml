@@ -37,16 +37,26 @@ jobs:
       with:
         name: _book # optional
         path: _book # optional
+    # - name: Deploy to GitHub Pages
+    #   uses: Cecilapp/GitHub-Pages-deploy@v3
+    #   with:
+    #     build_dir: _book/
+    #     email: ${{ secrets.EMAIL }}  #optional
+    #     jekyll: no                     # optional
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     EMAIL: ${{ secrets.EMAIL }}
+    #     BUILD_DIR: _book/
     - name: Deploy to GitHub Pages
-      uses: Cecilapp/GitHub-Pages-deploy@v3
-      with:
-        build_dir: _book/
-        email: ${{ secrets.EMAIL }}  #optional
-        jekyll: no                     # optional
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        EMAIL: ${{ secrets.EMAIL }}
-        BUILD_DIR: _book/
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          user_name: 'GitHub Actions'
+          user_email: ${{ secrets.EMAIL }}
+          allow_empty_commit: false
+          keep_files: true
+          force_orphan: true
     - name: Send mail
       uses: dawidd6/action-send-mail@v3
       with:
