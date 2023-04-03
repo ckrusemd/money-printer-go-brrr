@@ -1,5 +1,7 @@
 #rmd_files: ["index.Rmd","1_Interest_Rates.Rmd","2_Indicators.Rmd","3_Markets.Rmd", "4_Housing.Rmd"]
 #rmd_files: ["index.Rmd","1_Interest_Rates.Rmd","2_Indicators.Rmd"]
-rmd_files: ["index.Rmd"]
+#rmd_files: ["index.Rmd"]
 delete_merged_file: true
 
+rmd_subdirs: ["Chapters/01_Indicators","Chapters/02_Housing","Chapters/03_InterestRates"]
+rmd_files: ["*.Rmd"]

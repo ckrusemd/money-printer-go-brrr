@@ -26,6 +26,7 @@ pacman::p_load(fredr,
                httr,
                data.table,
                pROC,
+               rPref,
                progress,
                quantmod,
                rvest,
@@ -168,6 +169,11 @@ series_ids = unique(c("CBBTCUSD",
                "HOUST",
                "ICSA",
                "DGS10",
+               "DGS20",
+               "DGS30",
+               "DGS5",
+               "DGS2",
+               "DGS1",
                "CSUSHPINSA",
                "GDP",
                "GDPC1",
@@ -189,7 +195,42 @@ df_series = rbindlist(lapply(series_ids,function(series_id) {
 ### Yahoo Data
 
 ```{r}
-series_ids_yahoo = unique(c("AAPL","JNJ","MSFT"))
+series_ids_yahoo = unique(c("AAPL",
+                            "JNJ",
+                            "MSFT",
+                            "GC=F",
+                            "SI=F",
+                            "DX-Y.NYB",
+                            "BTC-USD",
+                            "ETH-USD",
+                            "PA=F",
+                            "GOLD",
+                            "FCX",
+                            "SH",
+                            "^OMXC25",
+                            "SPY",
+                            "QQQ",
+                            "IWM",
+                            "SH",
+                            "PSQ",
+                            "RWM",
+                            "TMV",
+                            "TQQQ",
+                            "IGOV",
+                            "BWX",
+                            "ISHG",
+                            "BUND",
+                            "GLD",
+                            "IAU",
+                            "SGOL",
+                            "UUP",
+                            "USO",
+                            "SSO",
+                            "TBT",
+                            "GBTC",
+                            "ETHO",
+                            "TLT",
+                            "USDDKK=X"))
 
 df_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
       temp_df = getSymbols(ticker, env = NULL) %>% 
@@ -209,8 +250,6 @@ df_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
 }))
 ```
 
-
-
 ### Combinations
 
 ```{r}
@@ -228,6 +267,112 @@ combinations.list <- split(combinations, seq(nrow(combinations)))
 
 ```
 
+# Blow-off top detection
+
+```{r}
+
+lm_model = function(data) {
+  suppressWarnings({
+    tryCatch(expr = { data.frame(rqs=summary(lm(I(value)^2~date,data=data))$adj.r.squared) },error=function(e) { data.frame() })
+  })
+}
+
+blow_off_detect = function(data) {
+  data %>% 
+    tidyr::crossing(days_before=seq(5,30)) %>% 
+    filter(date>=max(date)-days(days_before)) %>% 
+    group_by(days_before) %>% 
+    do(lm_model(.))
+  
+}
+
+df_blow_off = df_series %>% 
+  group_by(series_id) %>% 
+  do(blow_off_detect(.)) %>% 
+  ungroup()
+
+# Consider again the preference from above
+p <- high(days_before) * high(rqs)
+
+# Calculate the level-value w.r.t. p by using top-all
+res <- psel(df_blow_off, p, top = nrow(df_blow_off))
+res %>% 
+  filter(.level==1)
+# Visualize the level values by the color of the points
+ggplot(res, aes(x = days_before, y = rqs, group = factor(.level))) +
+  geom_point() +
+  geom_line()
+
+```
+
+
+# Buy stuff with bitcoin
+
+```{r}
+unique(df_series$series_id)
+```
+
+
+```{r}
+df_series %>% 
+  filter(series_id %in% c("USDDKK=X","BTC-USD")) %>% 
+  spread(series_id,value) %>% 
+  dplyr::select(date,`BTC-USD`,everything()) %>% 
+  setNames(.,c("date","one","two")) %>% 
+  na.omit() %>% 
+  dplyr::mutate(price=one*two) %>% 
+  ggplot(.,aes(x=date,y=price)) +
+  geom_line()
+```
+
+
+```{r}
+df_series %>% 
+  filter(series_id %in% c("GC=F","BTC-USD")) %>% 
+  spread(series_id,value) %>% 
+  dplyr::select(date,`BTC-USD`,everything()) %>% 
+  setNames(.,c("date","one","two")) %>% 
+  na.omit() %>% 
+  dplyr::mutate(price=one/two) %>% 
+  ggplot(.,aes(x=date,y=price)) +
+  geom_line()
+```
+
+
+```{r}
+df_series %>% 
+  filter(series_id %in% c("DX-Y.NYB","BTC-USD")) %>% 
+  spread(series_id,value) %>% 
+  dplyr::select(date,`BTC-USD`,everything()) %>% 
+  setNames(.,c("date","one","two")) %>% 
+  na.omit() %>% 
+  dplyr::mutate(price=one/two) %>% 
+  ggplot(.,aes(x=date,y=price)) +
+  geom_line()
+```
+
+```{r}
+df_series %>% 
+  filter(series_id %in% c("DCOILWTICO","BTC-USD")) %>% 
+  spread(series_id,value) %>% 
+  dplyr::select(date,`BTC-USD`,everything()) %>% 
+  setNames(.,c("date","one","two")) %>% 
+  na.omit() %>% 
+  dplyr::mutate(price=one/two) %>% 
+  ggplot(.,aes(x=date,y=price)) +
+  geom_line()
+```
+
+```{r}
+df_series %>% 
+  filter(series_id %in% c("NASDAQCOM","BTC-USD")) %>% 
+  spread(series_id,value) %>% 
+  setNames(.,c("date","one","two")) %>% 
+  na.omit() %>% 
+  dplyr::mutate(price=one/two) %>% 
+  ggplot(.,aes(x=date,y=price)) +
+  geom_line()
+```
 
 
 # Cross correlations
@@ -235,7 +380,7 @@ combinations.list <- split(combinations, seq(nrow(combinations)))
 ```{r}
 
 calc_ccf = function(data) {
-  ccf_results = ccf(data$value.x,data$value.y,lag.max = 3650,plot = FALSE)
+  ccf_results = ccf(data$value.x,data$value.y,lag.max = 1,plot = FALSE)
   best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
   best_corr_time = ccf_results$lag[best_corr_index]
   best_corr_value = ccf_results$acf[best_corr_index]
@@ -262,7 +407,21 @@ df_ccfs %>%
 ```{r}
 
 df_ccf = df_series %>%
-  filter(series_id %in% c("CSUSHPINSA","MORTGAGE30US")) %>% 
+  filter(series_id %in% c("TBT","TLT")) %>% 
+  spread(series_id,value) %>% 
+  na.omit() %>% 
+  setNames(.,c("Dates","One","Two"))
+ccf_results = ccf(df_ccf$One,df_ccf$Two,lag.max = 3650)
+best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+best_corr_time = ccf_results$lag[best_corr_index]
+best_corr_value = ccf_results$acf[best_corr_index]
+
+```
+
+```{r}
+
+df_ccf = df_series %>%
+  filter(series_id %in% c("BTC-USD","TLT")) %>% 
   spread(series_id,value) %>% 
   na.omit() %>% 
   setNames(.,c("Dates","One","Two"))
