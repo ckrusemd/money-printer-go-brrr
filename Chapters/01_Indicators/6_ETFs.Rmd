@@ -324,21 +324,26 @@ df_combinations_split = split(df_combinations,df_combinations$x1)
 
 
 ```{r}
-
 calc_ccf = function(data) {
+  ## 30 days
   ccf_results = ccf(data$value.x,data$value.y,lag.max = 30,plot = FALSE)
-  best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
-  best_corr_time = ccf_results$lag[best_corr_index]
-  # best_corr_beta = data %>% 
-  #   dplyr::mutate(value.y=value.y/lag(value.y),
-  #                 value.x=value.x/lag(value.x)) %>% 
-  #   dplyr::mutate(value.y= ifelse( best_corr_time < 0 , lead(value.y,abs(best_corr_time)), lag(value.y,abs(best_corr_time)) )) %>% 
-  #   lm(value.y~value.x,data=.) %>% 
-  #   .[["coefficients"]] %>% 
-  #   .[["value.x"]]
-  best_corr_value = ccf_results$acf[best_corr_index]
-  # data.frame(best_corr_time,best_corr_value,best_corr_beta)
-  data.frame(best_corr_time,best_corr_value)
+  best_corr_index_30 = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+  best_corr_time_30 = ccf_results$lag[best_corr_index_30]
+  best_corr_value_30 = ccf_results$acf[best_corr_index_30]
+  ## 365 days
+  ccf_results = ccf(data$value.x,data$value.y,lag.max = 365,plot = FALSE)
+  best_corr_index_365 = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+  best_corr_time_365 = ccf_results$lag[best_corr_index_365]
+  best_corr_value_365 = ccf_results$acf[best_corr_index_365]
+  ## 1825 days
+  ccf_results = ccf(data$value.x,data$value.y,lag.max = 1825,plot = FALSE)
+  best_corr_index_1825 = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+  best_corr_time_1825 = ccf_results$lag[best_corr_index_1825]
+  best_corr_value_1825 = ccf_results$acf[best_corr_index_1825]
+  
+  data.frame(best_corr_time_30,best_corr_value_30,
+             best_corr_time_365,best_corr_value_365,
+             best_corr_time_1825,best_corr_value_1825)
 }
 df_ccfs = do.call("rbind",lapply(df_combinations_split,function(split_) { split_ %>% 
   inner_join(df_all,by=c("x1"="series_id")) %>% 
@@ -348,7 +353,10 @@ df_ccfs = do.call("rbind",lapply(df_combinations_split,function(split_) { split_
   group_by(x1,x2) %>% 
   do(calc_ccf(.))
 }))
+```
 
+
+```{r}
 df_ccfs %>% 
   ggplot(.,aes(x=best_corr_time,y=best_corr_value)) +
   geom_point() +
