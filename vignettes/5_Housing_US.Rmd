@@ -1,0 +1,114 @@
+---
+title: "US Housing Data"
+author: "Christian Kruse"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+<style type="text/css">
+.main-container {
+  max-width: 100% !important;
+  margin: auto;
+}
+</style>
+
+```{r fed_yield_curve, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
+```
+
+# FED
+
+```{r}
+
+if (!require(pacman)) { install.packages("pacman") }
+pacman::p_load(fredr,
+               dplyr,
+               tidyr,
+               lubridate,
+               caret,
+               partykit,
+               pROC,
+               gganimate,
+               devtools,
+               rvest,
+               zoo,
+               ggplot2,
+               forcats,
+               boot,
+               broom,
+               glue,
+               openxlsx,
+               purrr,
+               dkstat,
+               ecb,
+               httr,
+               PlayerRatings,
+               data.table,
+               nlme,
+               directlabels,
+               drc,
+               ggrepel)
+source(file = "money_theme.R")
+
+```
+
+
+```{r }
+readRenviron(path = "Renviron.site")
+fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
+
+```
+
+
+```{r}
+df_housing_us = do.call("rbind",lapply(c("MORTGAGE30US","CSUSHPINSA","NASDAQCOM","WILL5000INDFC","WM2NS","M2V","CPIAUCSL","MSACSR","ACTLISCOUUS","PERMIT","COMPUTSA","UNRATE"),function(series) { 
+  fredr(series_id = series) %>% 
+    filter(!is.na(value)) %>% 
+    dplyr::select(date,series_id,value) %>% 
+    tidyr::complete(date = seq.Date(from = min(date,na.rm=T), to = max(date,na.rm=T), by="day")) %>% 
+    tidyr::fill(value,.direction="downup")  %>% 
+    tidyr::fill(series_id,.direction="downup") 
+  }))
+
+df_CSUSHPINSA = df_housing_us %>% 
+  crossing(data.frame(peak=c("2006","2022"),
+           peak_date=c(ymd("2006-07-01",ymd("2022-06-01"))))) %>% 
+  filter(date>=peak_date-years(3)) %>% 
+  filter(date<=peak_date+years(5)) %>% 
+  arrange(peak,peak_date,date) %>% 
+  group_by(peak,series_id) %>% 
+  arrange(peak,series_id,date) %>% 
+  dplyr::mutate(index=ifelse(date==peak_date,value,NA),
+                index_diffdate=date-peak_date) %>% 
+  dplyr::mutate(label=ifelse(index_diffdate==max(index_diffdate),series_id,NA)) %>% 
+  tidyr::fill(index,.direction = "updown") %>% 
+  dplyr::mutate(index=100*value/index)
+```
+
+
+```{r}
+df_CSUSHPINSA %>% 
+  ggplot(.,aes(x=index_diffdate,y=index,color=series_id)) +
+  geom_line() +
+  # facet_wrap(~peak,ncol=1,scales="free_x") +
+  facet_wrap(~peak,ncol=1,scales="free_y") +
+  # geom_text_repel(aes(label=label),nudge_x = 0, direction = "y", hjust = "left") +
+  geom_text(aes(label=label),nudge_x = 0, direction = "y", hjust = "left") +
+  scale_x_continuous(expand=expansion(add=c(0,1000)))
+  # geom_vline(aes(xintercept = peak_date))
+```
+
+
+```{r}
+df_CSUSHPINSA %>% 
+  ggplot(.,aes(x=index_diffdate,y=index,color=peak)) +
+  geom_line() +
+  # facet_wrap(~peak,ncol=1,scales="free_x") +
+  facet_wrap(~series_id,scales="free_y") +
+  # geom_text_repel(aes(label=label),nudge_x = 0, direction = "y", hjust = "left") +
+  geom_text(aes(label=label),nudge_x = 0, direction = "y", hjust = "left") +
+  scale_x_continuous(expand=expansion(add=c(0,1000))) +
+  geom_hline(yintercept = 100,linetype=2) +
+  geom_vline(xintercept = 0,linetype=2)
+  # geom_vline(aes(xintercept = peak_date))
+```

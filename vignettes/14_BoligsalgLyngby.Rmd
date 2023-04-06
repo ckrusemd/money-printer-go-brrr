@@ -1,0 +1,817 @@
+---
+title: "Boligsalg - Lyngby"
+author: "CAKU"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r boligbyrde,include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
+options(scipen=999)
+```
+
+# Boligsalg
+
+```{r}
+library(pacman)
+pacman::p_load(fredr,
+               dplyr,
+               tidyr,
+               lubridate,
+               logger,
+               caret,
+               partykit,
+               pROC,
+               gganimate,
+               devtools,
+               httr,
+               rvest,
+               data.table,
+               openxlsx,
+               ggrepel,
+               glue,
+               stringr,
+               zoo,
+               ggrepel)
+source(file = "money_theme.R")
+```
+
+
+```{r}
+fit_draw_abline = function(date1,date2,value1,value2) {
+  
+  data.frame(Date=c(date1,date2),
+             GSPC.Close=c(value1,value2)) %>% 
+    lm(data = .,formula = GSPC.Close~Date) %>% 
+    coef(.) %>% 
+    as.numeric(.) %>% 
+    geom_abline(intercept = .[1],slope = .[2])
+  
+}
+```
+
+
+```{r}
+fetch_data = function(elements=1000,datemin=2015,salesDateMax="today") {
+  
+  url = glue("https://www.boliga.dk/salg/resultater?salesDateMin={datemin}&salesDateMax={salesDateMax}&sort=date-d&page=1&pageSize={elements}&municipality=173&propertyType=1,2&saleType=1")
+  
+  content <- rvest::read_html(url)
+  tables <- content %>% html_table(fill = TRUE)
+  tables <- tables[[1]]
+  colnames(tables) <- c("address",
+                        "purchase_sum",
+                        "sales_date_type",
+                        "m2_price",
+                        "rooms",
+                        "year_construction",
+                        "adjust",
+                        "property_type",
+                        "sqmt",
+                        "current")
+  
+  
+  # Sum
+  tables$purchase_sum = gsub("kr.","",tables$purchase_sum)
+  tables$purchase_sum = gsub("\\.","",tables$purchase_sum)
+  tables$purchase_sum = str_trim(tables$purchase_sum)
+  tables$purchase_sum = as.integer(tables$purchase_sum)
+  
+  # Sales Date
+  tables$sales_date = str_extract(string = tables$sales_date_type,
+                                  pattern =  "\\d{2}-\\d{2}-\\d{4}")
+  
+  # Type
+  tables$sales_type = stringi::stri_replace_all_regex(tables$sales_date_type, 
+                                                      tables$sales_date, 
+                                                      "", 
+                                                      vectorize_all = FALSE)
+  
+  # m2
+  tables = tables %>% 
+    separate(m2_price,into = c("m2_size","sqmt_price"),sep = " m²  ")
+  tables$sqmt_price = as.integer(gsub("\\.","",str_trim(gsub("kr/m²","",tables$sqmt_price))))
+  
+  # Rooms
+  tables$rooms = as.integer(tables$rooms)
+  
+  # Adjustment
+  tables$adjust = gsub("Prisjustering ","",tables$adjust)
+  tables$adjust = gsub("%","",tables$adjust)
+  tables$adjust = as.integer(tables$adjust)
+  tables$adjust = tables$adjust/100
+  
+  # Square Meters
+  tables$sqmt = as.integer(tables$m2_size)
+  
+  # Construction Year
+  tables$sales_date = dmy( tables$sales_date )
+  
+  # Property Type
+  tables$property_type = str_extract(string = tables$address,
+                                  pattern =  "^([\\w\\-]+)")
+  
+  
+  
+  # Columns
+  tables = tables %>% 
+    dplyr::select(sales_date,
+                  property_type,
+                  address,
+                  purchase_sum,
+                  sqmt,
+                  sqmt_price,
+                  rooms,
+                  year_construction,
+                  adjust,
+                  sales_type) %>% 
+    rename(m2_price=sqmt_price)
+  
+  return( tables )
+}
+```
+
+```{r}
+df_boligsiden = data.frame(type="boligsiden",
+                           sales_date=rev(seq.Date(from = ymd("2020-02-01"),to= ymd("2023-01-01"),by="1 month")),
+                           m2_price=c(41501,42343,45131,46734,48296,46857,49374,50208,51947,49557,48879,49003,48791,47948,46884,47138,49072,49739,48550,46971,45326,44968,44055,43620,43533,42841,41846,40280,39860,39323,38724,37709,38023,37371,37612,36895))
+df_boligsiden
+```
+
+
+```{r}
+df.house_prices =
+  openxlsx::read.xlsx(xlsxFile = "Data/BM010.xlsx",startRow = 3,sheet = "BM010") %>% 
+  rename_with(~c("PROPERTY_TYPE","SALES_TYPE","ZIP"),1:3) %>% 
+  tidyr::fill(PROPERTY_TYPE,.direction="down") %>% 
+  tidyr::fill(SALES_TYPE,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1)) %>% 
+  group_by(PROPERTY_TYPE,SALES_TYPE,ZIP) %>% 
+  # do(loess_adjust(.)) %>% 
+  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE,
+                                     'HOUSE'='Parcel-/rækkehuse',
+                                     'Parcel-/rækkehus'='Parcel-/rækkehuse',
+                                     'FLAT'='Ejerlejlighed')) %>% 
+  filter(ZIP=="Lyngby-Taarbæk") %>% 
+  filter(SALES_TYPE=="Parcel-/rækkehus") %>% 
+  filter(PROPERTY_TYPE=="Realiseret handelspris") %>% 
+  ungroup() 
+df.house_prices
+```
+
+
+```{r eval=F}
+df_lyngby = lapply(seq(2005,2022,by=1),function(year_) {
+# do.call("rbind",lapply(seq(2000,2022,by=1),function(year_) {
+  temp_df = fetch_data(elements = 1000,datemin = year_,salesDateMax= ifelse(year_==2022,"today",year_))
+  logger::log_info(glue("Sleeping {year_}"))
+  Sys.sleep(round(runif(n=1,min=7,max = 20)))
+  return(temp_df)
+})
+df_lyngby_rbind = do.call("rbind",df_lyngby)
+# saveRDS(df_lyngby_rbind,file = "df_lyngby_rbind.rds")
+```
+
+
+```{r}
+df_lyngby_rbind = readRDS(file = "df_lyngby_rbind.rds")
+```
+
+
+```{r}
+
+df_lyngby_rbind %>% 
+  filter(m2_price>1000,m2_price<100000) %>%
+  filter(purchase_sum>100000,purchase_sum<25000000) %>%
+  filter(sqmt>100,sqmt<250) %>%
+  arrange((sales_date)) %>% 
+  dplyr::mutate(roll_mean=zoo::rollmean(m2_price,k = 50,fill = NA,align = "right")) %>% 
+  dplyr::mutate(roll_sd=zoo::rollapply(m2_price,width = 50,FUN = sd,fill = NA,align = "right")) %>% 
+  dplyr::mutate(p_norm=pnorm(m2_price,mean = roll_mean,sd = roll_sd)) %>% 
+  # filter(p_norm > 0.025,p_norm < 0.975) %>% 
+  filter(p_norm > 0.1,p_norm < 0.9) %>% 
+  dplyr::mutate(roll_conf_lwr=roll_mean-1.3*roll_sd) %>% 
+  dplyr::mutate(roll_conf_upr=roll_mean+1.3*roll_sd) %>% 
+  arrange(desc(sales_date)) %>% 
+  ggplot(.,aes(x=sales_date,y=roll_mean)) +
+  geom_line()+
+  # geom_point()+
+  geom_point(aes(y=m2_price,color=property_type),alpha=1,size=0.6) +
+  geom_ribbon(aes(ymin=roll_conf_lwr,ymax=roll_conf_upr),alpha=0.3) +
+  theme(legend.position="bottom",axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_line(data=df_boligsiden,aes(x=sales_date,y=m2_price),color="red")+
+  # geom_point(data=df_boligsiden,aes(x=sales_date,y=m2_price),color="red") +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_line(data=df.house_prices,aes(x=DATE,y=VALUE),color="blue") +
+  # geom_point(data=df.house_prices,aes(x=DATE,y=VALUE),color="blue") +
+  # scale_x_date(date_labels = "%Y %b",date_breaks = "3 month",limits = c(ymd("2005-01-01"),ymd("2025-01-01"))) +
+  scale_x_date(date_labels = "%Y %b",date_breaks = "3 month",limits = c(ymd("2005-01-01"),ymd("2010-01-01"))) +
+  scale_y_continuous(limits = c(0,50000),breaks = seq(0,100000,by=5000)) +
+  geom_vline(xintercept = ymd("2022-05-14")) +
+  geom_hline(yintercept = c(57498.11,57498.11*seq(0.65,1,by=0.05)),color="black",linetype=3)
+
+```
+
+```{r fig.width=20,fig.height=10}
+
+df_lyngby_rbind %>% 
+  filter(m2_price>1000,m2_price<100000) %>%
+  filter(purchase_sum>100000,purchase_sum<25000000) %>%
+  filter(sqmt>100,sqmt<250) %>%
+  arrange((sales_date)) %>% 
+  group_by(property_type) %>% 
+  dplyr::mutate(roll_mean=zoo::rollmean(m2_price,k = 50,fill = NA,align = "right")) %>% 
+  dplyr::mutate(roll_sd=zoo::rollapply(m2_price,width = 50,FUN = sd,fill = NA,align = "right")) %>% 
+  dplyr::mutate(p_norm=pnorm(m2_price,mean = roll_mean,sd = roll_sd)) %>% 
+  ungroup() %>% 
+  # filter(p_norm > 0.025,p_norm < 0.975) %>% 
+  filter(p_norm > 0.1,p_norm < 0.9) %>% 
+  dplyr::mutate(roll_conf_lwr=roll_mean-1.3*roll_sd) %>% 
+  dplyr::mutate(roll_conf_upr=roll_mean+1.3*roll_sd) %>% 
+  arrange(desc(sales_date)) %>% 
+  ggplot(.,aes(x=sales_date,y=roll_mean)) +
+  geom_line(aes(color=property_type))+
+  # geom_point()+
+  geom_point(aes(y=m2_price,color=property_type),alpha=1,size=0.6) +
+  geom_ribbon(aes(ymin=roll_conf_lwr,ymax=roll_conf_upr),alpha=0.3) +
+  theme(legend.position="bottom",axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_line(data=df_boligsiden,aes(x=sales_date,y=m2_price),color="red")+
+  # geom_point(data=df_boligsiden,aes(x=sales_date,y=m2_price),color="red") +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_line(data=df.house_prices,aes(x=DATE,y=VALUE),color="blue") +
+  # geom_point(data=df.house_prices,aes(x=DATE,y=VALUE),color="blue") +
+  # scale_x_date(date_labels = "%Y %b",date_breaks = "3 month",limits = c(ymd("2005-01-01"),ymd("2025-01-01"))) +
+  scale_x_date(date_labels = "%Y %b",date_breaks = "3 month",limits = c(ymd("2017-01-01"),ymd("2025-01-01"))) +
+  scale_y_continuous(limits = c(0,80000),breaks = seq(0,100000,by=5000)) +
+  geom_vline(xintercept = ymd("2022-05-14")) +
+  geom_vline(xintercept = ymd("2023-09-01")) +
+  geom_hline(yintercept = c(57498.11,57498.11*seq(0.65,1,by=0.05)),color="black",linetype=3)  +
+  fit_draw_abline(ymd("2022-05-01"),ymd("2025-05-01"),51500,11000)  +
+  fit_draw_abline(ymd("2022-05-01"),ymd("2025-05-01"),57000,22000)  +
+  fit_draw_abline(ymd("2009-01-01"),ymd("2020-04-01"),21000,37000)
+
+```
+
+
+```{r}
+
+df_lyngby_rbind %>% 
+  filter(m2_price>1000,m2_price<200000) %>% 
+  filter(purchase_sum>100000,purchase_sum<25000000) %>% 
+  filter(sqmt>25,sqmt<750) %>% 
+  filter(is.na(adjust) | adjust>-0.5) %>% 
+  dplyr::mutate(sales_date=floor_date(sales_date,unit="week")) %>% 
+  group_by(sales_date) %>% 
+  dplyr::summarize(m2_price=mean(m2_price)) %>% 
+  ungroup() %>% 
+  dplyr::mutate(sma_3mos=TTR::SMA(m2_price,n = 16)) %>% 
+  ggplot(.,aes(x=sales_date,y=sma_3mos)) +
+  geom_line()+
+  geom_point() +
+  theme(legend.position="bottom",axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_line(data=df_boligsiden,aes(x=sales_date,y=m2_price),color="red")+
+  geom_point(data=df_boligsiden,aes(x=sales_date,y=m2_price),color="red") +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_line(data=df.house_prices,aes(x=DATE,y=VALUE),color="blue") +
+  geom_point(data=df.house_prices,aes(x=DATE,y=VALUE),color="blue") +
+  scale_x_date(date_labels = "%Y %b",date_breaks = "3 month",limits = c(ymd("2019-01-01"),ymd("2025-01-01"))) +
+  scale_y_continuous(limits = c(30000,60000),breaks = seq(0,100000,by=2500)) +
+  geom_vline(xintercept = ymd("2022-05-14")) +
+  geom_hline(yintercept = c(57498.11,57498.11*seq(0.65,1,by=0.05)),color="black",linetype=3)
+
+```
+
+
+```{r}
+
+df_lyngby_rbind %>% 
+  filter(m2_price>1000,m2_price<200000) %>% 
+  filter(purchase_sum>100000,purchase_sum<25000000) %>% 
+  filter(sqmt>25,sqmt<750) %>% 
+  filter(is.na(adjust) | adjust>-0.5) %>% 
+  dplyr::mutate(sales_date=floor_date(sales_date,unit="week")) %>% 
+  group_by(property_type,sales_date) %>% 
+  dplyr::summarize(m2_price=mean(m2_price)) %>% 
+  group_by(property_type) %>% 
+  dplyr::mutate(sma_3mos=TTR::SMA(m2_price,n = 16)) %>% 
+  ggplot(.,aes(x=sales_date,y=sma_3mos,color=property_type)) +
+  geom_line()+
+  geom_point() +
+  theme(legend.position="bottom",axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_line(data=df_boligsiden,aes(x=sales_date,y=m2_price),color="red")+
+  geom_point(data=df_boligsiden,aes(x=sales_date,y=m2_price),color="red") +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_line(data=df.house_prices,aes(x=DATE,y=VALUE),color="blue") +
+  geom_point(data=df.house_prices,aes(x=DATE,y=VALUE),color="blue") +
+  scale_x_date(date_labels = "%Y %b",date_breaks = "3 month",limits = c(ymd("2019-01-01"),ymd("2025-01-01"))) +
+  scale_y_continuous(limits = c(30000,60000),breaks = seq(0,100000,by=2500)) +
+  geom_vline(xintercept = ymd("2022-05-14")) +
+  geom_hline(yintercept = c(60000,60000*seq(0.65,1,by=0.05)),color="black",linetype=3)
+
+```
+## Boliga
+
+```{r}
+
+# df_boliga_lyngby = fetch_data(elements = 1000)
+df_boliga_lyngby = df_existing
+df_boliga_lyngby %>% 
+  ggplot(.,aes(x=sales_date,y=m2_price)) +
+  geom_point() +
+  geom_smooth()
+
+df_boliga_lyngby %>% 
+  dplyr::mutate(sales_date=floor_date(sales_date,unit="month")) %>% 
+  group_by(sales_date) %>% 
+  dplyr::summarise(mean_=median(m2_price)) %>% 
+  ggplot(.,aes(x=sales_date,y=mean_)) +
+  geom_smooth(span=0.3) +
+  geom_line()
+
+```
+
+## Finansdanmark
+
+```{r}
+source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
+current_url = xml2::read_html(source_url) %>%
+  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(11) > a") %>% 
+  rvest::html_attr("href")
+xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+
+df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
+
+df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
+df_interest = 
+  df_interest %>% 
+  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
+  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
+  gather(TYPE,VALUE,Kort.rente:CurveLongShort) %>% 
+  dplyr::rename(DATE=Date) %>% 
+  group_by(TYPE) %>% 
+  tidyr::complete(DATE = seq.Date(from = min(DATE,na.rm=T), to = max(DATE,na.rm=T), by="day")) %>% 
+  tidyr::fill(VALUE,.direction="downup") %>% 
+  tidyr::crossing(PROPERTY=c("FLAT","HOUSE")) 
+  
+```
+
+
+```{r}
+
+# BM011: Ejendomspriser på boligmarkedet efter postnr., ejendomskategori og priser på realiserede handler
+df_BM011 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/20229310498387777879BM011_2.xlsx",
+                    startRow = 3) %>% 
+  rename(TYPE=X1,
+         ZIP=X2,
+         PROPERTY=X3) %>% 
+  tidyr::fill(TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(PROPERTY,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1))
+
+# BM021: Bevægelser på boligmarkedet efter postnr., ejendomskategori og bevægelsestype
+df_BM021 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/202293104233387777879BM021_2.xlsx",
+                    startRow = 3) %>% 
+  rename(TYPE=X1,
+         ZIP=X2,
+         PROPERTY=X3) %>% 
+  tidyr::fill(TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(PROPERTY,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1))
+
+# BM031: Salgstider på boligmarkedet (dage) efter postnumre og ejendomskategori
+df_BM031 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/202293104413387777879BM031_2.xlsx",
+                    startRow = 3) %>% 
+  rename(ZIP=X1,
+         PROPERTY=X2) %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(PROPERTY,.direction="down") %>% 
+  gather(DATE,VALUE,c(3:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1))
+
+# UDB010: Boliger på markedet efter område, ejendomskategori og udbudte og nedtagne boliger
+df_UDB010 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/202293104617387777879UDB010_2.xlsx",
+                    startRow = 3) %>% 
+  rename(TYPE=X2,
+         ZIP=X1,
+         PROPERTY=X3) %>% 
+  tidyr::fill(TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(PROPERTY,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=ymd(paste0(gsub("M","-",DATE),"-01"))-days(1))
+
+# UDB020: Boligpriser efter område, ejendomskategori og priser
+df_UDB020 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/202293104658387777879UDB020_2.xlsx",
+                    startRow = 3) %>% 
+  rename(TYPE=X2,
+         ZIP=X1,
+         PROPERTY=X3) %>% 
+  tidyr::fill(TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(PROPERTY,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=ymd(paste0(gsub("M","-",DATE),"-01"))-days(1))
+
+# UDB030: Udbuds- og liggetider (dage) efter område, ejendomskategori og tid på markedet
+df_UDB030 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/202293104724387777879UDB030_2.xlsx",
+                    startRow = 3) %>% 
+  rename(TYPE=X2,
+         ZIP=X1,
+         PROPERTY=X3) %>% 
+  tidyr::fill(TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(PROPERTY,.direction="down") %>% 
+  gather(DATE,VALUE,c(4:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=ymd(paste0(gsub("M","-",DATE),"-01"))-days(1))
+
+# ROE1: Restancer og overtagne ejendomme, ejerboliger og fritidshuse efter værdier
+df_ROE1 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/202293104746387777879ROE1_2.xlsx",
+                    rows = c(3,5)) %>% 
+  rename(TYPE=X1) %>% 
+  tidyr::fill(TYPE,.direction="down") %>% 
+  # tidyr::fill(PROPERTY,.direction="down") %>% 
+  gather(DATE,VALUE,c(2:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1))
+
+# UL30: Realkreditinstitutternes udlån efter afdrag, ejendomskategori og låntype
+df_UL30 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/202293104531387777879UL30_2.xlsx",
+                    startRow = 3) %>% 
+  rename(TYPE=X1,
+         ZIP=X2,
+         SUBTYPE=X3) %>% 
+  tidyr::fill(TYPE,.direction="down") %>% 
+  tidyr::fill(ZIP,.direction="down") %>% 
+  tidyr::fill(SUBTYPE,.direction="down") %>% 
+  # tidyr::fill(PROPERTY,.direction="down") %>% 
+  gather(DATE,VALUE,c(5:ncol(.))) %>% 
+  filter(!VALUE=="..") %>% 
+  dplyr::mutate(VALUE=as.integer(VALUE)) %>% 
+  dplyr::mutate(DATE=lubridate::ceiling_date(as.Date(as.yearqtr(DATE, format = "%YK%q")),"quarters")-days(1))
+
+```
+
+# Analysis
+
+```{r }
+
+df_UL30 %>% 
+  filter(!X4 %in% c("Samlet udlån")) %>% 
+  dplyr::mutate(X4=recode(X4,"Variabelt forrentede nominallån"="Variabelt",
+                                  "Rentetilpasning op til og med 1 år"="Variabelt",
+                                  "Rentetilpasning over 1 år op til og med 5 år"="Variabelt",
+                                  "Rentetilpasning over 5 år"="Variabelt",
+                                  "Variabel rente med ramt renteloft"="Variabelt",
+                                  "Variabel rente med renteloft"="Variabelt")) %>% 
+  group_by(DATE,X4) %>% 
+  dplyr::mutate(VALUE=sum(VALUE)) %>% 
+  distinct() %>% 
+  group_by(DATE) %>% 
+  dplyr::mutate(VALUE=VALUE/sum(VALUE)) %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,fill=X4)) +
+  geom_col() +
+  facet_wrap(~SUBTYPE) +
+  theme(legend.position="bottom")
+
+```
+
+```{r}
+
+df_ROE1 %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,fill=TYPE)) +
+  geom_col() +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+```{r}
+
+df_UDB030 %>% 
+  filter(PROPERTY %in% c("Parcel-/rækkehuse"))  %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=TYPE)) +
+  geom_line() +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+```{r}
+
+df_UDB020 %>% 
+  filter(PROPERTY %in% c("Parcel-/rækkehuse"))  %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=TYPE)) +
+  geom_line() +
+  theme(legend.position="bottom") +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+
+```{r}
+
+df_UDB010 %>% 
+  filter(PROPERTY %in% c("Parcel-/rækkehuse"))  %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=TYPE)) +
+  geom_line() +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+```{r}
+
+df_BM031 %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>% 
+  filter(PROPERTY %in% c("Parcel-/rækkehus"))  %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=ZIP)) +
+  geom_line() +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+```{r}
+
+df_boliga_sold = tables %>% 
+  dplyr::mutate(sales_date=ceiling_date(sales_date,unit = "month")-days(1)) %>% 
+  group_by(sales_date) %>% 
+  dplyr::summarise(count=n()) %>% 
+  dplyr::mutate(PROPERTY="Parcel-/rækkehus",
+                TYPE="Solgte boliger") %>% 
+  rename(DATE=sales_date,
+         VALUE=count)
+
+df_BM021 %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>% 
+  filter(PROPERTY %in% c("Parcel-/rækkehus"))  %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=TYPE)) +
+  geom_line() + 
+  geom_line(data=df_boliga_sold,aes(x=DATE,y=VALUE,color=TYPE)) +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+```{r}
+
+df_BM011 %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>%
+  filter(PROPERTY=="Parcel-/rækkehus") %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=TYPE)) +
+  geom_line() +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+
+```{r}
+
+df_interest_scaled = df_interest %>% 
+  filter(TYPE %in% c("Kort.rente","Lang.rente")) %>% 
+  group_by(TYPE,PROPERTY) %>% 
+  dplyr::mutate(VALUE=scale(VALUE)) %>% 
+  ungroup()
+
+df_BM011 %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>%
+  filter(PROPERTY=="Parcel-/rækkehus") %>% 
+  filter(TYPE=="Realiseret handelspris") %>% 
+  dplyr::mutate(VALUE=scale(VALUE)) %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=TYPE)) +
+  geom_line() +
+  geom_line(data = df_interest_scaled , aes(x=DATE,y=VALUE)) +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+
+
+```
+
+
+
+```{r}
+
+df_interest_scaled
+
+df_BM011_scaled = df_BM011 %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>%
+  filter(PROPERTY=="Parcel-/rækkehus") %>% 
+  filter(TYPE=="Realiseret handelspris") %>% 
+  dplyr::mutate(VALUE=scale(VALUE)) 
+
+df_BM021_scaled = df_BM021 %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>% 
+  filter(PROPERTY %in% c("Parcel-/rækkehus"))  %>% 
+  group_by(TYPE) %>% 
+  dplyr::mutate(VALUE=scale(VALUE)) %>% 
+  ungroup()
+
+df_UDB010_scaled = df_UDB010 %>% 
+  filter(PROPERTY %in% c("Parcel-/rækkehuse"))  %>% 
+  filter(ZIP=="Lyngby-Taarbæk")  %>% 
+  group_by(PROPERTY) %>% 
+  dplyr::mutate(VALUE=scale(VALUE)) %>% 
+  ungroup()
+
+df_UDB030_scaled = df_UDB030 %>% 
+  filter(PROPERTY %in% c("Parcel-/rækkehuse"))   %>% 
+  filter(ZIP=="Lyngby-Taarbæk")  %>% 
+  group_by(PROPERTY) %>% 
+  dplyr::mutate(VALUE=scale(VALUE)) %>% 
+  ungroup()
+
+df_interest_scaled %>% 
+  bind_rows( df_BM011_scaled ) %>% 
+  bind_rows( df_BM021_scaled ) %>% 
+  bind_rows( df_UDB010_scaled ) %>% 
+  bind_rows( df_UDB030_scaled ) %>% 
+  pull(TYPE) %>% 
+  unique()
+
+df_interest_scaled %>% 
+  bind_rows( df_BM011_scaled ) %>% 
+  bind_rows( df_BM021_scaled ) %>% 
+  bind_rows( df_UDB010_scaled ) %>% 
+  bind_rows( df_UDB030_scaled ) %>% 
+  filter(TYPE %in% c("Lang.rente","Realiseret handelspris","Udbudte boliger")) %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=TYPE)) +
+  geom_line() +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+# Supply and Sold, month's supply, clearance
+
+```{r}
+df_supply = df_UDB010 %>% 
+  filter(PROPERTY=="Parcel-/rækkehuse") %>% 
+  filter(TYPE=="Udbudte boliger") %>% 
+  dplyr::mutate(sales_date=floor_date(DATE,"month"))
+
+df_sales = df_existing %>% 
+  dplyr::mutate(sales_date=floor_date(sales_date,"month")) %>% 
+  group_by(sales_date) %>% 
+  dplyr::summarize(count_sales=n()) 
+```
+
+```{r}
+df_supply %>% 
+  ggplot(.,aes(x=sales_date,y=VALUE)) +
+  geom_line() +
+  geom_vline(xintercept = dmy(paste0("01-07-",seq(2000,2030,by=1))),linetype=2,color="gray50") +
+  geom_hline(yintercept = 209) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+```
+
+
+```{r}
+df_supply %>% 
+  inner_join(df_sales) %>% 
+  dplyr::mutate(months_supply = VALUE / count_sales) %>% 
+  ggplot(.,aes(x=sales_date,y=months_supply)) +
+  geom_line()
+```
+
+
+```{r}
+df_supply %>% 
+  inner_join(df_sales) %>% 
+  dplyr::mutate(months_clearance = count_sales / VALUE) %>% 
+  ggplot(.,aes(x=sales_date,y=months_clearance)) +
+  geom_line()
+```
+
+
+```{r}
+df_existing %>% 
+  dplyr::mutate(sales_date=floor_date(sales_date,"month")) %>% 
+  group_by(sales_date) %>% 
+  dplyr::summarize(count=n()) %>% 
+  ggplot(.,aes(x=sales_date,y=count)) +
+  geom_col() +
+  scale_x_date(date_labels = "%b %Y",date_breaks = "3 months") +
+  scale_y_continuous(expand=c(0,0),breaks = seq(0,30,by=5)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1))
+
+```
+
+
+### Lyngby Drop
+
+```{r}
+
+df_non_bubble = df_BM011 %>% 
+  filter(TYPE=="Realiseret handelspris") %>% 
+  filter(PROPERTY=="Parcel-/rækkehus") %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>% 
+  filter((DATE >= ymd("1995-01-01") )) %>% 
+  filter(!(DATE >= ymd("2005-01-01") & DATE<=ymd("2009-01-01"))) %>% 
+  filter(!(DATE >= ymd("2020-09-01") ))
+lm_non_bubble = lm(VALUE~DATE,data=df_non_bubble)
+
+df_non_bubble = df_BM011 %>% 
+  filter(TYPE=="Realiseret handelspris") %>% 
+  filter(PROPERTY=="Parcel-/rækkehus") %>% 
+  filter(ZIP=="2800 Kgs.Lyngby") %>% 
+  bind_rows(data.frame(DATE=seq.Date(from = max(df_BM011$DATE),to = max(df_BM011$DATE)+years(8),by="1 month"))) %>% 
+  dplyr::mutate(pred=predict(lm_non_bubble,.)) 
+
+last_bubble_length = ymd("2009-09-30")-ymd("2006-06-30")
+high_m2 = df_non_bubble %>% filter(DATE==max(df_BM011$DATE)) %>% na.omit(.) %>% pull(VALUE)
+normal_m2 = df_non_bubble %>% filter(DATE>=max(df_BM011$DATE)+days(last_bubble_length)) %>% head(1) %>%  pull(pred)
+normal_m2/high_m2
+
+df_non_bubble %>% 
+  ggplot(.,aes(x=DATE,VALUE,color=ZIP)) +
+  geom_point(alpha=0.1) + 
+  geom_line(aes(x=DATE,y=pred)) +
+  geom_line() +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y",limits = c(ymd("1992-01-01"),ymd("2028-01-01"))) +
+  scale_y_continuous(limits=c(0,50000)) +
+  geom_vline(xintercept = c(max(df_BM011$DATE))) +
+  geom_vline(xintercept = c(max(df_BM011$DATE)+days(last_bubble_length))) +
+  geom_vline(xintercept = ymd("2024-01-01"),linetype=2) +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  # geom_vline(aes(xintercept = DATE),linetype=3) +
+  # geom_vline(xintercept = current_max,linetype=2) +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) #+
+  # scale_y_continuous(labels = scales::number,breaks = seq(0,10000000,1000000))
+
+
+```
+
+
+```{r}
+
+df_existing %>% 
+  filter(m2_price>1000,m2_price<200000) %>% 
+  filter(purchase_sum>100000,purchase_sum<25000000) %>% 
+  filter(sqmt>25,sqmt<750) %>% 
+  filter(is.na(adjust) | adjust<0.5 | adjust>-0.5) %>% 
+  filter(sales_type=="Alm. Salg",property_type=="Villa") %>% 
+  dplyr::mutate(month=floor_date(sales_date,unit = "month")) %>% 
+  dplyr::summarise(m2_price=mean(m2_price)) %>% 
+  arrange((month)) %>% 
+  dplyr::mutate(sma_=TTR::SMA(x = m2_price,n = 3)) %>% 
+  ggplot(.,aes(x=month,y=sma_)) +
+  geom_line() +
+  geom_point() +
+  scale_x_date(date_breaks = "3 months",date_labels = "%Y %b") +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_y_continuous(breaks = seq(30000,60000,by=2500))
+```
+
+
+```{r}
+
+df_existing %>% 
+  filter(m2_price>1000,m2_price<200000) %>% 
+  filter(purchase_sum>100000,purchase_sum<25000000) %>% 
+  filter(sqmt>25,sqmt<750) %>% 
+  filter(is.na(adjust) | adjust<0.5 | adjust>-0.5) %>% 
+  filter(sales_type=="Alm. Salg",property_type=="Villa") %>% 
+  dplyr::mutate(month=floor_date(sales_date,unit = "week")) %>% 
+  dplyr::summarise(m2_price=mean(m2_price)) %>% 
+  arrange((month)) %>% 
+  dplyr::mutate(sma_=TTR::SMA(x = m2_price,n = 10)) %>% 
+  ggplot(.,aes(x=month,y=sma_)) +
+  geom_line() +
+  geom_point() +
+  scale_x_date(date_breaks = "3 months",date_labels = "%Y %b") +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_y_continuous(breaks = seq(30000,60000,by=2500))
+```

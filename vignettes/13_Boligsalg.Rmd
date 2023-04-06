@@ -1,0 +1,1354 @@
+---
+title: "Boligsalg"
+author: "CAKU"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+```{r boligbyrde,include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
+options(scipen=999)
+```
+
+# Boligsalg
+
+```{r}
+# Rscript -e "rmarkdown::render('13_Boligsalg.Rmd')"
+library(pacman)
+pacman::p_load(fredr,dplyr,tidyr,lubridate,caret,partykit,pROC,gganimate,devtools,httr,rvest,data.table,openxlsx,ggrepel,glue,stringr,ggrepel,survival,timereg,boot,survminer)
+source(file = "money_theme.R")
+```
+
+```{r }
+
+fetch_data = function(elements=1000,datemin=2015,salesDateMax="today") {
+  
+  url = glue("https://www.boliga.dk/salg/resultater?&zipcodeFrom=2800&zipcodeTo=2800&salesDateMin={datemin}&salesDateMax={salesDateMax}&sort=date-d&page=1&pageSize={elements}&propertyType=1&saleType=1")
+  
+  content <- rvest::read_html(url)
+  tables <- content %>% html_table(fill = TRUE)
+  tables <- tables[[1]]
+  colnames(tables) <- c("address",
+                        "purchase_sum",
+                        "sales_date_type",
+                        "m2_price",
+                        "rooms",
+                        "year_construction",
+                        "adjust",
+                        "property_type",
+                        "sqmt",
+                        "current")
+  
+  
+  # Sum
+  tables$purchase_sum = gsub("kr.","",tables$purchase_sum)
+  tables$purchase_sum = gsub("\\.","",tables$purchase_sum)
+  tables$purchase_sum = str_trim(tables$purchase_sum)
+  tables$purchase_sum = as.integer(tables$purchase_sum)
+  
+  # Sales Date
+  tables$sales_date = str_extract(string = tables$sales_date_type,
+                                  pattern =  "\\d{2}-\\d{2}-\\d{4}")
+  
+  # Type
+  tables$sales_type = stringi::stri_replace_all_regex(tables$sales_date_type, 
+                                                      tables$sales_date, 
+                                                      "", 
+                                                      vectorize_all = FALSE)
+  
+  # m2
+  tables = tables %>% 
+    separate(m2_price,into = c("m2_size","sqmt_price"),sep = " m²  ")
+  tables$sqmt_price = as.integer(gsub("\\.","",str_trim(gsub("kr/m²","",tables$sqmt_price))))
+  
+  # Rooms
+  tables$rooms = as.integer(tables$rooms)
+  
+  # Adjustment
+  tables$adjust = gsub("Prisjustering ","",tables$adjust)
+  tables$adjust = gsub("%","",tables$adjust)
+  tables$adjust = as.integer(tables$adjust)
+  tables$adjust = tables$adjust/100
+  
+  # Square Meters
+  tables$sqmt = as.integer(tables$m2_size)
+  
+  # Construction Year
+  tables$sales_date = dmy( tables$sales_date )
+  
+  # Property Type
+  tables$property_type = str_extract(string = tables$address,
+                                  pattern =  "^([\\w\\-]+)")
+  
+  
+  
+  # Columns
+  tables = tables %>% 
+    dplyr::select(sales_date,
+                  property_type,
+                  address,
+                  purchase_sum,
+                  sqmt,
+                  sqmt_price,
+                  rooms,
+                  year_construction,
+                  adjust,
+                  sales_type) %>% 
+    rename(m2_price=sqmt_price)
+  
+  return( tables )
+}
+
+if (!exists("df_tables")) {
+  df_tables = fetch_data(elements = 1000)
+  df_existing = df_tables %>% 
+    dplyr::mutate(Dato=sales_date,
+                  Adresse=address) %>% 
+    dplyr::mutate(month=floor_date(sales_date,unit="quarter")) %>% 
+    group_by(month) %>% 
+    dplyr::mutate(mean_=mean(m2_price),
+                  Q25=mean(m2_price)-1.96*sd(m2_price),
+                  Q975=mean(m2_price)+1.96*sd(m2_price))
+}
+
+```
+
+```{r}
+
+## Priser
+df_boligsalg = openxlsx::read.xlsx(xlsxFile = "Data/Boligsalg.xlsx",sheet = 1) %>% 
+  dplyr::mutate(Dato=as.Date(Dato,origin="1899-12-30")) %>%  
+  filter(!is.na(Beløb)) %>% 
+  dplyr::mutate(m2_price = Beløb / Size) %>% 
+  group_by(Adresse) %>% 
+  # filter(n()>=2) %>% 
+  dplyr::mutate(Min_Date=min(Dato),
+                Index=100*Beløb/max(Beløb)) %>% 
+  dplyr::mutate(Liggetid=as.numeric(Dato-Min_Date))
+
+df_boligsalg_current = df_boligsalg %>%
+  group_by(Adresse) %>%  
+  filter(Dato==max(Dato)) %>% 
+  filter(Handling!="Solgt") %>%
+  dplyr::mutate(Dato=Sys.Date()) %>% 
+  dplyr::mutate(Liggetid=as.numeric(Dato-Min_Date))
+
+df_boligsalg_udbud = df_boligsalg %>%
+  group_by(Adresse) %>%  
+  filter(Handling=="Udbudt") %>%
+  dplyr::mutate(Dato=Sys.Date())
+
+# Valuations
+df_valuations = openxlsx::read.xlsx(xlsxFile = "Data/Boligsalg.xlsx",sheet = 4) %>% 
+  # dplyr::select(c(1,2,3)) %>% 
+  inner_join( df_boligsalg_current )
+
+# Web views
+df_web = openxlsx::read.xlsx(xlsxFile = "Data/Boligsalg.xlsx",sheet = 3) %>% 
+  # dplyr::select(c(1,2,3)) %>% 
+  inner_join( df_boligsalg_current )
+
+# Stamdata
+df_stamdata_tax = openxlsx::read.xlsx(xlsxFile = "Data/Boligsalg.xlsx",sheet = 5) %>% 
+  gather(Statistic,Value,2:4) %>% 
+  filter(!is.na(Value)) %>% 
+  dplyr::mutate(Statistic=recode(Statistic,
+                                 "PropertyValue"="Property Valuation",
+                                 "PropertyTaxValue"="Tax Property Valuation",
+                                 "LotValue"="Lot Valuation")) %>% 
+  dplyr::mutate(Value=paste(Value))
+
+df_stamdata = openxlsx::read.xlsx(xlsxFile = "Data/Boligsalg.xlsx",sheet = 2) %>% 
+  bind_rows(df_stamdata_tax) %>% 
+  dplyr::select(c(1,2,3)) %>% 
+  inner_join( df_boligsalg_current )
+
+# Popularity
+
+df_popularity = openxlsx::read.xlsx(xlsxFile = "Data/Boligsalg.xlsx",sheet = 2) %>% 
+  dplyr::select(c(1,2,3)) %>% 
+  filter(Statistic %in% c("Visninger","Klik til mægler","Favorit")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  inner_join( df_boligsalg_current )
+```
+```{r }
+
+df_boligsalg %>% 
+  ggplot(.,aes(x=Dato,y=m2_price)) +
+  geom_point(aes(color=Adresse)) +
+  geom_line(aes(color=Adresse)) +
+  geom_line(data=df_existing,aes(y=mean_),alpha=1) +
+  geom_point(data=df_existing,aes(y=m2_price),alpha=0.2) +
+  scale_y_continuous(limits = c(0,100000),breaks = seq(0,100000,by=10000)) +
+  scale_x_date(date_labels = "%b %Y",date_breaks = "3 months") +
+  theme(legend.position="null",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  ggrepel::geom_text_repel(aes(label=Adresse)) +
+  geom_smooth(data=df_existing,se=TRUE,span=0.5)
+
+```
+
+
+```{r }
+
+df_ranges = df_boligsalg %>% 
+  filter(Handling == "Udbudt") %>% 
+  dplyr::mutate(Dato=floor_date(Dato,unit="quarter")) %>% 
+  arrange(Dato) %>% 
+  group_by(Dato) %>% 
+  dplyr::summarise(Mean_=mean(m2_price),
+                   Min_=min(m2_price),
+                   Max_=max(m2_price)) %>% 
+  rename(m2_price=Mean_)
+
+df_boligsalg %>% 
+  # filter(Dato>ymd("2022-01-01")) %>% 
+  ggplot(.,aes(x=Dato,y=m2_price)) +
+  geom_point(aes(color=Adresse)) +
+  geom_line(aes(color=Adresse)) +
+  geom_line(data=df_existing,aes(y=mean_),alpha=1) +
+  geom_point(data=df_existing,aes(y=m2_price),alpha=0.2) +
+  scale_y_continuous(limits = c(0,100000),breaks = seq(0,100000,by=10000)) +
+  scale_x_date(date_labels = "%b %Y",date_breaks = "3 months") +
+  theme(legend.position="null",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  ggrepel::geom_text_repel(aes(label=Adresse)) +
+  geom_smooth(data=df_existing,se=TRUE) +
+  geom_errorbar(data = df_ranges , aes(ymin=Min_,ymax=Max_),fill="black",size=1)+
+  geom_point(data = df_ranges , aes(x=Dato,y=m2_price),color="black",size=3)
+
+```
+
+
+```{r}
+
+df_boligsalg %>% 
+  filter(Handling %in% c("Udbudt","Solgt")) %>% 
+  dplyr::mutate(Dato=floor_date(Dato,unit="month")) %>% 
+  arrange((Dato)) %>% 
+  dplyr::mutate(Dato=format(Dato,"%Y-%m")) %>% 
+  dplyr::mutate(Dato=factor(Dato,levels=unique(.$Dato))) %>% 
+  ggplot(.,aes(x=Dato,y=m2_price,color=Handling)) +
+  geom_boxplot() +
+  theme_money_printer_go_brrr(base_size = 10) +
+  scale_y_continuous(breaks = seq(0,100000,by=5000),limits=c(0,100000))
+
+```
+
+```{r fig.height=20,fig.width=9}
+
+df_boligsalg_current %>% 
+  arrange((Liggetid)) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=.$Adresse)) %>% 
+  ggplot(.,aes(x=Adresse,y=Liggetid,fill=Adresse)) +
+  geom_col() +
+  geom_text(aes(label=Liggetid),hjust=1,size=3) +
+  scale_y_continuous(breaks = seq(20)*30) +
+  coord_flip() +
+  theme(axis.text.x=element_text(angle=45,hjust=1),
+        legend.position="null") +
+  geom_hline(yintercept = 90 * seq(6))
+```
+
+```{r}
+
+df_boligsalg %>% 
+  ggplot(.,aes(x=Liggetid,y=Beløb,color=Adresse)) +
+  geom_point(data=df_boligsalg_current,aes(x=Liggetid,y=Beløb,color=Adresse)) +
+  geom_text_repel(data=df_boligsalg_current,aes(x=Liggetid,y=Beløb,label=Adresse),size=3) +
+  geom_line() +
+  theme(legend.position="null") +
+  scale_y_continuous(limits=c(5000000,15000000))
+
+```
+
+```{r}
+
+df_boligsalg %>% 
+  ggplot(.,aes(x=Liggetid,y=Index,color=Adresse)) +
+  geom_point(data=df_boligsalg_current,aes(x=Liggetid,y=Index,color=Adresse)) +
+  geom_text_repel(data=df_boligsalg_current,aes(x=Liggetid,y=Index,label=Adresse),size=3) +
+  geom_line() +
+  scale_y_continuous(breaks = seq(0,100,by=2)) +
+  scale_x_continuous(breaks=seq(0,700,by=30)) +
+  theme(legend.position="null")
+```
+
+```{r}
+
+df_boligsalg %>% 
+  filter(Adresse %in% c("Kløvervej 6","Sophus Bauditz Vej 10","Irmelinsvej 5","Solvænget 11")) %>% 
+  ggplot(.,aes(x=Liggetid,y=Index,color=Adresse)) +
+  geom_point(data=df_boligsalg_current %>% 
+  filter(Adresse %in% c("Kløvervej 6","Sophus Bauditz Vej 10","Irmelinsvej 5","Solvænget 11")),aes(x=Liggetid,y=Index,color=Adresse)) +
+  geom_text_repel(data=df_boligsalg_current %>% 
+  filter(Adresse %in% c("Kløvervej 6","Sophus Bauditz Vej 10","Irmelinsvej 5","Solvænget 11")),aes(x=Liggetid,y=Index,label=Adresse)) +
+  geom_line() +
+  scale_y_continuous(breaks = seq(0,100,by=2)) +
+  scale_x_continuous(breaks=seq(0,700,by=30)) +
+  theme(legend.position="null")
+```
+
+```{r}
+
+lm_solgt_afslag = df_boligsalg %>% 
+  filter(Handling %in% c("Udbudt","Solgt")) %>% 
+  group_by(Adresse) %>% 
+  filter(n()==2) %>% 
+  ungroup() %>% 
+  lm(data=.,Index~Liggetid)
+
+df_afslag_liggetid = data.frame(Adresse="Alle",Liggetid=seq(2*365)) %>% dplyr::mutate(Index=predict(lm_solgt_afslag,.))
+
+df_boligsalg %>% 
+  filter(Handling %in% c("Udbudt","Solgt")) %>% 
+  group_by(Adresse) %>% 
+  filter(n()==2) %>% 
+  ungroup() %>% 
+  ggplot(.,aes(x=Liggetid,y=Index,color=Adresse)) +
+  geom_line() +
+  scale_y_continuous(breaks = seq(0,100,by=2)) +
+  scale_x_continuous(breaks=seq(0,700,by=30)) + 
+  geom_line(data=df_afslag_liggetid,aes(x=Liggetid,y=Index),linetype=2) +
+  theme(legend.position="null")
+
+```
+
+# Tidspunkt for afslag og udbud
+
+```{r}
+
+df_boligsalg %>% 
+  filter(Handling %in% c("Udbudt","Justering")) %>% 
+  group_by(Adresse,Handling) %>% 
+  filter(Dato==min(Dato)) %>% 
+  ungroup() %>% 
+  group_by(Dato,Handling) %>% 
+  dplyr::mutate(Dato=lubridate::wday(Dato,label=TRUE)) %>% 
+  dplyr::summarise(count=n()) %>% 
+  ggplot(.,aes(x=Dato,y=count)) +
+  geom_col() +
+  facet_wrap(~Handling)
+  
+```
+
+# Model Afslag
+
+
+
+```{r}
+
+df_lm_afslag = df_boligsalg %>% 
+  group_by(Adresse,Size) %>% 
+  dplyr::mutate(Beløb=max(Beløb)) %>% 
+  dplyr::select(Adresse,Size,Dato,Beløb,Index,Liggetid) %>% 
+  distinct()
+
+
+lm_linear = lm(Index~Liggetid,data=df_lm_afslag)
+lm_exp =   lm(log(Index)~Liggetid,data=df_lm_afslag)
+
+summary(lm_linear)
+summary(lm_exp)
+
+df_lm_afslag %>% 
+  dplyr::select(Adresse,Size,Beløb) %>% 
+  distinct() %>% 
+  crossing(Liggetid=seq(700)) %>% 
+  dplyr::mutate(Pred=exp(predict(lm_exp,.))) %>% 
+  ggplot(.,aes(x=Liggetid,y=Pred/100*Beløb,color=Adresse)) +
+  geom_line() +
+  theme(legend.position="null")
+```
+
+```{r}
+
+model_log = function(data)  {
+  lm_exp = lm(log10(Index)~Liggetid,data=data)
+  # print(lm_exp)
+  data.frame(intercept=2,
+             estimate=broom::tidy(lm_exp)[2,2])
+}
+
+df_lm_afslag = df_boligsalg %>% 
+  group_by( Adresse ) %>% 
+  filter(n()>=2) %>% 
+  do(model_log(.)) %>% 
+  ungroup() 
+
+# Bootstrap
+calc_mean_bootstrap = function(data,indices) {
+  return(mean(data$estimate[indices],na.rm=T))
+}
+
+boot_estimate = boot::boot(data=df_lm_afslag,statistic = calc_mean_bootstrap,R = 100000)
+boot_estimate_ci = boot::boot.ci(boot_estimate)
+df_boot = data.frame(estimate=boot_estimate_ci$t0,
+                     upr=boot_estimate_ci$normal[3],
+                     lwr=boot_estimate_ci$normal[2])
+
+# Extrapolate
+df_sales_points = df_boligsalg %>% 
+  filter(Handling %in% c("Solgt","Justering")) %>% 
+  ungroup()
+
+
+df_boot %>% 
+  crossing(Liggetid=seq(360)) %>% 
+  dplyr::mutate(Index = 10^( 2+Liggetid*estimate ),
+                Index_Lwr = 10^( 2+Liggetid*lwr ),
+                Index_Upr = 10^( 2+Liggetid*upr )) %>% 
+  ggplot(.,aes(x=Liggetid,y=Index)) +
+  geom_line() +
+  geom_ribbon(aes(ymin=Index_Lwr,ymax=Index_Upr),alpha=0.3) +
+  scale_x_continuous(breaks = seq(12)*30 ) +
+  geom_point(data=df_sales_points,aes(x=Liggetid,y=Index,color=Handling))
+
+
+```
+
+
+# Individual Afslag
+
+```{r eval=F}
+
+linear_model = function(data) {
+  lm_ = lm(log(Index)~Liggetid,data=data)
+  data.frame(Liggetid=seq(750)) %>% 
+    dplyr::mutate(Predicted=exp(predict(lm_,.)))
+}
+
+df_boligsalg %>% 
+  group_by(Adresse,Size) %>% 
+  filter(n()>1) %>% 
+  dplyr::mutate(Beløb=max(Beløb)) %>% 
+  dplyr::select(Adresse,Size,Dato,Beløb,Index,Liggetid) %>% 
+  distinct() %>% 
+  group_by(Adresse,Beløb) %>% 
+  do(linear_model(.)) %>% 
+  ggplot(.,aes(x=Liggetid,y=Predicted/100*Beløb,color=Adresse)) +
+  geom_line() +
+  geom_point(data=df_boligsalg,aes(x=Liggetid,y=Beløb,color=Adresse)) +
+  geom_vline(data=df_boligsalg_current,aes(xintercept=Liggetid,color=Adresse),linetype=2) +
+  scale_y_continuous(breaks = seq(0,17000000,by=1000000))
+  # geom_text_repel(data=df_boligsalg_current,aes(x=Liggetid,y=Beløb,label=Adresse))
+  
+```
+
+# Metrics
+
+
+## Size
+
+```{r}
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`) %>% 
+  gather(Statistic,Value,`Basement Size`:Etagemeter) %>% 
+  filter(Statistic %in% c("Etagemeter","Lot Size")) %>% 
+  spread(Statistic,Value) %>% 
+  ggplot(.,aes(x=Etagemeter,y=`Lot Size`,color=Adresse,size=Beløb)) +
+  geom_point() +
+  theme(legend.position="null") +
+  labs(title="Sizes") +
+  geom_text_repel(aes(label=paste0(Adresse," \n(",Etagemeter," / ",`Lot Size`,")")),size=3)
+
+```
+
+## Popularity
+
+### Visninger, Boligsiden
+
+```{r }
+
+df_web %>% 
+  gather(Statistic,Value,BoligsidenVisninger:BoligsidenFavorit) %>% 
+  filter(Statistic=="BoligsidenFavorit") %>% 
+  ggplot(.,aes(x=Liggetid,y=Value,color=Adresse)) +
+  geom_point() +
+  facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  theme(legend.position="null")
+
+df_web %>% 
+  gather(Statistic,Value,BoligsidenVisninger:BoligsidenFavorit) %>% 
+  filter(Statistic=="BoligsidenKlikTilMaegler") %>% 
+  ggplot(.,aes(x=Liggetid,y=Value,color=Adresse)) +
+  geom_point() +
+  facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  theme(legend.position="null")
+
+df_web %>% 
+  gather(Statistic,Value,BoligsidenVisninger:BoligsidenFavorit) %>% 
+  filter(Statistic=="BoligsidenVisninger") %>% 
+  ggplot(.,aes(x=Liggetid,y=Value,color=Adresse)) +
+  geom_point() +
+  facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  theme(legend.position="null")
+
+```
+
+### Visninger / Pris, Boligsiden
+
+
+```{r fig.height=15}
+
+df_web %>% 
+  gather(Statistic,Value,BoligsidenVisninger:BoligsidenFavorit) %>% 
+  ggplot(.,aes(x=Beløb,y=Value,color=Adresse)) +
+  geom_point() +
+  facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=4) +
+  theme(legend.position="null")
+
+```
+
+### Visninger / Klik Ratio, Boligsiden
+
+
+```{r}
+
+df_web %>% 
+  gather(Statistic,Value,BoligsidenVisninger:BoligsidenFavorit) %>% 
+  filter(Statistic %in% c("BoligsidenVisninger","BoligsidenKlikTilMaegler")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Ratio=BoligsidenKlikTilMaegler/BoligsidenVisninger) %>% 
+  ggplot(.,aes(x=Liggetid,y=Ratio,color=Adresse)) +
+  geom_point() +
+  # facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),limits = c(0.2,0.8),breaks = seq(0,1,by=0.1)) +
+  theme(legend.position="null")
+
+```
+
+### Visninger / Favorit, Boligsiden
+
+
+```{r}
+
+df_web %>% 
+  gather(Statistic,Value,BoligsidenVisninger:BoligsidenFavorit) %>% 
+  filter(Statistic %in% c("BoligsidenVisninger","BoligsidenFavorit")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Ratio=BoligsidenVisninger/BoligsidenFavorit) %>% 
+  ggplot(.,aes(x=Liggetid,y=Ratio,color=Adresse)) +
+  geom_point() +
+  # facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  # scale_y_continuous(labels = scales::percent_format(accuracy = 1),limits = c(0,0.7),breaks = seq(0,1,by=0.1)) +
+  theme(legend.position="null")
+
+```
+
+
+### Visninger, Boliga
+
+```{r }
+
+df_web %>% 
+  gather(Statistic,Value,BoligaVisninger:BoligaFavorit) %>% 
+  filter(Statistic=="BoligaFavorit") %>% 
+  ggplot(.,aes(x=Liggetid,y=Value,color=Adresse)) +
+  geom_point() +
+  facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  theme(legend.position="null")
+
+df_web %>% 
+  gather(Statistic,Value,BoligaVisninger:BoligaFavorit) %>% 
+  filter(Statistic=="BoligaKlikTilMaegler") %>% 
+  ggplot(.,aes(x=Liggetid,y=Value,color=Adresse)) +
+  geom_point() +
+  facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  theme(legend.position="null")
+
+df_web %>% 
+  gather(Statistic,Value,BoligaVisninger:BoligaFavorit) %>% 
+  filter(Statistic=="BoligaVisninger") %>% 
+  ggplot(.,aes(x=Liggetid,y=Value,color=Adresse)) +
+  geom_point() +
+  facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  theme(legend.position="null")
+
+```
+
+### Visninger / Pris, Boliga
+
+
+```{r fig.height=10}
+
+df_web %>% 
+  gather(Statistic,Value,BoligaVisninger:BoligaFavorit) %>% 
+  ggplot(.,aes(x=Beløb,y=Value,color=Adresse)) +
+  geom_point() +
+  facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=4) +
+  theme(legend.position="null")
+
+```
+
+### Visninger / Klik Ratio, Boliga
+
+
+```{r}
+
+df_web %>% 
+  gather(Statistic,Value,BoligaVisninger:BoligaFavorit) %>% 
+  filter(Statistic %in% c("BoligaVisninger","BoligaKlikTilMaegler")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Ratio=BoligaKlikTilMaegler/BoligaVisninger) %>% 
+  ggplot(.,aes(x=Liggetid,y=Ratio,color=Adresse)) +
+  geom_point() +
+  # facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),limits = c(0.2,0.8),breaks = seq(0,1,by=0.1)) +
+  theme(legend.position="null")
+
+```
+
+### Visninger / Favorit, Boliga
+
+
+```{r}
+
+df_web %>% 
+  gather(Statistic,Value,BoligaVisninger:BoligaFavorit) %>% 
+  filter(Statistic %in% c("BoligaVisninger","BoligaFavorit")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Ratio=BoligaVisninger/BoligaFavorit) %>% 
+  ggplot(.,aes(x=Liggetid,y=Ratio,color=Adresse)) +
+  geom_point() +
+  # facet_wrap(~Statistic,ncol=1,scales="free") +
+  geom_text_repel(aes(label=Adresse),size=3) +
+  # scale_y_continuous(labels = scales::percent_format(accuracy = 1),limits = c(0,0.7),breaks = seq(0,1,by=0.1)) +
+  theme(legend.position="null")
+
+```
+
+
+
+
+## Price Ratios
+
+### Purchase Price
+
+```{r}
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`) %>% 
+  gather(Statistic,Value,`Basement Size`:Etagemeter) %>% 
+  filter(!Statistic %in% c("Basement Size")) %>% 
+  dplyr::mutate(Ratio=Beløb/Value) %>% 
+  ggplot(.,aes(x=Statistic,y=Ratio,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="bottom") +
+  labs(title="Price per Size Unit")
+
+```
+
+
+### Value
+
+```{r}
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  # dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`,
+  #               `Lot Valuation M2`=`Lot Valuation`/`Lot Size`,
+  #               `Property Valuation M2`=`Property Valuation`/`Property Size`) %>% 
+  dplyr::mutate(Total=`Lot Valuation`+`Property Valuation`) %>% 
+  arrange(Total) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=.$Adresse)) %>% 
+  gather(Statistic,Value,`Lot Valuation`:`Property Valuation`) %>% 
+  # filter(Statistic %in% c("Lot Valuation M2",
+  #                         "Property Valuation M2")) %>% 
+  ggplot(.,aes(x=Adresse,y=Value,fill=Statistic)) +
+  geom_col() +
+  theme(legend.position="bottom") +
+  # scale_y_continuous(labels = scales::percent,limits = c(0,1),breaks=seq(0,1,by=0.1)) +
+  labs(title="Public Valuation") +
+  coord_flip() +
+  scale_y_continuous(breaks = seq(0,10000000,by=1000000))
+
+```
+
+```{r}
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`,
+                `Lot Valuation M2`=`Lot Valuation`/`Lot Size`,
+                `Property Valuation M2`=`Property Valuation`/`Property Size`) %>% 
+  gather(Statistic,Value,`Lot Valuation M2`:`Property Valuation M2`) %>% 
+  filter(Statistic %in% c("Lot Valuation M2",
+                          "Property Valuation M2")) %>% 
+  ggplot(.,aes(x=Statistic,y=Value,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="bottom") +
+  facet_wrap(~Statistic,ncol=2,scales="free") +
+  # scale_y_continuous(labels = scales::percent,limits = c(0,1),breaks=seq(0,1,by=0.1)) +
+  labs(title="Public Valuation Per M2")
+
+```
+
+```{r fig.height=3}
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Property Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`,
+                `Total Valuation`=`Property Valuation`+`Lot Valuation`) %>% 
+  gather(Statistic,Value,`Basement Size`:`Total Valuation`) %>% 
+  filter(Statistic %in% c("Lot Valuation",
+                          "Property Valuation",
+                          "Total Valuation")) %>% 
+  dplyr::mutate(Ratio=Value/Beløb) %>% 
+  arrange(desc(Statistic),Ratio) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>% 
+  ggplot(.,aes(x=Adresse,y=Ratio,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="null",
+        axis.text.y=element_blank()) +
+  scale_y_continuous(labels = scales::percent,limits = c(0,1),breaks=seq(0,1,by=0.1)) +
+  labs(title="Valuation/Price Ratios") +
+  geom_text(aes(label=Adresse),angle=0,hjust=0,size=1.5) +
+  facet_wrap(~Statistic,ncol=1) +
+  coord_flip()
+
+
+
+```
+
+
+```{r}
+
+# price like sophus bauditz vej
+sb_valuation_pct = df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Property Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`,
+                `Total Valuation`=`Property Valuation`+`Lot Valuation`) %>% 
+  gather(Statistic,Value,`Basement Size`:`Total Valuation`) %>% 
+  filter(Statistic %in% c("Total Valuation")) %>% 
+  dplyr::mutate(Ratio=Value/Beløb) %>% 
+  filter(Adresse=="Sophus Bauditz Vej 10") %>% 
+  pull(Ratio)
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Property Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`,
+                `Total Valuation`=`Property Valuation`+`Lot Valuation`) %>% 
+  dplyr::mutate(Beløb_New=`Total Valuation`/sb_valuation_pct) %>% 
+  dplyr::mutate(Adjust=Beløb_New-Beløb) %>% 
+  gather(Statistic,Value,Beløb_New,Adjust) %>% 
+  filter(Statistic=="Beløb_New") %>% 
+  arrange(desc(Statistic),Value) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>% 
+  ggplot(.,aes(x=Adresse,y=Value,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="null",
+        axis.text.y=element_blank()) +
+  scale_y_continuous(breaks=seq(0,15000000,by=1000000)) +
+  labs(title="Valuation/Price Ratios") +
+  geom_text(aes(label=paste0(Adresse," (",scales::number(Value,big.mark = " ",accuracy = 10000),")")),angle=0,hjust=0,size=3) +
+  facet_wrap(~Statistic,ncol=1) +
+  coord_flip()
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Property Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`,
+                `Total Valuation`=`Property Valuation`+`Lot Valuation`) %>% 
+  dplyr::mutate(Beløb_New=`Total Valuation`/sb_valuation_pct) %>% 
+  dplyr::mutate(Adjust=Beløb_New-Beløb) %>% 
+  gather(Statistic,Value,Beløb_New,Adjust) %>% 
+  filter(Statistic=="Adjust") %>% 
+  arrange(desc(Statistic),Value) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>% 
+  ggplot(.,aes(x=Adresse,y=Value,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="null",
+        axis.text.y=element_blank(),
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_y_continuous(breaks=seq(-10000000,15000000,by=1000000),expand=expansion(mult = c(1,1))) +
+  labs(title="Valuation/Price Ratios") +
+  geom_text(aes(label=paste0(Adresse," (",scales::number(Value,big.mark = " ",accuracy = 10000),")")),angle=0,hjust=0,size=3) +
+  facet_wrap(~Statistic,ncol=1) +
+  coord_flip()
+
+
+
+```
+
+### Dingeo Valuations
+
+```{r}
+
+df_valuations %>% 
+  gather(Statistic,Value,DinGestimat:Justeret.RKR) %>% 
+  filter(!is.na(Value)) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  dplyr::mutate(Diff=Value/Beløb-1) %>% 
+  ggplot(.,aes(x=Adresse,y=Diff,fill=Statistic)) +
+  geom_col(position="dodge") +
+  theme(legend.position="bottom") +
+  # scale_y_continuous(labels = scales::percent,limits = c(0,1),breaks=seq(0,1,by=0.1)) +
+  labs(title="Public Valuation") +
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent) +
+  facet_wrap(~Statistic)
+
+```
+
+```{r fig.height=10}
+
+df_valuations %>% 
+  gather(Statistic,Value,DinGestimat:Justeret.RKR) %>% 
+  filter(!Statistic %in% c("Ny.Ejendomsvurdering")) %>% 
+  filter(!is.na(Value)) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  dplyr::mutate(Diff=Value-Beløb) %>% 
+  ggplot(.,aes(x=Adresse,y=Diff,fill=Statistic)) +
+  geom_col(position="dodge") +
+  theme(legend.position="bottom") +
+  scale_y_continuous(labels = scales::number_format(big.mark = " "),breaks=seq(-3000000,3000000,by=250000)) +
+  labs(title="Public Valuation") +
+  coord_flip() +
+  # scale_y_continuous(labels = scales::percent) +
+  facet_wrap(~Statistic,ncol=1)
+
+```
+
+### Tax
+
+```{r}
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`) %>% 
+  gather(Statistic,Value,`Basement Size`:Etagemeter) %>% 
+  filter(Statistic %in% c("Lot Valuation",
+                          "Tax Property Valuation")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(`Tax Lot`=`Lot Valuation`*0.021485,
+                `Tax Property`=`Tax Property Valuation`*0.0092,
+                `Total Tax`=`Lot Valuation`*0.021485+`Tax Property Valuation`*0.0092) %>% 
+  gather(Statistic,Value,`Tax Lot`:`Total Tax`) %>% 
+  dplyr::mutate(Value=Value/12) %>% 
+  arrange(desc(Statistic),Value) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>%
+  ggplot(.,aes(x=Adresse,y=Value,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="null",
+        axis.text.x=element_blank()) +
+  scale_y_continuous(breaks=seq(0,10000,by=1000),expand=expansion(mult = c(0,1))) +
+  labs(title="Taxes Per Month") +
+  geom_text(aes(label=paste0(Adresse," (",scales::number(x = Value,accuracy = 1),")")),angle=90,hjust=0,size=3) +
+  facet_wrap(~Statistic)
+
+```
+
+### Tax per M2
+
+```{r}
+
+df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`) %>% 
+  gather(Statistic,Value,`Basement Size`:Etagemeter) %>% 
+  filter(Statistic %in% c("Etagemeter",
+                          "Lot Valuation",
+                          "Lot Size",
+                          "Tax Property Valuation")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(`Tax Lot`=`Lot Valuation`*0.021485,
+                `Tax Property`=`Tax Property Valuation`*0.0092,
+                `Total Tax`=`Lot Valuation`*0.021485+`Tax Property Valuation`*0.0092) %>% 
+  dplyr::mutate(`Lot Tax M2`=`Tax Lot`/`Lot Size`,
+                `Property Tax M2`=`Tax Property`/`Etagemeter`) %>% 
+  arrange(`Total Tax`) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=.$Adresse)) %>% 
+  gather(Statistic,Value,`Lot Tax M2`,`Property Tax M2`) %>% 
+  ggplot(.,aes(x=Adresse,y=Value,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  scale_y_continuous(expand = expansion(mult=c(0,1))) +
+  theme(legend.position="bottom",
+        axis.text.x=element_blank()) +
+  # scale_y_continuous(breaks=seq(0,10000,by=1000)) +
+  labs(title="Taxes Per M2") +
+  geom_text(aes(label=Adresse),angle=90,hjust=0,size=3) +
+  facet_wrap(~Statistic)
+
+```
+
+### Loan - Afdragsfrit
+
+```{r}
+
+df_boligsalg_current %>% 
+  dplyr::mutate(Hovedstol=Beløb*0.8) %>% 
+  dplyr::mutate(Interest=Hovedstol*0.05/12,
+                Bidrag=Hovedstol*(0.003+0.006812)/12,
+                Amortization=Hovedstol/360) %>% 
+  dplyr::mutate(Rentefradrag=(100000+(12*(Interest+Bidrag)*0.216))/12) %>% 
+  dplyr::mutate(Total=Interest+Bidrag+Amortization) %>% 
+  dplyr::mutate(Interest_After_Tax=(Bidrag+Interest)-Rentefradrag) %>% 
+  dplyr::mutate(Total_After_Tax=Total-Rentefradrag) %>% 
+  gather(Statistic,Value,Interest:Total_After_Tax) %>% 
+  ggplot(.,aes(x=Statistic,y=Value,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="bottom") +
+  scale_y_continuous(breaks=seq(0,100000,by=2500)) +
+  labs(title="Loan Expenses Per Month") 
+
+```
+
+
+### Total Costs
+
+```{r}
+
+df_tax = df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`) %>% 
+  gather(Statistic,Value,`Basement Size`:Etagemeter) %>% 
+  filter(Statistic %in% c("Lot Valuation",
+                          "Tax Property Valuation")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(`Tax Lot`=`Lot Valuation`*0.021485,
+                `Tax Property`=`Tax Property Valuation`*0.0092,
+                `Total Tax`=`Lot Valuation`*0.021485+`Tax Property Valuation`*0.0092) %>% 
+  dplyr::select(-`Lot Valuation`,-`Tax Property Valuation`) %>% 
+  gather(Statistic,Value,`Tax Lot`:`Total Tax`)
+
+df_mortgage = df_boligsalg_current %>% 
+  dplyr::mutate(Hovedstol=Beløb*0.8) %>% 
+  dplyr::mutate(Interest=Hovedstol*0.05/12,
+                Bidrag=Hovedstol*(0.003+0.006812)/12,
+                Amortization=Hovedstol/360) %>% 
+  dplyr::mutate(Rentefradrag=(100000+(12*(Interest+Bidrag)*0.216))/12) %>% 
+  dplyr::mutate(Total=Interest+Bidrag+Amortization) %>% 
+  dplyr::mutate(Interest_After_Tax=(Interest+Bidrag)-Rentefradrag) %>% 
+  dplyr::mutate(Total_After_Tax=Total-Rentefradrag) %>% 
+  dplyr::select(-Hovedstol) %>% 
+  gather(Statistic,Value,Interest:Total_After_Tax) 
+
+df_tax %>% 
+  bind_rows( df_mortgage ) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Total=Interest_After_Tax+`Total Tax`/12) %>% 
+  arrange(Total) %>%
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>%
+  ggplot(.,aes(x=Adresse,y=Total,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="null",
+        axis.text.x=element_blank()) +
+  scale_y_continuous(breaks=seq(0,100000,by=2500),expand = expansion(mult=c(0,1))) +
+  geom_text(aes(label=paste0(Adresse,"\n(",scales::number(Total,accuracy = 1),")")),angle=90,hjust=0,size=3)
+  # geom_text(aes(label=Adresse),angle=90,hjust=0,size=3)
+
+```
+
+
+# 20% Decrease
+
+```{r}
+
+df_boligsalg %>% 
+  filter(Handling=="Udbudt") %>% 
+  dplyr::mutate(Beløb_Reduced=Beløb*0.75) %>% 
+  arrange(Beløb_Reduced) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>% 
+  gather(Statistic,Value,Beløb,Beløb_Reduced) %>% 
+  ggplot(.,aes(x=Adresse,y=Value,group=Statistic,fill=Statistic)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="bottom") +
+  scale_y_continuous(breaks=seq(0,15000000,by=1000000)) +
+  labs(title="Total Expenses Per Month") +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  geom_text(aes(label=Value),position="dodge",size=3)
+
+```
+
+
+```{r}
+
+
+df_tax = df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`) %>% 
+  gather(Statistic,Value,`Basement Size`:Etagemeter) %>% 
+  filter(Statistic %in% c("Lot Valuation",
+                          "Tax Property Valuation")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(`Tax Lot`=`Lot Valuation`*0.021485,
+                `Tax Property`=`Tax Property Valuation`*0.0092,
+                `Total Tax`=`Lot Valuation`*0.021485+`Tax Property Valuation`*0.0092) %>% 
+  dplyr::select(-`Lot Valuation`,-`Tax Property Valuation`) %>% 
+  gather(Statistic,Value,`Tax Lot`:`Total Tax`)
+
+df_mortgage = df_boligsalg_udbud %>% 
+  dplyr::mutate(Beløb=Beløb*0.8) %>% 
+  dplyr::mutate(Hovedstol=Beløb*0.8) %>% 
+  dplyr::mutate(Interest=Hovedstol*0.05/12,
+                Bidrag=Hovedstol*(0.003+0.006812)/12,
+                Amortization=Hovedstol/360) %>% 
+  dplyr::mutate(Rentefradrag=(100000+(12*(Interest+Bidrag)*0.216))/12) %>% 
+  dplyr::mutate(Total=Interest+Bidrag+Amortization) %>% 
+  dplyr::mutate(Interest_After_Tax=(Interest+Bidrag)-Rentefradrag) %>% 
+  dplyr::mutate(Total_After_Tax=Total-Rentefradrag) %>% 
+  dplyr::select(-Hovedstol) %>% 
+  gather(Statistic,Value,Interest:Total_After_Tax) 
+
+df_tax %>% 
+  bind_rows( df_mortgage ) %>% 
+  dplyr::select(-Liggetid,-Index,-Handling,-Beløb,-m2_price) %>%
+  distinct() %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Total=Interest_After_Tax+`Total Tax`/12) %>% 
+  arrange(Total) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>% 
+  ggplot(.,aes(x=Adresse,y=Total,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="null",
+        axis.text.x=element_blank()) +
+  scale_y_continuous(breaks=seq(0,100000,by=2500),expand = expansion(mult=c(0,1))) +
+  labs(title="Total Expenses Per Month",subtitle = "After 20% Decrease") +
+  geom_text(aes(label=paste0(Adresse," (",scales::number(Total,accuracy = 1),")")),angle=90,hjust=0,size=2.5)
+
+
+```
+
+
+# 2% Decrease Interest Rate
+
+```{r}
+
+
+df_tax = df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`) %>% 
+  gather(Statistic,Value,`Basement Size`:Etagemeter) %>% 
+  filter(Statistic %in% c("Lot Valuation",
+                          "Tax Property Valuation")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(`Tax Lot`=`Lot Valuation`*0.021485,
+                `Tax Property`=`Tax Property Valuation`*0.0092,
+                `Total Tax`=`Lot Valuation`*0.021485+`Tax Property Valuation`*0.0092) %>% 
+  dplyr::select(-`Lot Valuation`,-`Tax Property Valuation`) %>% 
+  gather(Statistic,Value,`Tax Lot`:`Total Tax`)
+
+df_mortgage = df_boligsalg_udbud %>% 
+  # dplyr::mutate(Beløb=Beløb*0.8) %>% 
+  dplyr::mutate(Hovedstol=Beløb*0.8) %>% 
+  dplyr::mutate(Interest=Hovedstol*0.03/12,
+                Bidrag=Hovedstol*(0.003+0.006812)/12,
+                Amortization=Hovedstol/360) %>% 
+  dplyr::mutate(Rentefradrag=(100000+(12*(Interest+Bidrag)*0.216))/12) %>% 
+  dplyr::mutate(Total=Interest+Bidrag+Amortization) %>% 
+  dplyr::mutate(Interest_After_Tax=(Interest+Bidrag)-Rentefradrag) %>% 
+  dplyr::mutate(Total_After_Tax=Total-Rentefradrag) %>% 
+  dplyr::select(-Hovedstol) %>% 
+  gather(Statistic,Value,Interest:Total_After_Tax) 
+
+df_tax %>% 
+  bind_rows( df_mortgage ) %>% 
+  dplyr::select(-Liggetid,-Index,-Handling,-Beløb,-m2_price) %>% 
+  distinct() %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Total=Interest_After_Tax+`Total Tax`/12) %>% 
+  arrange(Total) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>% 
+  ggplot(.,aes(x=Adresse,y=Total,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="null",
+        axis.text.x=element_blank()) +
+  scale_y_continuous(breaks=seq(0,100000,by=2500),expand = expansion(mult=c(0,1))) +
+  labs(title="Total Expenses Per Month",subtitle = "After 2% Decrease Interest Rate") +
+  geom_text(aes(label=paste0(Adresse," (",scales::number(Total,accuracy = 1),")")),angle=90,hjust=0,size=2.5)
+
+
+```
+
+
+# 20% Decrease + 2% Decrease Interest Rate
+
+```{r}
+
+
+df_tax = df_stamdata %>% 
+  filter(Statistic %in% c("Lot Size","Property Size","Basement Size","Lot Valuation","Tax Property Valuation")) %>% 
+  dplyr::mutate(Value=as.numeric(Value)) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Etagemeter=`Property Size`+`Basement Size`) %>% 
+  gather(Statistic,Value,`Basement Size`:Etagemeter) %>% 
+  filter(Statistic %in% c("Lot Valuation",
+                          "Tax Property Valuation")) %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(`Tax Lot`=`Lot Valuation`*0.021485,
+                `Tax Property`=`Tax Property Valuation`*0.0092,
+                `Total Tax`=`Lot Valuation`*0.021485+`Tax Property Valuation`*0.0092) %>% 
+  dplyr::select(-`Lot Valuation`,-`Tax Property Valuation`) %>% 
+  gather(Statistic,Value,`Tax Lot`:`Total Tax`)
+
+df_mortgage = df_boligsalg_udbud %>% 
+  dplyr::mutate(Beløb=Beløb*0.8) %>%
+  dplyr::mutate(Hovedstol=Beløb*0.8) %>% 
+  dplyr::mutate(Interest=Hovedstol*0.03/12,
+                Bidrag=Hovedstol*(0.003+0.006812)/12,
+                Amortization=Hovedstol/360) %>% 
+  dplyr::mutate(Rentefradrag=(100000+(12*(Interest+Bidrag)*0.216))/12) %>% 
+  dplyr::mutate(Total=Interest+Bidrag+Amortization) %>% 
+  dplyr::mutate(Interest_After_Tax=(Interest+Bidrag)-Rentefradrag) %>% 
+  dplyr::mutate(Total_After_Tax=Total-Rentefradrag) %>% 
+  dplyr::select(-Hovedstol) %>% 
+  gather(Statistic,Value,Interest:Total_After_Tax) 
+
+df_tax %>% 
+  bind_rows( df_mortgage ) %>% 
+  dplyr::select(-Liggetid,-Index,-Handling,-Beløb,-m2_price) %>% 
+  distinct() %>% 
+  spread(Statistic,Value) %>% 
+  dplyr::mutate(Total=Interest_After_Tax+`Total Tax`/12) %>% 
+  arrange(Total) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>% 
+  ggplot(.,aes(x=Adresse,y=Total,group=Adresse,fill=Adresse)) +
+  geom_col(stat="identify",position="dodge") +
+  theme(legend.position="null",
+        axis.text.x=element_blank()) +
+  scale_y_continuous(breaks=seq(0,100000,by=2500),expand = expansion(mult=c(0,1))) +
+  labs(title="Total Expenses Per Month",subtitle = "20% Decrease + 2% Decrease Interest Rate") +
+  geom_text(aes(label=paste0(Adresse," (",scales::number(Total,accuracy = 1),")")),angle=90,hjust=0,size=2.5)
+
+
+```
+
+
+# Cox Survival
+
+```{r}
+df_boligsalg_survival = df_boligsalg %>%
+  group_by(Adresse) %>%  
+  filter(n()>=2) %>%
+  filter(Dato==max(Dato)) %>%  
+  ungroup() %>% 
+  dplyr::mutate(surv_time=ifelse(Handling=="Solgt",as.numeric(Dato-Min_Date),as.numeric(Sys.Date()-Min_Date))) %>% 
+  dplyr::mutate(surv_bool=ifelse(Handling=="Solgt",1,0)) 
+
+df_boligsalg_survival %>% 
+  arrange(surv_bool,surv_time) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,level=unique(.$Adresse))) %>% 
+  ggplot(.,aes(x=Adresse,y=surv_time,fill=Index)) + 
+  geom_col() +
+  facet_wrap(~surv_bool, scales="free") +
+  coord_flip() +
+  geom_text(aes(label=scales::number(Index,accuracy = 1)),hjust=1,color="black",size=2.5,color="white")
+
+```
+
+```{r}
+
+est <- survfit(data = df_boligsalg_survival,Surv(surv_time, surv_bool)~1)
+ggsurvplot(est,break.time.by=30)
+```
+
+
+```{r}
+fit_coxph = coxph(Surv(surv_time,surv_bool) ~ Beløb + Size ,data=df_boligsalg_survival, model = TRUE)
+fit_coxph
+```
+
+```{r}
+df_boligsalg_survival %>% 
+  ungroup() %>% 
+  dplyr::mutate(risk = exp(-1*predict( fit_coxph , df_boligsalg_survival,type = "expected"))) %>% 
+  arrange(risk) %>% 
+  dplyr::mutate(Adresse=factor(Adresse,levels=unique(.$Adresse))) %>% 
+  ggplot(.,aes(x=Adresse,y=risk)) +
+  geom_col() +
+  coord_flip()
+
+df_boligsalg_survival %>% 
+  filter(Adresse=="Kløvervej 6") %>% 
+  # filter(Adresse=="Kløvervej 6") %>% 
+  dplyr::select(-Beløb) %>% 
+  crossing(Beløb=seq(0,20000000,by=100000)) %>% 
+  # dplyr::mutate(m2_price=m2_price*Reduction) %>% 
+  # dplyr::mutate(Reduction=factor(Reduction)) %>% 
+  dplyr::mutate(risk = 1-exp(-1*predict( fit_coxph , .,type = "expected"))) %>% 
+  ggplot(.,aes(x=Beløb,y=risk,color=Adresse)) +
+  geom_line() 
+
+```
+
+
+## Time dependent
+
+```{r}
+
+df.tf = df_boligsalg %>%
+  filter(Dato>=ymd("2022-03-01")) %>% 
+  group_by(Adresse) %>%  
+  filter(Dato==max(Dato)) %>% 
+  dplyr::mutate(surv_time=ifelse(Handling=="Solgt",as.numeric(Dato-Min_Date),as.numeric(Sys.Date()-Min_Date))) %>% 
+  dplyr::mutate(surv_bool=ifelse(Handling=="Solgt",1,0)) %>% 
+  dplyr::mutate(surv_start=0) %>% 
+  dplyr::select(Adresse,surv_time,surv_bool,m2_price) %>% 
+  group_by(Adresse) %>% 
+  filter(n()==1) %>% 
+  ungroup()
+
+df.td = df_boligsalg %>% 
+  filter(!Handling=="Solgt") %>% 
+  dplyr::select(Adresse,Liggetid,Index)
+
+df.joined = tmerge(data1 = df.tf,
+                   data2 = df.tf,
+                   id=Adresse,
+             endpt=event(surv_time,surv_bool))
+df.joined = tmerge(data1 = df.joined,
+                   data2 = df.td,
+                   id=Adresse, 
+                   Index=tdc(Liggetid,Index))
+df.joined
+```
+
+
+```{r}
+
+# fit.out <- timecox(Surv(Liggetid,surv_bool)~Index,  data=df.joined,n.sim=500,  max.time=700)
+# fit.out
+# par(mfrow=c(2,2))
+# plot(fit.out)
+
+fit.tdc <- coxph(Surv(tstart,tstop,endpt)~ Index + m2_price + cluster(Adresse),df.joined)
+summary(fit.tdc)
+
+df.joined %>% 
+  dplyr::mutate(Predicted = predict(fit.tdc,df.joined,type = "expected")) %>% 
+  group_by(Adresse) %>% 
+  filter(tstart==max(tstart)) %>% 
+  ungroup() %>% 
+  ggplot(.,aes(x=tstart,y=Predicted,color=Adresse)) +
+  geom_line()
+
+df.joined %>% 
+  group_by(Adresse) %>% 
+  filter(tstart==max(tstart)) %>% 
+  filter(Adresse %in% c("Sophus Bauditz Vej 10",
+                        "Sofievej 4",
+                        "Solvænget 11",
+                        "Plantagevej 16",
+                        "Kløvervej 6",
+                        "Christian Winthers Vej 14B")) %>%
+  ungroup() %>% 
+  dplyr::select(-Index) %>% 
+  crossing(Index=seq(0,100,by=1)) %>% 
+  dplyr::mutate(Predicted = 1-exp(-1*predict(fit.tdc,.,type = "expected"))) %>% 
+  ggplot(.,aes(x=Index,y=Predicted,color=Adresse)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent,limits = c(0,1)) #+
+  # geom_text_repel(aes(label=Adresse)) +
+  # theme(legend.position="null")
+
+```
+
+```{r}
+# est <- survfit(fit_coxph, newdata = data.frame(m2_price = 50000, Size = 200))
+est_1 <- survfit(fit_coxph, newdata = data.frame(Beløb = 6000000, Size = 200))
+est_2 <- survfit(fit_coxph, newdata = data.frame(Beløb = 9000000, Size = 200))
+est_3 <- survfit(fit_coxph, newdata = data.frame(Beløb = 12000000, Size = 200))
+plot(survfit(fit_coxph), ylab = "Probability of Survival",
+     xlab = "Time", col = c("red", "black", "black"))
+lines(est_1$time, est_1$surv, col = 'blue', type = 's')
+lines(est_2$time, est_2$surv, col = 'yellow', type = 's')
+lines(est_3$time, est_3$surv, col = 'orange', type = 's')
+```
+
+
+# Udbudpris over tid
+
+```{r}
+
+df_udbudspris_over_tid = rbindlist(lapply(seq.Date(from = min(df_boligsalg$Dato),Sys.Date(),by="7 days"),function(date_) {
+  
+  df_boligsalg %>% 
+    filter(m2_price>1000,m2_price<200000) %>% 
+    filter(Beløb>100000,Beløb<25000000) %>% 
+    filter(Size>25,Size<750) %>% 
+    filter(Dato<=date_) %>% 
+    filter(Handling %in% c("Justering","Udbudt")) %>% 
+    filter(Dato==max(Dato)) %>% 
+    ungroup() %>% 
+    dplyr::summarize(mean_m2_price=mean(m2_price,na.rm=T),
+              q25=min(m2_price,na.rm=T),
+              q75=max(m2_price,na.rm=T)) %>% 
+    dplyr::mutate(date_=date_)
+}))
+
+df_udbudspris_over_tid %>% 
+  ggplot(.,aes(x=date_,y=mean_m2_price)) +
+  geom_line() +
+  geom_ribbon(aes(ymin=q25,ymax=q75),alpha=0.3)
+
+```
+
+# Median time on the market
+
+```{r}
+
+
+df_median_TimeOnMarket = rbindlist(lapply(seq.Date(from = ymd("2020-01-01"),to = Sys.Date(),by = "1 day"),function(date_) {
+  
+  df_boligsalg %>% 
+    filter( Dato <= date_ ) %>% 
+    arrange(Adresse,Dato) %>% 
+    dplyr::mutate(solgt_last=ifelse(last(Handling)=="Solgt",1,0)) %>% 
+    dplyr::mutate(solgt_last=max(solgt_last)) %>% 
+    filter(solgt_last==0) %>% 
+    dplyr::summarize(TimeOnMarket=as.numeric(date_-Min_Date)) %>% 
+    distinct() %>% 
+    ungroup() %>% 
+    dplyr::summarize(TimeOnMarket=median(TimeOnMarket)) %>% 
+    dplyr::mutate(date=date_)
+  
+}),fill=T)
+
+df_median_TimeOnMarket %>% 
+  ggplot(.,aes(x=date,y=TimeOnMarket)) +
+  geom_line()
+
+
+```
+

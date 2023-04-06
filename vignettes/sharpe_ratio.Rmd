@@ -1,0 +1,167 @@
+---
+title: "Untitled"
+author: "Christian Kruse"
+date: "2023-03-25"
+output: html_document
+---
+
+```{r}
+library(quantmod)
+library(ggplot2)
+
+# Get historical price data
+gbm_model = function(ticker) {
+  
+  start_date <- Sys.Date()-years(5)
+end_date <- Sys.Date()
+
+stock <- getSymbols(Symbols = ticker, src = "yahoo", from = start_date, to = end_date, auto.assign = FALSE)
+prices <- Ad(stock)
+
+# Calculate daily returns, annualized drift, and annualized volatility
+daily_returns <- na.omit(as.numeric(Return.calculate(prices)))
+daily_log_returns <- log(1 + daily_returns)
+annualized_drift <- mean(daily_log_returns) * 252
+annualized_volatility <- sd(daily_log_returns) * sqrt(252)
+
+# Monte Carlo simulation parameters
+num_simulations <- 10000
+num_days <- 365
+
+# Define the risk-free rate
+risk_free_rate <- 0.06
+
+# Simulate stock price paths using Geometric Brownian Motion
+last_price <- as.numeric(tail(prices, 1))
+simulated_paths <- matrix(ncol = num_days, nrow = num_simulations)
+
+for (i in 1:num_simulations) {
+  daily_price_changes <- rnorm(num_days, mean = annualized_drift / num_days, sd = annualized_volatility / sqrt(num_days))
+  simulated_prices <- last_price * exp(cumsum(daily_price_changes))
+  simulated_paths[i, ] <- simulated_prices
+}
+
+# Calculate expected returns and volatilities for the simulated paths
+simulated_returns <- simulated_paths / last_price - 1
+expected_returns <- apply(simulated_returns, 1, mean)
+path_volatilities <- apply(simulated_returns, 1, sd)
+
+# Calculate the Sharpe Ratios for the simulated paths
+sharpe_ratios <- (expected_returns - risk_free_rate) / path_volatilities
+median_sharpe_ratio = median(sharpe_ratios)
+# Find the path with the highest Sharpe Ratio
+best_path_index <- which.max(sharpe_ratios)
+best_path <- simulated_paths[best_path_index, ]
+
+# Plot the simulated stock price paths with the best path highlighted
+simulated_paths_df <- data.frame(simulated_paths)
+colnames(simulated_paths_df) <- paste0("Day_", 1:num_days)
+simulated_paths_df$Path <- 1:num_simulations
+best_path_df <- simulated_paths_df[simulated_paths_df$Path == best_path_index, ]
+
+
+# Plot the simulated stock price paths
+simulated_paths_df <- data.frame(simulated_paths)
+colnames(simulated_paths_df) <- paste0("Day_", 1:num_days)
+
+df_melted = simulated_paths_df %>% 
+  dplyr::mutate(Path=paste0("Path",row_number())) %>% 
+  gather(Day,Price,Day_1:Day_365) %>% 
+    dplyr::mutate(Day=as.numeric(gsub("Day_","",Day)))
+
+df_melted_best = best_path_df %>% 
+  dplyr::mutate(Path=paste0("Path",row_number())) %>% 
+  gather(Day,Price,Day_1:Day_365) %>% 
+    dplyr::mutate(Day=as.numeric(gsub("Day_","",Day)))
+
+ggplot(df_melted, aes(x = Day, y = Price, group = Path)) +
+  geom_line(alpha = 0.2) +
+  geom_line(data = df_melted_best, aes(x =  Day, y = Price, group = Path), color = "red", size = 1) +
+  labs(title = paste("Geometric Brownian Motion Simulation of", ticker, "Stock Price"),
+       subtitle = "Best path (highest Sharpe Ratio) in red",
+       x = "Day",
+       y = "Price") +
+  theme_minimal()
+
+return(
+df_melted %>% 
+  filter(Day==num_days) %>% 
+  dplyr::mutate(increase=ifelse(Price>last_price,1,0)) %>% 
+  dplyr::summarize(increase=sum(increase)) %>% 
+  dplyr::summarize(increase_prob=sum(increase)/num_simulations) %>% 
+  dplyr::mutate(sharpe_median=median_sharpe_ratio,
+                ticker=ticker,
+                median_increase=df_melted_best %>% filter(Day==365) %>% pull(Price) %>% median-100,
+                best_increase=df_melted_best %>% filter(Day==365) %>% pull(Price)/last_price)
+)
+}
+```
+
+
+```{r}
+
+
+df_simulations = do.call("rbind",lapply(c("META","JNJ","UNH","PG","MSFT","AAPL","GOOG","MMM","NFLX","BTC-USD","GC=F","SI=F","TLT","^GSPC","^IXIC","USDT-USD"),function(ticker) {
+  gbm_model(ticker = ticker)
+})) 
+```
+
+```{r}
+df_simulations %>% 
+  ggplot(.,aes(x=sharpe_median,y=increase_prob)) +
+  geom_point() +
+  geom_vline(xintercept = 0,linetype=2) +
+  geom_text_repel(aes(label=ticker))
+```
+
+
+
+
+```{r}
+library(quantmod)
+library(rugarch)
+library(ggplot2)
+
+# Get historical price data
+ticker <- "AAPL"
+start_date <- as.Date("2015-01-01")
+end_date <- Sys.Date()
+
+stock <- getSymbols(Symbols = ticker, src = "yahoo", from = start_date, to = end_date, auto.assign = FALSE)
+prices <- Ad(stock)
+
+# Calculate daily returns
+daily_returns <- as.numeric(na.omit(Return.calculate(prices)))
+
+# Fit a GARCH(1,1) model to the daily returns
+garch_spec <- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+                         mean.model = list(armaOrder = c(0, 0), include.mean = TRUE),
+                         distribution.model = "std")
+garch_spec <- ugarchspec()
+garch_fit <- ugarchfit(spec = garch_spec, data = daily_returns, out.sample=100)
+
+# Forecast 10 days ahead
+garch_forecast <- ugarchforecast(fit, n.ahead = 365)
+garch_forecast <- ugarchforecast(garch_fit, n.ahead = 365)
+
+# Extract the conditional mean and volatility forecasts
+mean_forecast <- as.data.frame(fitted(garch_forecast))
+volatility_forecast <- as.data.frame(sigma(garch_forecast))
+
+# Combine the mean and volatility forecasts into a single data frame
+forecasts <- data.frame(Date = index(daily_returns)[(nrow(daily_returns) - 9):nrow(daily_returns)],
+                        Mean = mean_forecast,
+                        Volatility = volatility_forecast)
+
+# Plot the forecasts
+ggplot(forecasts, aes(x = Date)) +
+  geom_line(aes(y = Mean, color = "Mean")) +
+  geom_line(aes(y = Volatility, color = "Volatility")) +
+  labs(title = paste("GARCH(1,1) Forecast for", ticker),
+       x = "Date",
+       y = "Value") +
+  scale_color_manual(values = c("Mean" = "blue", "Volatility" = "red")) +
+  theme_minimal()
+
+```
+
