@@ -49,7 +49,7 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
 ```{r}
 
-df_etfs = openxlsx::read.xlsx(xlsxFile = "etf_list.xlsx")
+df_etfs = openxlsx::read.xlsx(xlsxFile = "Chapters/01_Indicators/etf_list.xlsx")
 
 df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
       temp_df = getSymbols(ticker, env = NULL) %>% 
