@@ -1,7 +1,7 @@
 ---
-title: "Indicators"
+title: "ETF Tracking"
 author: "Christian Kruse"
-date: "4/6/2022"
+date: "2023 Apr 1"
 output: html_document
 ---
 
@@ -24,6 +24,7 @@ pacman::p_load(fredr,
                devtools,
                irr,
                httr,
+               dkstat,
                data.table,
                pROC,
                rPref,
@@ -33,3 +34,5 @@ pacman::p_load(fredr,
                ggrepel)
 source(file = "money_theme.R")
 ```
+
+# ETFs

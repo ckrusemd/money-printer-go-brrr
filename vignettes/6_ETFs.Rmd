@@ -1,0 +1,963 @@
+---
+title: "ETF Tracking"
+author: "Christian Kruse"
+date: "2023 Apr 1"
+output: html_document
+---
+
+```{r  include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
+options(scipen=999)
+```
+
+```{r}
+
+if (!require(pacman)) { install.packages("pacman") }
+pacman::p_load(fredr,
+               dplyr,
+               tidyr,
+               lubridate,
+               caret,
+               partykit,
+               pROC,
+               gganimate,
+               devtools,
+               irr,
+               httr,
+               dkstat,
+               data.table,
+               pROC,
+               rPref,
+               progress,
+               quantmod,
+               rvest,
+               ggrepel)
+source(file = "money_theme.R")
+```
+
+# FED: Release Calendar
+
+```{r }
+readRenviron(path = "Renviron.site")
+fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
+```
+
+## ETFs data
+
+```{r}
+
+df_etfs = openxlsx::read.xlsx(xlsxFile = "etf_list.xlsx")
+
+df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
+      temp_df = getSymbols(ticker, env = NULL) %>% 
+      as.data.frame(.) %>% 
+      dplyr::mutate(Date=row.names(.)) %>% 
+      dplyr::mutate(Date=gsub("X","",Date)) %>% 
+      dplyr::mutate(Date=ymd(Date)) %>% 
+      dplyr::select(c(7,1)) %>% 
+      setNames(.,c("date","value")) %>% 
+      dplyr::mutate(series_id=ticker)# %>% 
+      # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
+      # tidyr::fill(value,.direction = "down")  %>% 
+      # tidyr::fill(series_id,.direction = "down") 
+      
+      row.names(temp_df) = NULL
+      return( temp_df )
+}))
+
+```
+
+### Historically cheap
+
+```{r}
+df_etf_yahoo %>% 
+  group_by(series_id) %>% 
+  filter(date>=Sys.Date()-years(5)) %>% 
+  dplyr::mutate(p_norm=pnorm(q = value,mean = mean(value),sd = sd(value))) %>% 
+  filter(date==max(date)) %>% 
+  ungroup() %>% 
+  arrange(p_norm) %>% 
+  dplyr::mutate(p_norm=scales::percent(p_norm,accuracy = 0.1)) %>% 
+  dplyr::select(series_id,p_norm) %>% 
+  inner_join(df_etfs,by=c("series_id"="Ticker")) #%>% 
+  # DT::datatable()
+```
+
+## Data
+
+
+```{r }
+# BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
+BYGV80 <- dst_get_data(table = "BYGV80", 
+                       BYGFASE="*",
+                       ANVENDELSE="*",
+                       Tid="*",
+                       lang = "da") %>% 
+  group_by(BYGFASE,ANVENDELSE) %>% 
+  arrange(BYGFASE,ANVENDELSE,TID) %>% 
+  filter(ANVENDELSE %in% c("Parcelhuse")) %>% 
+  ungroup() %>% 
+  dplyr::select(BYGFASE,
+                TID,
+                value) %>% 
+  dplyr::rename(series_id=BYGFASE,
+                date=TID)
+  
+
+# BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
+BYG1 <- dst_get_data(table = "BYG1", 
+                       BRANCHE07="*",
+                       SÆSON="*",
+                       ART="*",
+                       Tid="*",
+                       lang = "da") %>% 
+  filter(SÆSON=="Sæsonkorrigeret") %>% 
+  dplyr::mutate(filler="BYG1") %>% 
+  unite(series_id,filler,BRANCHE07,ART,sep = "_") %>% 
+  dplyr::select(series_id,
+                TID,
+                value) %>% 
+  dplyr::rename(date=TID)
+
+# PRIS90_meta <- dst_meta(table = "PRIS90", lang = "da")
+PRIS90 <- dst_get_data(table = "PRIS90", 
+                       ENHED="*",
+                       BOLTYP="*",
+                       Tid="*",
+                       lang = "da") %>% 
+  dplyr::rename(date=TID) %>% 
+  filter(ENHED=="Indeks")  %>% 
+  unite(BOLTYP,BOLTYP,ENHED) %>% 
+  dplyr::rename(series_id=BOLTYP)
+
+# BYG42_meta <- dst_meta(table = "BYG42", lang = "da")
+BYG42 <- dst_get_data(table = "BYG42", 
+                       HINDEKS="*",
+                       DINDEKS="*",
+                       ART="*",
+                       TAL="*",
+                       Tid="*",
+                       lang = "da") %>% 
+  dplyr::rename(date=TID) %>% 
+  filter(DINDEKS=="Byggeomkostningsindeks i alt") %>% 
+  filter(TAL=="Indeks") %>% 
+  filter(ART %in% c("Materialer","Arbejdsomkostninger")) %>% 
+  dplyr::mutate(filler="BYG42") %>% 
+  unite(series_id,filler,HINDEKS,DINDEKS,ART,sep="_")%>% 
+  dplyr::select(series_id,
+                date,
+                value) 
+
+```
+
+
+### FinansDanmark
+
+```{r}
+
+source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
+current_url = xml2::read_html(source_url) %>%
+  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(11) > a") %>% 
+  rvest::html_attr("href")
+xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+
+df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
+df_interest$År[1] = 1997
+df_interest = df_interest %>% fill(År,.direction = "down")
+df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
+df_interest = df_interest %>% 
+  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
+  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
+  gather(series_id,value,CurveLongShort,Lang.rente,Kort.rente) %>% 
+  dplyr::rename(date=Date) %>% 
+  dplyr::select(date,value,series_id)
+
+```
+
+### FRED
+
+```{r}
+series_ids = unique(c("CBBTCUSD",
+               "NASDAQCOM",
+               "T10Y2Y",
+               "T5YIFR",
+               "BAA10Y",
+               "T10Y3M",
+               "CPIAUCSL",
+               "DCOILWTICO",
+               "DFF",
+               "ACTLISCOUUS",
+               "MORTGAGE30US",
+               "COMPUTSA",
+               "RRVRUSQ156N",
+               "UMCSENT",
+               "BAMLH0A0HYM2",
+               "RHORUSQ156N",
+               "T10YIE",
+               "HOUST1F",
+               "BAMLH0A0HYM2",
+               "COMPU1USA",
+               "M2V",
+               "BAMLC0A4CBBB",
+               "PCEPI",
+               "AUTHNOTT",
+               "PSAVERT",
+               "RRPONTSYD",
+               "PERMIT",
+               "M1SL",
+               "PERMIT1",
+               "T10Y3M",
+               "INDPRO",
+               "BAMLC0A4CBBB",
+               "NFCI",
+               "CORESTICKM159SFRBATL",
+               "PAYEMS",
+               "CIVPART",
+               "MDSP",
+               "M2SL",
+               "UNRATE",
+               "AUTHNOT1U",
+               "HOUST",
+               "ICSA",
+               "DGS10",
+               "DGS20",
+               "DGS30",
+               "DGS5",
+               "DGS2",
+               "DGS1",
+               "CSUSHPINSA",
+               "GDP",
+               "GDPC1",
+               "DFII10",
+               "TDSP",
+               "WALCL",
+               "MSPUS"))
+
+df_macro_fred = rbindlist(lapply(series_ids,function(series_id) {
+  fredr::fredr_series_observations(series_id = series_id) %>% 
+  dplyr::select(date,value) %>% 
+    dplyr::mutate(series_id=series_id) #%>% 
+    # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
+    # tidyr::fill(value,.direction = "down")  %>% 
+    # tidyr::fill(series_id,.direction = "down") 
+}))
+```
+
+### Yahoo
+
+```{r}
+
+series_ids_yahoo = unique(c("AAPL",
+                            "JNJ",
+                            "MSFT",
+                            "GC=F",
+                            "SI=F",
+                            "DX-Y.NYB",
+                            # "BTC-USD",
+                            # "ETH-USD",
+                            "PA=F",
+                            "^IXIC",
+                            "^GSPC",
+                            "^OMXC25",
+                            "USDDKK=X"))
+
+df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
+      temp_df = getSymbols(ticker, env = NULL) %>% 
+      as.data.frame(.) %>% 
+      dplyr::mutate(Date=row.names(.)) %>% 
+      dplyr::mutate(Date=gsub("X","",Date)) %>% 
+      dplyr::mutate(Date=ymd(Date)) %>% 
+      dplyr::select(c(7,1)) %>% 
+      setNames(.,c("date","value")) %>% 
+      dplyr::mutate(series_id=ticker) #%>% 
+      # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
+      # tidyr::fill(value,.direction = "down")  %>% 
+      # tidyr::fill(series_id,.direction = "down") 
+      
+      row.names(temp_df) = NULL
+      return( temp_df )
+})) %>% 
+  bind_rows( df_etf_yahoo )
+```
+
+## Combine
+
+### All Data
+
+```{r}
+
+df_all = df_macro_yahoo %>% 
+  bind_rows( df_macro_fred ) %>% 
+  bind_rows( df_etf_yahoo ) %>% 
+  bind_rows(df_interest) %>% 
+  bind_rows(BYG42) %>% 
+  bind_rows(PRIS90) %>%
+  bind_rows(BYGV80)
+all_ids = unique(df_all$series_id)
+
+rm(df_macro_yahoo)
+rm(df_macro_fred)
+rm(df_etf_yahoo)
+gc()
+```
+
+## Combine
+
+```{r}
+df_combinations = expand.grid(x1=all_ids,
+                              x2=all_ids) %>% 
+  filter(!x1==x2)
+```
+
+## Cross correlations
+
+```{r}
+
+df_combinations_split = split(df_combinations,df_combinations$x1)
+```
+
+
+```{r}
+
+calc_ccf = function(data) {
+  ccf_results = ccf(data$value.x,data$value.y,lag.max = 30,plot = FALSE)
+  best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+  best_corr_time = ccf_results$lag[best_corr_index]
+  # best_corr_beta = data %>% 
+  #   dplyr::mutate(value.y=value.y/lag(value.y),
+  #                 value.x=value.x/lag(value.x)) %>% 
+  #   dplyr::mutate(value.y= ifelse( best_corr_time < 0 , lead(value.y,abs(best_corr_time)), lag(value.y,abs(best_corr_time)) )) %>% 
+  #   lm(value.y~value.x,data=.) %>% 
+  #   .[["coefficients"]] %>% 
+  #   .[["value.x"]]
+  best_corr_value = ccf_results$acf[best_corr_index]
+  # data.frame(best_corr_time,best_corr_value,best_corr_beta)
+  data.frame(best_corr_time,best_corr_value)
+}
+df_ccfs = do.call("rbind",lapply(df_combinations_split,function(split_) { split_ %>% 
+  inner_join(df_all,by=c("x1"="series_id")) %>% 
+  inner_join(df_all,by=c("x2"="series_id","date"="date")) %>% 
+  dplyr::select(-date) %>% 
+  na.omit() %>% 
+  group_by(x1,x2) %>% 
+  do(calc_ccf(.))
+}))
+
+df_ccfs %>% 
+  ggplot(.,aes(x=best_corr_time,y=best_corr_value)) +
+  geom_point() +
+  geom_vline(xintercept = 0,linetype=2) +
+  geom_hline(yintercept = 0,linetype=2) +
+  scale_y_continuous(limits = c(-1,1),breaks = seq(-1,1,by=0.1)) +
+  scale_x_continuous(breaks = seq(-10,10,by=1)*365,labels=seq(-10,10,by=1))
+```
+
+## Descriptive
+
+### Most dominating current indicators
+
+```{r}
+
+df_threshold_indicators = do.call("rbind",lapply(seq(0,1,by=0.01),function(threshold)  {
+  df_ccfs %>% 
+    filter(abs(best_corr_value)>=threshold) %>% 
+    group_by(x1) %>% 
+    dplyr::summarize(count=n()) %>% 
+    ungroup() %>% 
+    dplyr::mutate(threshold=threshold)
+}))
+
+df_threshold_indicators %>% 
+  filter(threshold>0.95) %>% 
+  arrange(desc(count))
+
+df_threshold_indicators %>% 
+  filter(threshold>0.95) %>% 
+  ggplot(.,aes(x=threshold,y=count,color=x1)) +
+  geom_line() +
+  theme(legend.position="null")
+```
+
+## Export
+
+### MARS
+
+```{r}
+
+library(earth)
+calc_mars_date_direction = function(data) {
+  fit_earth =earth( value ~ date,  data = data %>% na.omit() )
+  last_date = as.Date(fit_earth$cuts[length(fit_earth$cuts)])
+  last_coeff = as.numeric(fit_earth$coefficients[length(fit_earth$coefficients)])
+  data.frame(last_date=last_date,
+             last_coeff=last_coeff,
+             direction=ifelse(last_coeff>0,"Increasing","Decreasing"))
+  
+}
+
+df_mars_data = df_all %>% 
+  group_by(series_id) %>% 
+  do(calc_mars_date_direction(.))
+
+```
+
+
+### Export to Excel
+
+```{r}
+
+df_export = df_etfs %>% 
+  inner_join(df_ccfs,by=c("Ticker"="x1")) %>% 
+  inner_join(df_mars_data,by=c("x2"="series_id")) %>% 
+  filter(abs(best_corr_value)>0.8) %>% 
+  filter(x2 %in% series_ids) %>% 
+  dplyr::select(Ticker,
+                Name,
+                Category,
+                Subcategory,
+                x2,
+                best_corr_value,
+                last_date,
+                last_coeff) %>% 
+  arrange(Ticker,desc(best_corr_value))
+
+openxlsx::write.xlsx(df_export,file = "etf_correlations.xlsx")
+```
+
+## Main graph
+
+```{r}
+# Load required libraries
+library(igraph)
+
+# Create a data frame representing the causal structure
+causal_structure = df_ccfs %>% 
+  filter(abs(best_corr_value)>0.9) %>% 
+  dplyr::rename(from=x1,
+                to=x2) %>% 
+  dplyr::mutate(sign=ifelse(best_corr_value>0,"positive","negative"),
+                strength=scales::rescale(abs(best_corr_value),to = c(0,1),from = c(0,1))) %>% 
+  dplyr::select(from,to,sign,strength)
+
+# Convert the data frame to edge_directions
+edge_directions <- as.vector(t(causal_structure[, c("from", "to")]))
+
+# Create a graph object with edge_directions
+g <- graph(edge_directions, directed = TRUE)
+
+# Create a named vector of colors for positive and negative relationships
+edge_colors <- c("positive" = "blue", "negative" = "red")
+
+# Map the colors and thickness to the edges based on the 'sign' and 'strength' columns in causal_structure
+E(g)$color <- edge_colors[causal_structure$sign]
+
+# Normalize the strength values and map them to edge.width
+normalized_strength <- normalize_strength(causal_structure$strength, min_width = 0.5, max_width = 2)
+E(g)$width <- normalized_strength
+
+# Normalize strength function
+normalize_strength <- function(strength, min_width, max_width) {
+  normalized_strength <- (strength - min(strength)) / (max(strength) - min(strength))
+  arrow_width <- normalized_strength * (max_width - min_width) + min_width
+  return(arrow_width)
+}
+
+# Plot the causal graph with colored and thickness-scaled arrows
+plot(g, vertex.label.family = "sans", vertex.label.font = 2, vertex.label.cex = 0.6, edge.arrow.size = 0.2)
+
+```
+
+
+```{r}
+# Load required libraries
+library(igraph)
+
+# Create a correlation matrix for the variables
+# correlations <- cor(data)
+
+corr_extra = data.frame(x1=all_ids,
+                        x2=all_ids,
+                        best_corr_value=1)
+# cor_df = df_ccfs %>%
+#   ungroup() %>%
+#   dplyr::select(-best_corr_time) %>%
+#   bind_rows(corr_extra) %>% 
+#   spread(x2,best_corr_value) %>%
+#   as.data.frame()
+
+# Filter the dataframe to keep only the correlations with an absolute value greater than 0.8
+filtered_cor_df <- df_ccfs %>%
+  filter(abs(best_corr_value) > 0.8,
+         x1 %in% c("Lang.rente","MORTGAGE30US","Kort.rente","WALCL","DGS2"))# %>% 
+  # filter(x2 %in% df_etfs$Ticker)
+
+# Create an edge list from the filtered dataframe
+edges <- as.matrix(filtered_cor_df[, c("x1", "x2")])
+
+# Create a graph object from the edge list
+g <- graph_from_edgelist(edges, directed = FALSE)
+
+# Assign edge colors based on the sign of the correlation values
+E(g)$color <- ifelse(filtered_cor_df$best_corr_value > 0, "green", "red")
+
+# Assign edge thickness based on the absolute values of the correlations
+E(g)$width <- scales::rescale(abs(filtered_cor_df$best_corr_value) * 4,to = c(1,5))
+
+# Use a layout algorithm
+layout <- layout_with_fr(g)
+
+# Define node sizes
+node_sizes <- rep(5, vcount(g))
+
+# Node colors
+node_fill_colors <- case_when(V(subg)$label %in% series_ids ~ "red",
+                              V(subg)$label %in% series_ids_yahoo ~ "lightblue",
+                              V(subg)$label %in% df_etfs$Ticker ~ "green")
+
+# Plot the graph with the desired specifications
+plot(g, layout = layout, vertex.label.family = "sans", vertex.label.font = 2, vertex.label.cex = 0.8,
+     vertex.color = node_fill_colors,
+     vertex.color = "lightblue", vertex.size = node_sizes, edge.arrow.size = 0.7)
+beepr::beep(2)
+```
+```{r}
+# Load required libraries
+library(visNetwork)
+library(dplyr)
+
+corr_extra = data.frame(x1=all_ids,
+                        x2=all_ids,
+                        best_corr_value=1)
+
+filtered_cor_df <- df_ccfs %>%
+  ungroup() %>% 
+  filter(x1 %in% c("Lang.rente","Kort.rente")) %>% 
+  filter(abs(best_corr_value) > 0.7)
+
+# Create a nodes data frame
+nodes <- data.frame(id = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)), label = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)))
+
+# Create an edges data frame
+edges <- filtered_cor_df %>%
+  mutate(color = if_else(best_corr_value > 0, "green", "red"),
+         width = scales::rescale(abs(best_corr_value),to=c(0,30))) %>%
+  dplyr::select(from = x1, to = x2, color, width)
+
+# Create a visNetwork graph
+visNetwork(nodes, edges) %>%
+  visIgraphLayout() %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visInteraction(navigationButtons = TRUE)
+
+```
+
+
+```{r}
+row.names(correlations) = correlations$x1
+correlations$x1 = NULL
+
+
+
+# Set a threshold for significant correlations
+threshold <- 0.90
+
+# Generate the adjacency matrix with significant correlations
+# adj_matrix <- ifelse(abs(correlations) >= threshold, 1, 0)
+# diag(adj_matrix) <- 0
+
+# Node colors
+node_fill_colors <- case_when(V(subg)$label %in% series_ids ~ "red",
+                              V(subg)$label %in% series_ids_yahoo ~ "lightblue",
+                              V(subg)$label %in% df_etfs$Ticker ~ "green")
+# Define node sizes
+node_sizes <- rep(5, vcount(subg))
+
+# Create a graph object from the adjacency matrix
+g <- graph_from_adjacency_matrix(adj_matrix, mode = "directed", diag=FALSE, weighted = TRUE)
+g <- delete.vertices(g, which(colSums(adj_matrix,na.rm=T)==0))
+
+V(g)$label <- colnames(adj_matrix)
+E(g)$width <- abs(E(g)$weight) * 4
+
+# Use a layout algorithm
+# layout <- layout_with_fr(g)
+
+# Create a subgraph that includes node 2 (BTC) and its neighbors
+col_location = which(colnames(adj_matrix)=="MSPUS")
+subgraph_nodes <- c(col_location, neighbors(g, col_location))
+subg <- induced_subgraph(g, V(g)[subgraph_nodes])
+
+# Use a layout algorithm that places node 2 (BTC) at the center
+layout <- layout_with_kk(subg)
+# Alternatively, you can use layout_with_fr(subg)
+
+# Define node colors and sizes
+# node_colors <- c("lightblue", "lightblue")
+# node_colors[1] <- "red"  # Highlight node 2 (BTC) by setting its color to red
+#   
+# node_sizes <- rep(15, vcount(subg))  # Set all node sizes to 15
+# node_sizes[1] <- 25  # Increase the size of node 2 (BTC)
+
+# Plot the subgraph with node 2 (BTC) centered and its neighbors
+plot(subg, layout = layout, vertex.label.family = "sans", vertex.label.font = 2, vertex.label.cex = 0.8,
+     vertex.color = node_colors, vertex.size = node_sizes
+     , edge.arrow.size = 0)
+
+
+```
+
+# Bitcoin
+
+```{r}
+
+df_ccfs %>% 
+  filter(x1=="CBBTCUSD")
+
+```
+
+# Short housing
+
+```{r}
+df_ccfs %>% 
+  filter(x1=="CSUSHPINSA") %>% 
+  arrange((best_corr_value))
+```
+
+# Short DFF
+
+```{r}
+df_ccfs %>% 
+  filter(x1=="DFF") %>% 
+  arrange((best_corr_value))
+```
+# Short Treasury
+
+```{r}
+df_ccfs %>% 
+  filter(x1=="DGS30") %>% 
+  arrange((best_corr_value))
+```
+
+
+
+```{r}
+
+df_ccf = df_series %>%
+  filter(series_id %in% c("TBT","TLT")) %>% 
+  spread(series_id,value) %>% 
+  na.omit() %>% 
+  setNames(.,c("Dates","One","Two"))
+ccf_results = ccf(df_ccf$One,df_ccf$Two,lag.max = 3650)
+best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+best_corr_time = ccf_results$lag[best_corr_index]
+best_corr_value = ccf_results$acf[best_corr_index]
+
+```
+
+```{r}
+
+df_ccf = df_series %>%
+  filter(series_id %in% c("BTC-USD","TLT")) %>% 
+  spread(series_id,value) %>% 
+  na.omit() %>% 
+  setNames(.,c("Dates","One","Two"))
+ccf_results = ccf(df_ccf$One,df_ccf$Two,lag.max = 3650)
+best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+best_corr_time = ccf_results$lag[best_corr_index]
+best_corr_value = ccf_results$acf[best_corr_index]
+
+```
+
+```{r}
+
+function(series_1,series_2,time_lag) {
+  
+  df_series %>%
+    filter(series_id %in% c("CSUSHPINSA","MORTGAGE30US")) %>% 
+    dplyr::mutate(date=case_when(series_id==series_1 ~ date+time_lag,
+                                 TRUE ~ date)) %>% 
+    spread(series_id,value) %>% 
+    na.omit() %>% 
+    setNames(.,c("Dates","One","Two")) %>% 
+    lm(One~Two,data=.) %>% 
+    summary(.)
+    predict(.,data.frame(Two=6.5))
+  
+}
+
+df_ccf_lm = df_series %>%
+  filter(series_id %in% c("CSUSHPINSA","MORTGAGE30US")) %>% 
+  spread(series_id,value) %>% 
+  na.omit() %>% 
+  setNames(.,c("Dates","One","Two"))
+ccf_results = ccf(df_ccf$One,df_ccf$Two,lag.max = 3650)
+best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+best_corr_time = ccf_results$lag[best_corr_index]
+best_corr_value = ccf_results$acf[best_corr_index]
+```
+
+# LM Regression
+
+```{r eval=F}
+
+calc_rsq = function(data) {
+  return( data.frame(rsq=summary( lm(value.x~value.y,data=data) )$r.squared) )
+}
+years = 2
+
+# diffs = sort(c(0,seq(-1000,1000,by=30)))
+diffs = sort(c(0,seq(-years*365,years*365,by=90)))
+pb <- progress_bar$new(format = "  Calculating [:bar] :percent eta: :eta",
+                       total = length(diffs))
+
+df_kappa = rbindlist(lapply(diffs,function(days_diff) {
+  pb$tick()
+  # message(days_diff)
+  df_combinations %>% 
+  inner_join(df_yieldcurve,by=c("series_id"="series_id")) %>% 
+  dplyr::mutate(date=date+days(days_diff)) %>% 
+  inner_join(df_yieldcurve,by=c("joined_series_id"="series_id","date"="date")) %>% 
+  dplyr::select(date , series_id , joined_series_id , value.x , value.y) %>% 
+  group_by(series_id,joined_series_id) %>% 
+  do(calc_rsq(.)) %>% 
+  dplyr::mutate(days_diff=days_diff) %>% 
+  ungroup()# %>% 
+  # unite(series_id,series_id,joined_series_id)
+})) #%>% 
+  # separate(series_id,into=c("series1","series2"))
+
+df_kappa_2 = df_kappa %>% 
+  rename(series1=series_id,
+         series2=joined_series_id)
+
+```
+
+```{r eval=F}
+
+indicator = "WILL5000INDFC"
+
+# Current Indicator
+tmp_current = df_kappa_2 %>% 
+  filter(series1 == indicator) %>% 
+  filter(days_diff==80)
+
+tmp_current %>% 
+  arrange(rsq) %>% 
+  dplyr::mutate(series2=factor(series2,levels=.$series2)) %>% 
+  ggplot(.,aes(x=series2,y=rsq)) +
+  geom_point() +
+  coord_flip() +
+  geom_hline(yintercept = 0,linetype=2) +
+  scale_y_continuous(limits = c(-1,1),breaks=seq(-1,1,by=0.1))
+
+```
+
+```{r eval=F}
+
+df_example = df_combinations %>% 
+  filter(series_id=="WILL5000INDFC") %>% 
+  filter(joined_series_id=="CPIAUCSL") %>% 
+  inner_join(df_yieldcurve,by=c("series_id"="series_id")) %>% 
+  inner_join(df_yieldcurve,by=c("joined_series_id"="series_id","date"="date")) %>% 
+  dplyr::select(date , series_id , joined_series_id , value.x , value.y) %>% 
+  dplyr::mutate(value.x=100*value.x/first(value.x)) %>% 
+  dplyr::mutate(value.y=100*value.y/first(value.y))
+
+
+```
+
+```{r eval=F}
+
+calc_cor = function(data) {
+  return( data.frame(cor=cor(x = data$value.x, y = data$value.y) ) )
+}
+years = 3
+
+# diffs = sort(c(0,seq(-1000,1000,by=30)))
+diffs = sort(c(0,seq(-years*365,years*365,by=90)))
+pb <- progress_bar$new(format = "  Calculating [:bar] :percent eta: :eta",
+                       total = length(diffs))
+
+df_kappa = rbindlist(lapply(diffs,function(days_diff) {
+  pb$tick()
+  # message(days_diff)
+  df_combinations %>% 
+  inner_join(df_yieldcurve,by=c("series_id"="series_id")) %>% 
+  dplyr::mutate(date=date+days(days_diff)) %>% 
+  inner_join(df_yieldcurve,by=c("joined_series_id"="series_id","date"="date")) %>% 
+  dplyr::select(date , series_id , joined_series_id , value.x , value.y) %>% 
+  group_by(series_id,joined_series_id) %>% 
+  do(calc_cor(.)) %>% 
+  dplyr::mutate(days_diff=days_diff) %>% 
+  ungroup()# %>% 
+  # unite(series_id,series_id,joined_series_id)
+})) #%>% 
+  # separate(series_id,into=c("series1","series2"))
+
+df_kappa = df_kappa %>% 
+  rename(series1=series_id,
+         series2=joined_series_id)
+
+```
+
+# Example
+
+```{r eval=F}
+
+
+
+indicator = "UNRATE"
+
+# Current Indicator
+tmp_current = df_kappa %>% 
+  filter(series1 == indicator) %>% 
+  filter(days_diff==0)
+
+tmp_current %>% 
+  arrange(cor) %>% 
+  dplyr::mutate(series2=factor(series2,levels=.$series2)) %>% 
+  ggplot(.,aes(x=series2,y=cor)) +
+  geom_point() +
+  coord_flip() +
+  geom_hline(yintercept = 0,linetype=2) +
+  scale_y_continuous(limits = c(-1,1),breaks=seq(-1,1,by=0.1))
+
+# All Times
+tmp_all = df_kappa %>% 
+  filter(series1 == indicator) %>% 
+  # filter(days_diff>0) %>% 
+  group_by(series2) %>% 
+  dplyr::mutate(label_=ifelse(days_diff==max(days_diff),series2,NA)) %>% 
+  ungroup()
+
+tmp_all %>% 
+  ggplot(.,aes(x=days_diff,y=cor,color=series2)) +
+  geom_point() +
+  geom_line() +
+  # coord_flip() +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme(legend.position="null") +
+  scale_x_continuous(expand=expansion(mult=c(0.1,0.1))) +
+  geom_text_repel(aes(label=label_),nudge_x = 50)
+
+
+# Leading Indicator
+tmp_leading = df_kappa %>% 
+  filter(series1 == indicator) %>% 
+  filter(days_diff>0) %>% 
+  group_by(series2) %>% 
+  dplyr::mutate(label_=ifelse(days_diff==max(days_diff),series2,NA)) %>% 
+  ungroup()
+
+tmp_leading %>% 
+  ggplot(.,aes(x=days_diff,y=cor,color=series2)) +
+  geom_point() +
+  geom_line() +
+  # coord_flip() +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme(legend.position="null") +
+  scale_x_continuous(expand=expansion(mult=c(0.1,0.1)),breaks = seq(-10,10)*180) +
+  geom_text_repel(aes(label=label_),nudge_x = 50)
+
+# Lagging Indicator
+tmp_lagging = df_kappa %>% 
+  filter(series1 == indicator) %>% 
+  filter(days_diff<0)
+
+tmp_lagging %>% 
+  ggplot(.,aes(x=days_diff,y=cor,color=series2)) +
+  geom_point() +
+  geom_line() +
+  # coord_flip() +
+  geom_hline(yintercept = 0,linetype=2)  +
+  theme(legend.position="null")
+```
+
+```{r eval=F}
+
+series1 = "WILL5000INDFC"
+series2 = "CPIAUCSL"
+time_diff = 0
+
+tmp = df_combinations %>% 
+  filter(series_id==series1,
+         joined_series_id==series2) %>% 
+  inner_join( df_yieldcurve , by = c("series_id"="series_id") ) %>% 
+  inner_join( df_yieldcurve , by = c("date"="date","joined_series_id"="series_id") ) %>% 
+  dplyr::mutate(new_date=date+days(time_diff)) %>% 
+  inner_join( df_yieldcurve , by = c("joined_series_id"="series_id","new_date"="date") ) %>% 
+  dplyr::select( date, value.x, value.y, value) %>% 
+  setNames(.,c("date",series1,series2,paste0(series2,"_diff")))
+
+# cor(tmp$WILL5000INDFC,tmp$DTWEXBGS)
+# cor(tmp$WILL5000INDFC,tmp$DTWEXBGS_diff)
+
+tmp %>% 
+  gather(stat,val,2:4) %>% 
+  group_by(stat) %>% 
+  dplyr::mutate(val=scale(val)) %>% 
+  ggplot(.,aes(x=date,y=val,color=stat)) + 
+  geom_line()
+
+
+```
+
+
+# Multivariate
+
+# Current Indicator
+
+```{r eval=F}
+
+series1 = "SP500"
+time_diff = 0
+
+df_lm = df_combinations %>% 
+  filter(series_id==series1) %>% 
+  inner_join( df_yieldcurve , by = c("series_id"="series_id") ) %>% 
+  # inner_join( df_yieldcurve , by = c("date"="date","joined_series_id"="series_id") ) %>% 
+  dplyr::mutate(new_date=date+days(time_diff)) %>% 
+  inner_join( df_yieldcurve , by = c("joined_series_id"="series_id","new_date"="date") ) %>% 
+  dplyr::select( date, series_id , joined_series_id, date , value.x, value.y) %>% 
+  spread(joined_series_id,value.y) %>% 
+  dplyr::select(-date,-series_id) 
+  # setNames(.,c("date",series1,series2,paste0(series2,"_diff"))) %>% 
+lm_ = lm(data= df_lm , value.x ~ PCE + DFF + DGS10 +  M2SL + UNRATE + CSUSHPINSA + DCOILWTICO + DFF + DGS30 + DGS20 + DTWEXBGS + T10Y2Y)
+lm_aic = MASS::stepAIC(object = lm_,verbose=FALSE) 
+summary(lm_aic)
+
+```
+
+```{r eval=F}
+
+# Current
+predict(lm_aic,
+        data.frame(MSPUS=450000,
+                   PCE=17000,
+                   DFF=5,
+                   DGS10=3.76,
+                   CSUSHPINSA=298,
+                   M2SL=21000,
+                   UNRATE=4,
+                   DGS20=4.05,
+                   DTWEXBGS=123,
+                   DGS30=4,
+                   T10Y2Y=-0.75
+  ),interval="prediction")
+
+# Future
+predict(lm_aic,
+        data.frame(MSPUS=400000,
+                   PCE=17000,
+                   DGS10=4.25,
+                   M2SL=19000,
+                   CSUSHPINSA=230,
+                   DGS20=4.05,
+                   DFF=5,
+                   UNRATE=7,
+                   DGS30=4,
+                   DTWEXBGS=123,
+                   T10Y2Y=-0.75
+  ),interval="prediction")
+```
+
