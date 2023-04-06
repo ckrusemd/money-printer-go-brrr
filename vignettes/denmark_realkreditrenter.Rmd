@@ -1,0 +1,490 @@
+---
+title: "Denmark: Realkreditrenter"
+author: "Christian Kruse"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+<style type="text/css">
+.main-container {
+  max-width: 100% !important;
+  margin: auto;
+}
+</style>
+
+```{r  chunka1, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
+```
+
+# Denmark: Realkreditrenter
+
+```{r}
+rds_files = list.files(path = "Data",pattern = ".csv",full.names = T)
+rds_files = rds_files[which(!rds_files %like% "nasdaq")]
+
+df_rds_yields = rbindlist(lapply(rds_files,function(x) {
+  read.csv(file = x,sep = ";",header = TRUE,skip = 1) %>% 
+    dplyr::mutate(RDS=x,.before="Date")
+})) %>% 
+  dplyr::mutate(Date=ymd(Date)) %>% 
+  dplyr::mutate(RDS_Yield=as.numeric(substr(RDS,6,7))/100,.after="RDS") %>% 
+  dplyr::mutate(RDS=gsub("Data/|.csv","",RDS))
+```
+
+
+```{r }
+df_rds_yields %>% 
+  ggplot(.,aes(x=Date,y=Highprice,color=RDS)) +
+  geom_line() +
+  theme_money_printer_go_brrr(base_size = 12) +
+  geom_hline(yintercept = 100,linetype=2) +
+  geom_dl(aes(label = RDS), method = list(dl.combine("last.points")), cex = 0.8)   +
+  geom_vline(xintercept = Sys.Date(),linetype=2)
+```
+
+
+```{r}
+df_rds_yields %>% 
+  filter(Date>=Sys.Date()-months(6)) %>% 
+  ggplot(.,aes(x=Date,y=Highprice,color=RDS)) +
+  geom_line() +
+  theme_money_printer_go_brrr(base_size = 12) +
+  geom_hline(yintercept = 100,linetype=2) +
+  geom_dl(aes(label = RDS), method = list(dl.combine("last.points")), cex = 0.8)  +
+  geom_vline(xintercept = Sys.Date(),linetype=2)
+```
+
+# Current yield
+
+```{r}
+df_rds_yields %>% 
+  group_by(RDS) %>% 
+  filter(Date==max(Date)) %>% 
+  ungroup() %>% 
+  dplyr::mutate(Yield=Yield/100,
+                RDS_Yield=RDS_Yield/10) %>% 
+  ggplot(.,aes(x=RDS_Yield,y=Yield,color=RDS)) +
+  geom_point() +
+  scale_y_continuous(labels = scales::percent,limits=c(0,NA)) +
+  scale_x_continuous(labels = scales::percent,limits=c(0,NA))  +
+  geom_abline(intercept = 0,slope = 1)
+```
+
+## Maximum Yield
+
+```{r}
+df_rds_yields %>% 
+  filter(Closingprice<100) %>% 
+  group_by(Date) %>% 
+  filter(Yield==max(Yield)) %>% 
+  ggplot(.,aes(x=Date,y=Yield,color=RDS)) +
+  geom_line() +
+  theme_money_printer_go_brrr(base_size = 12) +
+  geom_vline(xintercept = Sys.Date())
+  # geom_hline(yintercept = 100,linetype=2) +
+  # geom_dl(aes(label = RDS), method = list(dl.combine("last.points")), cex = 0.8)  +
+  # geom_vline(xintercept = Sys.Date(),linetype=2)
+```
+
+```{r}
+df_rds_yields %>% 
+  filter(Closingprice<100) %>% 
+  filter(Date>=Sys.Date()-months(1)) %>% 
+  group_by(Date) %>% 
+  filter(Yield==max(Yield)) %>% 
+  ggplot(.,aes(x=Date,y=Yield,color=RDS)) +
+  geom_line() +
+  theme_money_printer_go_brrr(base_size = 12) +
+  geom_vline(xintercept = Sys.Date()) +
+  scale_x_date(date_breaks = "1 day",date_labels = "%a %d %b")
+  # geom_hline(yintercept = 100,linetype=2) +
+  # geom_dl(aes(label = RDS), method = list(dl.combine("last.points")), cex = 0.8)  +
+  # geom_vline(xintercept = Sys.Date(),linetype=2)
+```
+
+```{r}
+# 10RDSD23S50
+
+fit_lm_predict = function(data) {
+  dataframe_ = data.frame(Date=seq.Date(min(data$Date),min(data$Date)+months(6),by="1 day"))
+  dataframe_$Day = seq(nrow(dataframe_))
+  dataframe_ = dataframe_ %>% left_join(data)
+  
+  nls_dataframe_ = dataframe_ %>% dplyr::select(Day,Highprice) %>% na.omit()
+  
+  y = nls_dataframe_$Highprice
+  x = nls_dataframe_$Day
+  lm_ = lm(y~x,data=data)
+  # lm_ = lm(log(y)~x,data=data)
+  # lm_ = drm(y ~ x, fct = AR.3())
+  # nls(y ~ C*(1-exp(k*x)),data=nls_dataframe_, 
+  #          algorithm="port",
+  #          start=c(C=10,k=-1),lower=c(C=0,k=-Inf), upper=c(C=Inf,k=0))
+  x = dataframe_$Day
+  # dataframe_$Predicted = exp(predict(lm_,data.frame(Day=x)))
+  dataframe_$Predicted = predict(lm_,data.frame(Day=x))
+  return( dataframe_ %>% dplyr::mutate(RDS=unique(data$RDS)))
+}
+```
+
+
+```{r}
+df_rds_yields %>% 
+  filter(Date>=ymd("2022-09-28")) %>% 
+  group_by(RDS) %>% 
+  do(fit_lm_predict(.)) %>% 
+  ggplot(.,aes(x=Date,y=Highprice,color=RDS)) +
+  geom_line() +
+  geom_line(aes(x=Date,y=Predicted)) +
+  geom_vline(xintercept = Sys.Date()+months(c(3,6)),linetype=2) +
+  geom_hline(yintercept = 100,linetype=2) +
+  theme_money_printer_go_brrr(base_size = 12) +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  scale_y_continuous(limits=c(NA,102),breaks = seq(70,100,by=2.5)) +
+  geom_vline(xintercept = Sys.Date()) +
+  geom_vline(xintercept = ymd("2022-09-21")) +
+  geom_dl(aes(label = RDS), method = list(dl.combine("last.points")), cex = 0.8) 
+
+```
+
+
+```{r}
+
+
+df_rds_yields %>% 
+  filter(Date>=ymd("2022-09-28")) %>% 
+  group_by(RDS) %>% 
+  do(fit_lm_predict(.)) %>% 
+  filter(Predicted>=95) %>% 
+  group_by(RDS) %>% 
+  filter(Date==min(Date)) %>% 
+  dplyr::mutate(Day=Date-Sys.Date()) %>% 
+  ggplot(.,aes(x=RDS,y=Day))+
+  geom_col() +
+  geom_text(aes(label=format.Date(Date,"%b %d")),vjust=-1) +
+  theme_money_printer_go_brrr(base_size = 12) +
+  scale_y_continuous(expand=expansion(mult = 0,add = c(0,25)),breaks=seq(0,200,by=30))
+
+```
+
+```{r}
+
+
+df_rds_yields %>% 
+  filter(Date>=ymd("2022-09-28")) %>% 
+  group_by(RDS) %>% 
+  do(fit_lm_predict(.)) %>% 
+  filter(Predicted>=100) %>% 
+  group_by(RDS) %>% 
+  filter(Date==min(Date)) %>% 
+  dplyr::mutate(Day=Date-Sys.Date()) %>% 
+  ggplot(.,aes(x=RDS,y=Day))+
+  geom_col() +
+  geom_text(aes(label=format.Date(Date,"%b %d")),vjust=-1) +
+  theme_money_printer_go_brrr(base_size = 12) +
+  scale_y_continuous(expand=expansion(mult = 0,add = c(0,25)),breaks=seq(0,200,by=30))
+
+```
+
+
+
+```{r}
+df_rds_yields %>% 
+  filter(Date>=Sys.Date()-months(1)) %>% 
+  ggplot(.,aes(x=Date,y=Duration,color=RDS)) +
+  geom_line() +
+  theme_money_printer_go_brrr(base_size = 12)  +
+  theme(legend.position="null") +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_dl(aes(label = RDS), method = list(dl.combine("last.points")), cex = 0.8) 
+```
+
+
+# Sep 28 Difference
+
+```{r}
+# 10RDSD23S50
+
+fit_lm_log_predict = function(data) {
+  message(data$RDS[1])
+  dataframe_ = data.frame(Date=seq.Date(min(data$Date),min(data$Date)+months(6),by="1 day"))
+  dataframe_$Day = seq(nrow(dataframe_))
+  dataframe_ = dataframe_ %>% left_join(data)
+  
+  nls_dataframe_ = dataframe_ %>% dplyr::select(Day,Highprice) %>% na.omit()
+  
+  y = nls_dataframe_$Highprice
+  x = nls_dataframe_$Day
+  lm_ = lm(y~log(x),data=data)
+  # lm_ = lm(log(y)~x,data=data)
+  # lm_ = drm(y ~ x, fct = AR.3())
+  # nls(y ~ C*(1-exp(k*x)),data=nls_dataframe_, 
+  #          algorithm="port",
+  #          start=c(C=10,k=-1),lower=c(C=0,k=-Inf), upper=c(C=Inf,k=0))
+  x = dataframe_$Day
+  # dataframe_$Predicted = exp(predict(lm_,data.frame(Day=x)))
+  dataframe_$Predicted = predict(lm_,data.frame(Day=x))
+  return( dataframe_ %>% dplyr::mutate(RDS=unique(data$RDS)))
+}
+```
+
+```{r}
+df_rds_yields %>% 
+  group_by(RDS) %>% 
+  filter(min(Date)<=ymd("2021-09-27")) %>% 
+  ungroup() %>% 
+  filter( Date >=ymd("2021-09-27")) %>% 
+  group_by(RDS) %>% 
+  arrange(RDS,Date) %>% 
+  dplyr::mutate(First_Yield=first(Highprice)) %>% 
+  dplyr::mutate(Spread=Highprice-First_Yield) %>% 
+  ggplot(.,aes(x=Date,y=Spread,color=RDS)) +
+  geom_line() +
+  theme_money_printer_go_brrr(base_size = 12) + 
+  theme(legend.position="bottom") +
+  geom_hline(yintercept = 0,linetype=2) +
+  scale_x_date(breaks = "1 month",date_labels = "%b") +
+  geom_vline(xintercept = Sys.Date(),linetype=2) 
+```
+
+
+```{r}
+fit_inverse_lm_log_predict = function(data) {
+  message(data$RDS[1])
+  dataframe_ = data.frame(Date=seq.Date(min(data$Date),ymd(min(data$Date))+lubridate::weeks(26),by="1 day"))
+  dataframe_$Day = seq(nrow(dataframe_))
+  dataframe_ = dataframe_ %>% left_join(data)
+  
+  nls_dataframe_ = dataframe_ %>% dplyr::select(Day,Highprice) %>% na.omit() 
+  
+  y = nls_dataframe_$Highprice
+  x = nls_dataframe_$Day
+  # lm_ = lm(y~log(x),data=data)
+  lm_ = lm(y~x,data=data)
+  # lm_ = lm(log(y)~x,data=data)
+  # lm_ = drm(y ~ x, fct = AR.3())
+  # nls(y ~ C*(1-exp(k*x)),data=nls_dataframe_, 
+  #          algorithm="port",
+  #          start=c(C=10,k=-1),lower=c(C=0,k=-Inf), upper=c(C=Inf,k=0))
+  x = dataframe_$Day
+  # dataframe_$Predicted = exp(predict(lm_,data.frame(Day=x)))
+  dataframe_$Predicted = predict(lm_,data.frame(Day=x))
+  return( dataframe_ %>% dplyr::mutate(RDS=unique(data$RDS)))
+}
+```
+
+
+```{r}
+
+df_rds_yields %>%
+  # filter(RDS=="50RDSD23S53") %>% 
+  group_by(RDS) %>% 
+  filter( min(Date) < ymd("2022-08-01")) %>% 
+  filter( Date >=ymd("2022-08-01")) %>% 
+  arrange(RDS,Date) %>% 
+  filter(!is.na(Highprice)) %>% 
+  group_by(RDS) %>% 
+  # filter(RDS=="40RD27SSA53")
+  do(fit_inverse_lm_log_predict(.)) %>% 
+  ggplot(.,aes(x=Date,y=Highprice,color=RDS)) +
+  geom_line() +
+  geom_line(aes(x=Date,y=Predicted)) +
+  geom_vline(xintercept = Sys.Date()+months(c(3,6)),linetype=2) +
+  # geom_hline(yintercept = 100,linetype=2) +
+  theme_money_printer_go_brrr(base_size = 12) +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b",limits=c(ymd("2022-08-01"),ymd("2022-09-22"))) +
+  scale_y_continuous(limits=c(60,100),breaks = seq(-25,100,by=2)) +
+  geom_vline(xintercept = Sys.Date()) +
+  geom_vline(xintercept = ymd("2022-09-21"))
+```
+
+```{r}
+
+df_rds_yields %>% 
+  group_by(RDS) %>% 
+  filter(min(Date)<=ymd("2021-09-27")) %>% 
+  ungroup() %>% 
+  filter( Date >=ymd("2022-08-01")) %>% 
+  group_by(RDS) %>% 
+  arrange(RDS,Date) %>% 
+  filter(!is.na(Highprice)) %>% 
+  dplyr::mutate(First_Yield=first(Highprice)) %>% 
+  group_by(RDS) %>% 
+  arrange(RDS,Date) %>% 
+  dplyr::mutate(First_Yield=first(Highprice)) %>% 
+  dplyr::mutate(Highprice=Highprice-First_Yield) %>% 
+  group_by(RDS) %>% 
+  filter(Date>=ymd("2022-06-16")) %>% 
+  do(fit_lm_log_predict(.)) %>% 
+  ggplot(.,aes(x=Date,y=Highprice,color=RDS)) +
+  geom_line() +
+  geom_line(aes(x=Date,y=Predicted)) +
+  geom_vline(xintercept = Sys.Date()+months(c(3,6)),linetype=2) +
+  # geom_hline(yintercept = 100,linetype=2) +
+  theme_money_printer_go_brrr(base_size = 12) +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  scale_y_continuous(limits=c(NA,0),breaks = seq(-25,0,by=1)) +
+  geom_vline(xintercept = Sys.Date()) +
+  geom_vline(xintercept = ymd("2022-09-21"))
+```
+
+
+```{r}
+
+hyper_grid <- expand.grid(
+  degree = seq(1,12,by=3), 
+  nprune = seq(1, 101, length.out = 50) %>% floor()
+  )
+
+df_mars = df_rds_yields %>% 
+  group_by(RDS) %>% 
+  filter(min(Date)<=ymd("2021-09-27")) %>% 
+  ungroup() %>% 
+  filter( Date >=ymd("2021-09-27")) %>% 
+  group_by(RDS) %>% 
+  arrange(RDS,Date) %>% 
+  dplyr::mutate(First_Yield=first(Highprice)) %>% 
+  dplyr::mutate(Spread=Highprice-First_Yield) %>% 
+  filter(!is.na(Spread)) %>% 
+  as.data.frame()
+
+tr_control = trainControl(method = "repeatedcv",number=5,repeats=5)
+fit_mars = caret::train(x = df_mars %>% dplyr::select(Date),
+                        y=df_mars$Spread,method="earth",
+                        tuneGrid=hyper_grid,
+                        metric="RMSE",
+                        trControl=tr_control)
+df_mars = df_mars %>% dplyr::mutate(pred=predict(fit_mars,.))
+break_dates = tail(unique(as.Date(summary(fit_mars$finalModel)$cuts[,1], origin = "1970-01-01")),-1)
+ggplot(df_mars,aes(x=Date,y=pred)) +
+  geom_line() +
+  geom_vline(xintercept = break_dates) + 
+  # annotate(geom = "label",x=break_dates,y = 10000,label=format(break_dates,"%Y %b"),size=2) +
+  geom_point(aes(y=Spread),alpha=0.2) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") 
+
+
+
+```
+
+## Log Fit
+
+
+```{r}
+df_rds_yields %>% 
+  filter(Date>=ymd("2022-06-16")) %>% 
+  group_by(RDS) %>% 
+  do(fit_lm_log_predict(.)) %>% 
+  ggplot(.,aes(x=Date,y=Highprice,color=RDS)) +
+  geom_line() +
+  geom_line(aes(x=Date,y=Predicted)) +
+  geom_vline(xintercept = Sys.Date()+months(c(3,6)),linetype=2) +
+  geom_hline(yintercept = 100,linetype=2) +
+  theme_money_printer_go_brrr(base_size = 12) +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  scale_y_continuous(limits=c(NA,102),breaks = seq(70,100,by=2.5)) +
+  geom_vline(xintercept = Sys.Date()) +
+  geom_vline(xintercept = ymd("2022-09-21"))
+
+```
+
+
+
+```{r}
+
+
+df_rds_yields %>% 
+  filter(Date>=ymd("2022-06-16")) %>% 
+  group_by(RDS) %>% 
+  do(fit_lm_log_predict(.)) %>% 
+  filter(Predicted>=95) %>% 
+  group_by(RDS) %>% 
+  filter(Date==min(Date)) %>% 
+  dplyr::mutate(Day=Date-Sys.Date()) %>% 
+  ggplot(.,aes(x=RDS,y=Day))+
+  geom_col() +
+  geom_text(aes(label=format.Date(Date,"%b %d")),vjust=-1) +
+  theme_money_printer_go_brrr(base_size = 12) +
+  scale_y_continuous(expand=expansion(mult = 0,add = c(0,25)),breaks=seq(0,200,by=30))
+
+```
+
+# Yield to Hovedstol
+
+```{r}
+
+df_rds_yields %>% 
+  group_by(RDS) %>% 
+  filter(Date==max(Date)) %>% 
+  dplyr::select(RDS,Date,Highprice,Yield) %>% 
+  dplyr::mutate(Hovedstol=1/(Highprice/100)) %>% 
+  ggplot(.,aes(x=Yield,y=Hovedstol,color=RDS)) +
+  geom_point() +
+  geom_text_repel(aes(label=RDS))
+
+```
+
+
+
+```{r}
+
+df_rds_yields %>% 
+  group_by(RDS) %>% 
+  filter(!is.na(Highprice)) %>% 
+  filter(Date==max(Date)) %>% 
+  dplyr::select(RDS,Date,Highprice,Yield) %>% 
+  dplyr::mutate(Duration=ifelse(RDS %in% c("00RDSD20S33","Minus05RDS20S33"),10,30)) %>% 
+  dplyr::mutate(Hovedstol=(1000000/(Highprice/100))) %>% 
+  dplyr::mutate(RenteFirstYear=Hovedstol*(Yield/100)) %>% 
+  dplyr::mutate(AfdragFirstYear=Hovedstol/Duration) %>% 
+  dplyr::mutate(PaymentFirstYear=RenteFirstYear+AfdragFirstYear) %>% 
+  arrange(PaymentFirstYear) %>% 
+  dplyr::mutate(RDS=factor(RDS,levels=.$RDS)) %>% 
+  gather(Type,Value,RenteFirstYear:PaymentFirstYear) %>% 
+  ggplot(.,aes(x=RDS,y=Value,fill=Type)) +
+  geom_bar(stat="identity", width=.5, position = "dodge") +
+  labs(title="First year Payment") +
+  theme_money_printer_go_brrr(base_size = 12) +
+  scale_y_continuous(breaks = seq(0,200000,by=25000))
+
+```
+
+
+```{r}
+
+df_rds_yields %>% 
+  group_by(RDS) %>% 
+  filter(!is.na(Highprice)) %>% 
+  filter(Date==max(Date)) %>% 
+  dplyr::select(RDS,Date,Highprice,Yield) %>% 
+  dplyr::mutate(Duration=ifelse(RDS %in% c("00RDSD20S33","Minus05RDS20S33"),10,30)) %>% 
+  dplyr::mutate(Hovedstol=(1000000/(Highprice/100))) %>% 
+  dplyr::mutate(RenteLifetime=Hovedstol*(Yield/100)*Duration) %>% 
+  dplyr::mutate(AfdragLifetime=Hovedstol) %>% 
+  dplyr::mutate(PaymentLifetime=RenteLifetime+AfdragLifetime) %>% 
+  arrange(PaymentLifetime) %>% 
+  dplyr::mutate(RDS=factor(RDS,levels=.$RDS)) %>% 
+  gather(Type,Value,RenteLifetime:PaymentLifetime) %>% 
+  ggplot(.,aes(x=RDS,y=Value,fill=Type)) +
+  geom_bar(stat="identity", width=.5, position = "dodge") +
+  labs(title="Lifetime Payment") +
+  theme_money_printer_go_brrr(base_size = 12) #+
+  # scale_y_continuous(breaks = seq(0,200000,by=25000))
+
+```
+
+
+## Varighed & Yield
+
+```{r}
+
+df_rds_yields %>% 
+  filter(!is.na(Highprice)) %>% 
+  group_by(RDS) %>% 
+  filter(Date==max(Date)) %>% 
+  ggplot(.,aes(x=Yield,y=Duration,color=RDS)) +
+  geom_point() +
+  theme_money_printer_go_brrr(base_size=12) +
+  geom_text_repel(aes(label=RDS),size=3)
+
+```
