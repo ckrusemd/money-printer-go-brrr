@@ -436,7 +436,7 @@ df_yield_checkboard %>%
 ## Fed Funds Rate and Wilson
 
 ```{r}
-df_DFF = 
+df_dff = 
   df_yieldcurve %>% 
   filter(series_id=="DFF") %>% 
   dplyr::select(date,value)
