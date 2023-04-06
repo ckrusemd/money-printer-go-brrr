@@ -3,8 +3,8 @@
 #rmd_files: ["index.Rmd"]
 delete_merged_file: true
 
-rmd_subdirs: ["Chapters/01_Indicators",
+rmd_subdir: ["Chapters/01_Indicators",
 #"Chapters/02_Housing",
 #"Chapters/03_InterestRates"
 ]
-rmd_files: ["*.Rmd"]
+#rmd_files: ["*.Rmd"]
