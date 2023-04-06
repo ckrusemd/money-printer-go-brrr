@@ -29,6 +29,8 @@ pacman::p_load(fredr,
                dkstat,
                data.table,
                pROC,
+               igraph,
+               visNetwork,
                rPref,
                progress,
                quantmod,
@@ -68,26 +70,6 @@ df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
       return( temp_df )
 }))
 
-```
-
-### Historically cheap
-
-```{r}
-df_etf_yahoo %>% 
-  group_by(series_id) %>% 
-  filter(date>=Sys.Date()-years(5)) %>% 
-  dplyr::mutate(p_norm=pnorm(q = value,mean = mean(value),sd = sd(value))) %>% 
-  filter(date==max(date)) %>% 
-  ungroup() %>% 
-  arrange(p_norm) %>% 
-  dplyr::mutate(p_norm_label=scales::percent(p_norm,accuracy = 0.1)) %>% 
-  dplyr::select(series_id,p_norm_label) %>% 
-  inner_join(df_etfs,by=c("series_id"="Ticker")) %>% 
-  dplyr::select(series_id,p_norm_label,Name,Category,Subcategory,Yahoo.Finance.Link,Description) %>% 
-  datatable() # %>% 
-  # ggplot(.,aes(x=Name,y=p_norm)) +
-  # geom_col() +
-  # facet_wrap(~Category)
 ```
 
 ## Data
@@ -184,39 +166,36 @@ df_interest = df_interest %>%
 ### FRED
 
 ```{r}
-series_ids = unique(c("CBBTCUSD",
-               "NASDAQCOM",
-               "T10Y2Y",
+series_ids = unique(c(# "T10Y2Y",
                "T5YIFR",
                "BAA10Y",
-               "T10Y3M",
+               # "T10Y3M",
                "CPIAUCSL",
-               "DCOILWTICO",
                "DFF",
                "ACTLISCOUUS",
                "MORTGAGE30US",
                "COMPUTSA",
-               "RRVRUSQ156N",
+               # "RRVRUSQ156N",
                "UMCSENT",
-               "BAMLH0A0HYM2",
-               "RHORUSQ156N",
+               # "BAMLH0A0HYM2",
+               # "RHORUSQ156N",
                "T10YIE",
                "HOUST1F",
-               "BAMLH0A0HYM2",
+               # "BAMLH0A0HYM2",
                "COMPU1USA",
                "M2V",
-               "BAMLC0A4CBBB",
+               # "BAMLC0A4CBBB",
                "PCEPI",
                "AUTHNOTT",
                "PSAVERT",
-               "RRPONTSYD",
+               # "RRPONTSYD",
                "PERMIT",
                "M1SL",
                "PERMIT1",
-               "T10Y3M",
+               # "T10Y3M",
                "INDPRO",
-               "BAMLC0A4CBBB",
-               "NFCI",
+               # "BAMLC0A4CBBB",
+               # "NFCI",
                "CORESTICKM159SFRBATL",
                "PAYEMS",
                "CIVPART",
@@ -234,9 +213,9 @@ series_ids = unique(c("CBBTCUSD",
                "DGS1",
                "CSUSHPINSA",
                "GDP",
-               "GDPC1",
-               "DFII10",
-               "TDSP",
+               # "GDPC1",
+               # "DFII10",
+               # "TDSP",
                "WALCL",
                "MSPUS"))
 
@@ -254,14 +233,10 @@ df_macro_fred = rbindlist(lapply(series_ids,function(series_id) {
 
 ```{r}
 
-series_ids_yahoo = unique(c("AAPL",
-                            "JNJ",
-                            "MSFT",
-                            "GC=F",
+series_ids_yahoo = unique(c("GC=F",
                             "SI=F",
                             "DX-Y.NYB",
-                            # "BTC-USD",
-                            # "ETH-USD",
+                            "BTC-USD",
                             "PA=F",
                             "^IXIC",
                             "^GSPC",
@@ -312,15 +287,19 @@ gc()
 
 ```{r}
 df_combinations = expand.grid(x1=all_ids,
-                              x2=all_ids) %>% 
+                              x2=all_ids) %>%
   filter(!x1==x2)
+
+# df_combinations = data.frame(t(combn(all_ids,2))) %>% 
+  # dplyr::rename(x1=X1,
+  #               x2=X2)
 ```
 
 ## Cross correlations
 
 ```{r}
-
-df_combinations_split = split(df_combinations,df_combinations$x1)
+# df_combinations_split = split(df_combinations,df_combinations$x1)
+df_combinations_split = split(df_combinations, (seq(nrow(df_combinations))) %/% 2000) 
 ```
 
 
@@ -356,10 +335,32 @@ df_ccfs = do.call("rbind",lapply(df_combinations_split,function(split_) { split_
 }))
 ```
 
+```{r}
+df_best_corr = df_ccfs %>% 
+  ungroup() %>% 
+  dplyr::select(x1,x2,best_corr_time_30,best_corr_time_365,best_corr_time_1825) %>% 
+  gather(corr_time,corr_value, best_corr_time_30, best_corr_time_365, best_corr_time_1825 ) %>% 
+  arrange(x1,x2) %>% 
+  group_by(x1,x2) %>% 
+  filter(abs(corr_value)==max(abs(corr_value))) %>% 
+  dplyr::mutate(corr_time_min=as.numeric(gsub("best_corr_time_","",corr_time))) %>% 
+  group_by(x1,x2,corr_value) %>% 
+  filter(corr_time_min==min(corr_time_min)) %>% 
+  ungroup() %>% 
+  dplyr::select(x1,x2,corr_time)
+
+df_best_corr = df_ccfs %>% 
+  ungroup() %>% 
+  gather(corr_time,corr_value, best_corr_time_30, best_corr_time_365, best_corr_time_1825 )  %>% 
+  gather(corr_time_best,corr_time_value, best_corr_value_30, best_corr_value_365, best_corr_value_1825 ) %>% 
+  inner_join(df_best_corr) %>% 
+  filter(gsub("best_corr_time_","",corr_time) == gsub("best_corr_value_","",corr_time_best)) %>% 
+  dplyr::select(x1,x2,corr_value,corr_time_value)
+```
 
 ```{r}
-df_ccfs %>% 
-  ggplot(.,aes(x=best_corr_time,y=best_corr_value)) +
+df_best_corr %>% 
+  ggplot(.,aes(x=corr_value,y=corr_time_value)) +
   geom_point() +
   geom_vline(xintercept = 0,linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
@@ -369,64 +370,73 @@ df_ccfs %>%
 
 ## Descriptive
 
-### Most dominating current indicators
+### Leading
 
 ```{r}
-
-df_threshold_indicators = do.call("rbind",lapply(seq(0,1,by=0.01),function(threshold)  {
-  df_ccfs %>% 
-    filter(abs(best_corr_value)>=threshold) %>% 
-    group_by(x1) %>% 
-    dplyr::summarize(count=n()) %>% 
-    ungroup() %>% 
-    dplyr::mutate(threshold=threshold)
-}))
-
-df_threshold_indicators %>% 
-  filter(threshold>0.95) %>% 
-  arrange(desc(count))
-
-df_threshold_indicators %>% 
-  filter(threshold>0.95) %>% 
-  ggplot(.,aes(x=threshold,y=count,color=x1)) +
-  geom_line() +
-  theme(legend.position="null")
-```
-
-## Export
-
-```{r}
-
-df_etfs %>% 
-  inner_join(df_ccfs,by=c("Ticker"="x1")) %>% 
-  filter(abs(best_corr_value)>0.8) %>% 
-  filter(x2 %in% series_ids) %>% 
-  dplyr::select(Ticker,
-                Name,
-                Category,
-                Subcategory,
-                x2,
-                best_corr_value) %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
-  arrange(Ticker,desc(best_corr_value)) %>% 
+df_best_corr %>% 
+  filter(corr_time_value>0.8) %>% 
+  filter(corr_value<0-30) %>% 
+  arrange(corr_value) %>% 
+  group_by(x1) %>% 
+  dplyr::summarize(count=n(),
+                   median=scales::number(median(corr_value),accuracy=1),
+                   corr=scales::number(median(corr_time_value),accuracy=0.01)) %>% 
+  arrange(desc(count)) %>% 
   datatable()
-
-# openxlsx::write.xlsx(df_export,file = "etf_correlations.xlsx")
 ```
+
+### Coincident
+
+```{r}
+df_best_corr %>% 
+  filter(corr_time_value>0.8) %>% 
+  filter(corr_value>=-30,corr_value<=30) %>% 
+  arrange(corr_value) %>% 
+  group_by(x1) %>% 
+  dplyr::summarize(count=n(),
+                   median=scales::number(median(corr_value),accuracy=1),
+                   corr=scales::number(median(corr_time_value),accuracy=0.01)) %>% 
+  arrange(desc(count)) %>% 
+  datatable()
+```
+
+
+### Lagging
+
+```{r}
+df_best_corr %>% 
+  filter(corr_time_value>0.8) %>% 
+  filter(corr_value>30) %>% 
+  arrange(corr_value) %>% 
+  group_by(x1) %>% 
+  dplyr::summarize(count=n(),
+                   median=scales::number(median(corr_value),accuracy=1),
+                   corr=scales::number(median(corr_time_value),accuracy=0.01)) %>% 
+  arrange(desc(count)) %>% 
+  datatable()
+```
+
 
 ## Main graph
 
 ```{r}
-# Load required libraries
-library(igraph)
+normalize_strength <- function(strength, min_width, max_width) {
+  normalized_strength <- (strength - min(strength)) / (max(strength) - min(strength))
+  arrow_width <- normalized_strength * (max_width - min_width) + min_width
+  return(arrow_width)
+}
+```
+
+
+```{r}
 
 # Create a data frame representing the causal structure
-causal_structure = df_ccfs %>% 
-  filter(abs(best_corr_value)>0.9) %>% 
+causal_structure = df_best_corr %>% 
+  filter(abs(corr_time_value)>0.9) %>% 
   dplyr::rename(from=x1,
                 to=x2) %>% 
-  dplyr::mutate(sign=ifelse(best_corr_value>0,"positive","negative"),
-                strength=scales::rescale(abs(best_corr_value),to = c(0,1),from = c(0,1))) %>% 
+  dplyr::mutate(sign=ifelse(corr_time_value>0,"positive","negative"),
+                strength=scales::rescale(abs(corr_time_value),to = c(0,1),from = c(0,1))) %>% 
   dplyr::select(from,to,sign,strength)
 
 # Convert the data frame to edge_directions
@@ -441,13 +451,6 @@ edge_colors <- c("positive" = "blue", "negative" = "red")
 # Map the colors and thickness to the edges based on the 'sign' and 'strength' columns in causal_structure
 E(g)$color <- edge_colors[causal_structure$sign]
 
-# Normalize the strength values and map them to edge.width
-normalize_strength <- function(strength, min_width, max_width) {
-  normalized_strength <- (strength - min(strength)) / (max(strength) - min(strength))
-  arrow_width <- normalized_strength * (max_width - min_width) + min_width
-  return(arrow_width)
-}
-
 normalized_strength <- normalize_strength(causal_structure$strength, min_width = 0.5, max_width = 2)
 E(g)$width <- normalized_strength
 
@@ -456,27 +459,38 @@ plot(g, vertex.label.family = "sans", vertex.label.font = 2, vertex.label.cex = 
 
 ```
 
-```{r}
-# Load required libraries
-library(visNetwork)
-library(dplyr)
+## Individual patterns
 
+### DK Long Interest Rate
+
+```{r}
+df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("Lang.rente")) %>% 
+  filter(abs(corr_time_value) > 0.85) %>% 
+  dplyr::mutate(corr_time_value=scales::number(corr_time_value,0.01)) %>% 
+  arrange(desc(corr_time_value)) %>% 
+  datatable()
+```
+
+
+```{r}
 corr_extra = data.frame(x1=all_ids,
                         x2=all_ids,
-                        best_corr_value=1)
+                        corr_time_value=1)
 
-filtered_cor_df <- df_ccfs %>%
+filtered_cor_df <- df_best_corr %>%
   ungroup() %>% 
-  filter(x1 %in% c("Lang.rente","Kort.rente")) %>% 
-  filter(abs(best_corr_value) > 0.7)
+  filter(x1 %in% c("Lang.rente","CIVPART","DGS20","M2SL","PCEPI","TLT")) %>% 
+  filter(abs(corr_time_value) > 0.85)
 
 # Create a nodes data frame
 nodes <- data.frame(id = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)), label = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)))
 
 # Create an edges data frame
 edges <- filtered_cor_df %>%
-  mutate(color = if_else(best_corr_value > 0, "green", "red"),
-         width = scales::rescale(abs(best_corr_value),to=c(0,30))) %>%
+  mutate(color = if_else(corr_time_value > 0, "green", "red"),
+         width = scales::rescale(abs(corr_time_value),to=c(0,30))) %>%
   dplyr::select(from = x1, to = x2, color, width)
 
 # Create a visNetwork graph
@@ -488,39 +502,207 @@ visNetwork(nodes, edges) %>%
 ```
 
 
-# Bitcoin
+
+### DK Houseprices
 
 ```{r}
-
-df_ccfs %>% 
-  filter(x1=="CBBTCUSD") %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
-  datatable()
-
-```
-
-# Short housing
-
-```{r}
-df_ccfs %>% 
-  filter(x1=="CSUSHPINSA") %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
+df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("Enfamiliehuse_Indeks")) %>% 
+  filter(abs(corr_time_value) > 0.85) %>% 
+  dplyr::mutate(corr_time_value=scales::number(corr_time_value,0.01)) %>% 
+  arrange(desc(corr_time_value)) %>% 
   datatable()
 ```
 
-# Short DFF
 
 ```{r}
-df_ccfs %>% 
-  filter(x1=="DFF") %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
+corr_extra = data.frame(x1=all_ids,
+                        x2=all_ids,
+                        corr_time_value=1)
+
+filtered_cor_df <- df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("Enfamiliehuse_Indeks","PCEPI","CSUSHPINSA","M2SL","PCEPI","TLT","AUTHNOTT","Byggeri under opførelse","CurveLongShort","Lang.Rente")) %>% 
+  filter(abs(corr_time_value) > 0.85)
+
+# Create a nodes data frame
+nodes <- data.frame(id = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)), label = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)))
+
+# Create an edges data frame
+edges <- filtered_cor_df %>%
+  mutate(color = if_else(corr_time_value > 0, "green", "red"),
+         width = scales::rescale(abs(corr_time_value),to=c(0,30))) %>%
+  dplyr::select(from = x1, to = x2, color, width)
+
+# Create a visNetwork graph
+visNetwork(nodes, edges) %>%
+  visIgraphLayout() %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visInteraction(navigationButtons = TRUE)
+
+```
+
+
+### Employment
+
+```{r}
+df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("PAYEMS")) %>% 
+  filter(abs(corr_time_value) > 0.85) %>% 
+  dplyr::mutate(corr_time_value=scales::number(corr_time_value,0.01)) %>% 
+  arrange(desc(corr_time_value)) %>% 
   datatable()
 ```
-# Short Treasury
+
 
 ```{r}
-df_ccfs %>% 
-  filter(x1=="DGS30") %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
+corr_extra = data.frame(x1=all_ids,
+                        x2=all_ids,
+                        corr_time_value=1)
+
+filtered_cor_df <- df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("PAYEMS","INDPRO","PCEPI","CPIAUCSL","MSPUS","CSUSHPINSA")) %>% 
+  filter(abs(corr_time_value) > 0.85)
+
+# Create a nodes data frame
+nodes <- data.frame(id = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)), label = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)))
+
+# Create an edges data frame
+edges <- filtered_cor_df %>%
+  mutate(color = if_else(corr_time_value > 0, "green", "red"),
+         width = scales::rescale(abs(corr_time_value),to=c(0,30))) %>%
+  dplyr::select(from = x1, to = x2, color, width)
+
+# Create a visNetwork graph
+visNetwork(nodes, edges) %>%
+  visIgraphLayout() %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visInteraction(navigationButtons = TRUE)
+
+```
+
+
+### NASDAQ
+
+```{r}
+df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("^IXIC")) %>% 
+  filter(abs(corr_time_value) > 0.85) %>% 
+  dplyr::mutate(corr_time_value=scales::number(corr_time_value,0.01)) %>% 
+  arrange(desc(corr_time_value)) %>% 
   datatable()
+```
+
+
+```{r}
+corr_extra = data.frame(x1=all_ids,
+                        x2=all_ids,
+                        corr_time_value=1)
+
+filtered_cor_df <- df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("^IXIC","M2SL","GDP","CSUSHPINSA","MSPUS","MSPUS","M1SL","	BTC-USD")) %>% 
+  filter(abs(corr_time_value) > 0.85)
+
+# Create a nodes data frame
+nodes <- data.frame(id = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)), label = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)))
+
+# Create an edges data frame
+edges <- filtered_cor_df %>%
+  mutate(color = if_else(corr_time_value > 0, "green", "red"),
+         width = scales::rescale(abs(corr_time_value),to=c(0,30))) %>%
+  dplyr::select(from = x1, to = x2, color, width)
+
+# Create a visNetwork graph
+visNetwork(nodes, edges) %>%
+  visIgraphLayout() %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visInteraction(navigationButtons = TRUE)
+
+```
+
+### SPY
+
+```{r}
+df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("^GSPC")) %>% 
+  filter(abs(corr_time_value) > 0.85) %>% 
+  dplyr::mutate(corr_time_value=scales::number(corr_time_value,0.01)) %>% 
+  arrange(desc(corr_time_value)) %>% 
+  datatable()
+```
+
+
+```{r}
+corr_extra = data.frame(x1=all_ids,
+                        x2=all_ids,
+                        corr_time_value=1)
+
+filtered_cor_df <- df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("^GSPC","GDP","M2SL","MSPUS","PCEPI","CSUSHPINSA","CPIAUCSL","WOOD","WALCL")) %>% 
+  filter(abs(corr_time_value) > 0.85)
+
+# Create a nodes data frame
+nodes <- data.frame(id = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)), label = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)))
+
+# Create an edges data frame
+edges <- filtered_cor_df %>%
+  mutate(color = if_else(corr_time_value > 0, "green", "red"),
+         width = scales::rescale(abs(corr_time_value),to=c(0,30))) %>%
+  dplyr::select(from = x1, to = x2, color, width)
+
+# Create a visNetwork graph
+visNetwork(nodes, edges) %>%
+  visIgraphLayout() %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visInteraction(navigationButtons = TRUE)
+
+```
+
+
+
+# Case_Shiller Housing
+
+```{r}
+df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("CSUSHPINSA")) %>% 
+  filter(abs(corr_time_value) > 0.85) %>% 
+  dplyr::mutate(corr_time_value=scales::number(corr_time_value,0.01)) %>% 
+  arrange(desc(corr_time_value)) %>% 
+  datatable()
+```
+
+
+```{r}
+corr_extra = data.frame(x1=all_ids,
+                        x2=all_ids,
+                        corr_time_value=1)
+
+filtered_cor_df <- df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("CSUSHPINSA","GDP","	Enfamiliehuse_Indeks","CPIAUCSL","M2SL","PCEPI","PAYEMS","WOOD","ACTLISCOUUS")) %>% 
+  filter(abs(corr_time_value) > 0.85)
+
+# Create a nodes data frame
+nodes <- data.frame(id = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)), label = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)))
+
+# Create an edges data frame
+edges <- filtered_cor_df %>%
+  mutate(color = if_else(corr_time_value > 0, "green", "red"),
+         width = scales::rescale(abs(corr_time_value),to=c(0,30))) %>%
+  dplyr::select(from = x1, to = x2, color, width)
+
+# Create a visNetwork graph
+visNetwork(nodes, edges) %>%
+  visIgraphLayout() %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visInteraction(navigationButtons = TRUE)
+
 ```

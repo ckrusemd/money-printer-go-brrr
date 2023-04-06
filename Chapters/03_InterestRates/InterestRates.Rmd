@@ -1121,9 +1121,13 @@ df_predict_CSUSHPINSA = df_yield_checkboard %>%
 ```
 
 ```{r}
-tune_grid=data.frame(mtry=c(5))
-num_trees = 100
-fit_DFF = caret::train(x = df_predict_DFF %>% 
+
+df_combinations_split = split(expand.grid(mtry=seq(15),num_trees=c(10,100,1000)),
+                              seq(nrow(expand.grid(mtry=seq(15),
+            num_trees=c(10,100,1000))))) 
+
+df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
+  caret::train(x = df_predict_DFF %>% 
                               na.omit %>% 
                               dplyr::select(-date,-value) %>% 
                               data.frame(),
@@ -1131,11 +1135,16 @@ fit_DFF = caret::train(x = df_predict_DFF %>%
                            na.omit %>% 
                            .[["value"]],
                          method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
+                         tuneGrid=data.frame(mtry=row_$mtry),
+                         ntree=row_$num_trees,
                          metric = "RMSE",
-                         trControl=train_control)
+                         trControl=train_control)$results
+  }))
+}
+```
 
+
+```{r}
 fit_DGS2 = caret::train(x = df_predict_DGS2 %>% 
                               na.omit %>% 
                               dplyr::select(-date,-value) %>% 
