@@ -436,6 +436,15 @@ df_yield_checkboard %>%
 ## Fed Funds Rate and Wilson
 
 ```{r}
+df_DFF = 
+  df_yieldcurve %>% 
+  filter(series_id=="DFF") %>% 
+  dplyr::select(date,value)
+
+```
+
+
+```{r}
 
 fredr(series_id = "WILL5000INDFC") %>% 
   tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
