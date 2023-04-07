@@ -453,6 +453,36 @@ BYGV80 %>%
   theme_money_printer_go_brrr(base_size=16) 
 ```
 
+## Model future completed construction
+
+```{r}
+df_fit = BYGV80 %>% 
+  dplyr::select(DATE,STAT,PROPERTY_TYPE,VALUE) %>% 
+  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
+  group_by(STAT) %>% 
+  dplyr::mutate(DATE=as.Date(ifelse(STAT=="Påbegyndt byggeri",DATE+years(1),DATE))) %>% 
+  spread(STAT,VALUE) %>% 
+  na.omit() %>% 
+  dplyr::mutate(PROPERTY_TYPE=factor(PROPERTY_TYPE)) %>% 
+  data.frame()
+
+fit_tilladt_byggeri = caret::train(x = df_fit %>% dplyr::select(-DATE,-Fuldført.byggeri),
+             y = df_fit$Fuldført.byggeri,
+             method="rf")
+
+BYGV80 %>% 
+  dplyr::select(DATE,STAT,PROPERTY_TYPE,VALUE) %>% 
+  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
+  spread(STAT,VALUE) %>% 
+  dplyr::mutate(PROPERTY_TYPE=factor(PROPERTY_TYPE)) %>% 
+  data.frame() %>% 
+  dplyr::mutate(VALUE=predict(fit_tilladt_byggeri,.)) %>% 
+  dplyr::mutate(DATE=DATE+years(1)) %>% 
+  ggplot(.,aes(x=DATE,y=VALUE)) +
+  geom_line() +
+  geom_vline(xintercept = Sys.Date()) +
+  geom_line(data=df_fit,aes(x=DATE,y=Fuldført.byggeri),color="red")
+```
 
 
 
