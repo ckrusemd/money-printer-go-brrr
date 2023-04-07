@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r housing_dk,include=FALSE}
-knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE)
 options(scipen=999)
 
 ```
@@ -38,7 +38,7 @@ source(file = "money_theme.R")
 
 # Housing: Denmark
 
-```{r}
+```{r gam_adjust}
 gam_adjust = function(data) {
   
   grid <- expand.grid(span = seq(0.1, 0.5, len = 10), degree = c(1))
@@ -65,7 +65,10 @@ gam_adjust = function(data) {
     dplyr::mutate(VALUE_SUM_CHG_SCALED=scale(VALUE_SUM_CHG,center=TRUE,scale=TRUE))
   
 }
+```
 
+
+```{r dst_1}
 BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
 BYGV80 <- dst_get_data(table = "BYGV80", 
                        BYGFASE="*",
@@ -84,7 +87,10 @@ BYGV80 <- dst_get_data(table = "BYGV80",
   group_by(PROPERTY_TYPE,STAT) %>% 
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
   do(gam_adjust(.))
+```
 
+
+```{r dst_2}
 BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
 BYG1 <- dst_get_data(table = "BYG1", 
                        BRANCHE07="*",
@@ -100,7 +106,10 @@ BYG1 <- dst_get_data(table = "BYG1",
   group_by(BRANCHE07,SÆSON,ART) %>% 
   arrange(BRANCHE07,SÆSON,ART,DATE) %>% 
   do(gam_adjust(.))
+```
 
+
+```{r dst_3}
 PRIS90_meta <- dst_meta(table = "PRIS90", lang = "da")
 PRIS90 <- dst_get_data(table = "PRIS90", 
                        ENHED="*",
@@ -111,7 +120,10 @@ PRIS90 <- dst_get_data(table = "PRIS90",
   dplyr::rename(VALUE=value) %>% 
   filter(ENHED=="Indeks") %>% 
   do(gam_adjust(.))
+```
 
+
+```{r dst_4}
 BYG42_meta <- dst_meta(table = "BYG42", lang = "da")
 BYG42 <- dst_get_data(table = "BYG42", 
                        HINDEKS="*",
@@ -132,7 +144,7 @@ BYG42 <- dst_get_data(table = "BYG42",
 
 ## Construction Activity
 
-```{r fig.width=20,fig.height=20}
+```{r construc1,fig.width=20,fig.height=20}
 BYGV80 %>% 
   filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
   # filter(DATE>=Sys.Date()-years(10)) %>% 
