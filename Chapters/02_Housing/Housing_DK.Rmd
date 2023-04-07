@@ -69,8 +69,12 @@ gam_adjust = function(data) {
 ```
 
 
-```{r dst_1}
+```{r dst_1a}
 BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
+```
+
+
+```{r dst_1b}
 BYGV80 <- dst_get_data(table = "BYGV80", 
                        BYGFASE="*",
                        ANVENDELSE="*",
@@ -86,7 +90,12 @@ BYGV80 <- dst_get_data(table = "BYGV80",
   dplyr::rename(DATE=TID) %>% 
   dplyr::rename(VALUE=value) %>% 
   group_by(PROPERTY_TYPE,STAT) %>% 
-  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
+  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed'))
+```
+
+
+```{r dst_1c}
+BYGV80 = BYGV80 %>% 
   do(gam_adjust(.))
 ```
 
