@@ -65,11 +65,7 @@ gam_adjust = function(data) {
     dplyr::mutate(VALUE_SUM_CHG_SCALED=scale(VALUE_SUM_CHG,center=TRUE,scale=TRUE))
   
 }
-```
 
-# Construction (DK)
-
-```{r }
 BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
 BYGV80 <- dst_get_data(table = "BYGV80", 
                        BYGFASE="*",
@@ -134,6 +130,26 @@ BYG42 <- dst_get_data(table = "BYG42",
 
 ```
 
+## Construction Activity
+
+```{r fig.width=20,fig.height=20}
+BYGV80 %>% 
+  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
+  # filter(DATE>=Sys.Date()-years(10)) %>% 
+  ggplot(.,aes(x=DATE,y=VALUE_SMOOTH,color=STAT)) +
+  geom_line() +
+  geom_point(aes(y=VALUE,color=STAT)) +
+  # geom_point() +
+  facet_wrap(~STAT,scales="free") +
+  theme(legend.position="bottom",
+        axis.text.x=element_text(angle=45,hjust=1)) +
+  scale_y_continuous(labels = scales::number_format(big.mark=" ")) +
+  # scale_x_date(date_breaks = "6 months",date_labels = "%Y %b")  +
+  scale_x_date(date_breaks = "2 years",date_labels = "%Y %b")  +
+  # geom_vline(xintercept = seq.Date(from = dmy("01-01-2000"),to = dmy("01-01-2030"),by = "1 year"),linetype=2,alpha=0.7)  +
+  # geom_vline(xintercept = seq.Date(from = dmy("01-08-2000"),to = dmy("01-08-2030"),by = "1 year"),linetype=2,alpha=0.8) +
+  theme_money_printer_go_brrr(base_size=16) 
+```
 
 ```{r}
 BYGV80 %>% 
@@ -146,43 +162,51 @@ BYGV80 %>%
   geom_hline(yintercept = 0,linetype=2)
 ```
 
-```{r}
-df_ccf_BYGV80 = BYGV80 %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
-  dplyr::select(STAT,PROPERTY_TYPE,DATE,VALUE_SMOOTH) %>% 
-  spread(STAT,VALUE_SMOOTH)
-ccf_results = ccf(df_ccf_BYGV80$`Tilladt byggeri`,df_ccf_BYGV80$`Fuldført byggeri`,lag.max = 1000,plot = FALSE)
-  plot(ccf_results)
-  best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
-  ccf_results$lag[best_corr_index]
-  ccf_results$acf[best_corr_index]
+```{r fig.height=15,fig.width=10 }
+
+BYGV80 %>% 
+  filter(PROPERTY_TYPE == "Ejerlejlighed") %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=STAT)) +
+  geom_point() +
+  geom_line(aes(x=DATE,y=VALUE_EMA),linetype=2,color="black") +
+  scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
+  theme(legend.position = "bottom") +
+  facet_wrap(~STAT,scales = "free",ncol=1) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  theme(legend.position = "bottom") +
+  labs(title="Parcelhuse") +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
+  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
+  theme_money_printer_go_brrr(base_size=12) +
+  labs(title="Denmark: Flats Construction",
+       x=NULL,
+       y="(SD)",
+       caption = timestamp_caption())
+
 ```
 
-```{r}
+```{r fig.height=15,fig.width=10 }
 
-df_ccf_BYG1 = BYGV80 %>% 
-  filter(STAT=="Fuldført byggeri") %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
-  ungroup() %>% 
-  dplyr::select(STAT,DATE,VALUE_SMOOTH) %>% 
-  bind_rows(
-    
-    BYG1 %>% 
-      filter(BRANCHE07=="F Bygge og anlæg") %>% 
-      filter(ART=="I alt") %>% 
-      ungroup() %>% 
-      dplyr::select(ART,DATE,VALUE_SMOOTH) %>% 
-      dplyr::rename(STAT=ART)
-    
-  ) %>% 
-  spread(STAT,VALUE_SMOOTH) %>% 
-  na.omit()
-
-ccf_results = ccf(df_ccf_BYG1$`Fuldført byggeri`,df_ccf_BYG1$`I alt`,lag.max = 1000,plot = FALSE)
-  plot(ccf_results)
-  best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
-  ccf_results$lag[best_corr_index]
-  ccf_results$acf[best_corr_index]
+BYGV80 %>% 
+  filter(PROPERTY_TYPE == "Parcel-/rækkehuse") %>% 
+  ggplot(.,aes(x=DATE,y=VALUE,color=PROPERTY_TYPE)) +
+  geom_point() +
+  geom_line(aes(x=DATE,y=VALUE_EMA),linetype=2,color="black") +
+  scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
+  theme(legend.position = "bottom") +
+  facet_wrap(~STAT,scales = "free",ncol=1) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  theme(legend.position = "bottom") +
+  labs(title="Parcelhuse") +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
+  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
+  theme_money_printer_go_brrr(base_size=12) +
+  labs(title="Denmark: Houses Construction",
+       x=NULL,
+       y="(SD)",
+       caption = timestamp_caption())
 
 ```
 
@@ -195,6 +219,7 @@ BYGV80 %>%
   theme_money_printer_go_brrr(base_size=12)
 ```
 
+## Employment
 
 ```{r }
 BYG1 %>%
@@ -212,12 +237,41 @@ BYG1 %>%
 ```
 
 
+## Backlog
+
 ```{r}
 
 BYGV80 %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
-  dplyr::select(PROPERTY_TYPE,STAT,DATE,VALUE_SMOOTH) %>% 
-  spread(STAT,VALUE_SMOOTH)
+  filter(PROPERTY_TYPE %in% c("Parcel-/rækkehuse")) %>% 
+  group_by(STAT) %>% 
+  arrange(STAT,DATE)  %>% 
+  filter(STAT %in% c("Tilladt byggeri","Fuldført byggeri","Påbegyndt byggeri","Byggeri under opførelse")) %>% 
+  dplyr::mutate(VALUE=cumsum(VALUE)) %>% 
+  dplyr::select(PROPERTY_TYPE,STAT,DATE,VALUE) %>% 
+  spread(STAT,VALUE) %>% 
+  dplyr::mutate(backlogTP=`Tilladt byggeri`-`Påbegyndt byggeri`) %>% 
+  dplyr::mutate(backlogTF=`Tilladt byggeri`-`Fuldført byggeri`) %>% 
+  dplyr::mutate(backlogPF=`Påbegyndt byggeri`-`Fuldført byggeri`) %>% 
+  # dplyr::mutate(backlogTB=`Byggeri under opførelse`-`Fuldført byggeri`) %>% 
+  gather(backlog_type,backlog_value,backlogTP,backlogTF,backlogPF) %>% 
+  # dplyr::mutate(backlog=scale(backlog,center=TRUE,scale=TRUE)) %>% 
+  ggplot(.,aes(x=DATE,y=backlog_value,color=backlog_type)) +
+  geom_point(size=0.7) +
+  # geom_smooth(span=0.25) +
+  theme(legend.position = "bottom") +
+  geom_hline(yintercept = 0,linetype=2) +
+  theme_money_printer_go_brrr(base_size=12) +
+  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
+  geom_vline(xintercept = c(ymd("2007-06-01","2022-03-31")),linetype=3) +
+  labs(title="Denmark: Backlog of Construction (Permits % Completed)",
+       x=NULL,
+       y="(SD)",
+       caption = timestamp_caption()) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")
+
+```
+
+```{r}
 
 BYGV80 %>% 
   filter(PROPERTY_TYPE %in% c("Parcel-/rækkehuse")) %>% 
@@ -252,8 +306,6 @@ BYGV80 %>%
 
 ```{r}
 
-
-
 df_fp = BYGV80 %>% 
   filter(PROPERTY_TYPE %in% c("Parcel-/rækkehuse")) %>% 
   group_by(STAT) %>% 
@@ -279,14 +331,96 @@ df_fp_extrapolate = data.frame(DATE=seq(ymd("2021-02-01"),ymd("2024-01-01"),by="
   geom_point() +
   geom_hline(yintercept = 0,linetype=2)  +
   geom_vline(xintercept = ymd("2023-05-01")) +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y",limits = c(ymd("2020-01-01"),ymd("2025-01-01"))) +
-  geom_line(data=df_fp_extrapolate,aes(x=DATE,y=backlogTF))
+  geom_line(data=df_fp_extrapolate,aes(x=DATE,y=backlogTF)) +
+  theme_money_printer_go_brrr(base_size=12) 
+```
+
+
+## Rolling sums of changes
+
+```{r fig.height=15,fig.width=10 }
+
+BYGV80 %>% 
+  group_by(STAT,PROPERTY_TYPE) %>%
+  dplyr::mutate(chg=VALUE-lag(VALUE)) %>% 
+  na.omit() %>% 
+  dplyr::mutate(chg=cumsum(chg)) %>% 
+  dplyr::mutate(ema=TTR::EMA(chg,n=9)) %>% 
+  ungroup() %>% 
+  arrange(STAT,PROPERTY_TYPE,DATE) %>% 
+  filter(DATE>=ymd("2000-01-01")) %>% 
+  ggplot(.,aes(x=DATE,y=ema,color=PROPERTY_TYPE)) +
+  geom_line() +
+  facet_wrap(~STAT,scales = "free",ncol=1) +
+  geom_hline(yintercept = 0) +
+  theme_money_printer_go_brrr(base_size=12) +
+  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
+  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
+  labs(title="Rolling Sum of Changes",
+       x=NULL,
+       y=NULL,
+       caption = timestamp_caption())
+
+
+```
+
+
+## Leading/Lagging
+
+```{r}
+df_ccf_BYGV80 = BYGV80 %>% 
+  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
+  dplyr::select(STAT,PROPERTY_TYPE,DATE,VALUE_SMOOTH) %>% 
+  spread(STAT,VALUE_SMOOTH)
+```
+
+
+### Tilladt -> Påbegyndt
+
+```{r}
+ccf_results = ccf(df_ccf_BYGV80$`Tilladt byggeri`,df_ccf_BYGV80$`Påbegyndt byggeri`,lag.max = 3650,plot = FALSE)
+  plot(ccf_results)
+  best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+  ccf_results$lag[best_corr_index]
+  ccf_results$acf[best_corr_index]
+```
+
+### Påbegyndt -> Under opførelse
+
+```{r}
+ccf_results = ccf(df_ccf_BYGV80$`Påbegyndt byggeri`,df_ccf_BYGV80$`Byggeri under opførelse`,lag.max = 3650,plot = FALSE)
+  plot(ccf_results)
+  best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+  ccf_results$lag[best_corr_index]
+  ccf_results$acf[best_corr_index]
+```
+
+### Under opførelse -> Fuldført Byggeri
+
+```{r}
+ccf_results = ccf(df_ccf_BYGV80$`Byggeri under opførelse`,df_ccf_BYGV80$`Fuldført byggeri`,lag.max = 3650,plot = FALSE)
+  plot(ccf_results)
+  best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+  ccf_results$lag[best_corr_index]
+  ccf_results$acf[best_corr_index]
+```
+
+### Tilladt -> Fuldført
+
+```{r}
+ccf_results = ccf(df_ccf_BYGV80$`Tilladt byggeri`,df_ccf_BYGV80$`Fuldført byggeri`,lag.max = 3650,plot = FALSE)
+  plot(ccf_results)
+  best_corr_index = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
+  ccf_results$lag[best_corr_index]
+  ccf_results$acf[best_corr_index]
 ```
 
 
 ### Recent developments
 
-```{r fig.width=20,fig.height=20}
+```{r fig.width=10,fig.height=10}
 BYGV80 %>% 
   filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
   # filter(DATE>=Sys.Date()-years(10)) %>% 
@@ -302,7 +436,7 @@ BYGV80 %>%
   scale_x_date(date_breaks = "2 years",date_labels = "%Y %b")  +
   # geom_vline(xintercept = seq.Date(from = dmy("01-01-2000"),to = dmy("01-01-2030"),by = "1 year"),linetype=2,alpha=0.7)  +
   # geom_vline(xintercept = seq.Date(from = dmy("01-08-2000"),to = dmy("01-08-2030"),by = "1 year"),linetype=2,alpha=0.8) +
-  theme_money_printer_go_brrr(base_size=16) 
+  theme_money_printer_go_brrr(base_size=12) 
 ```
 
 ```{r fig.width=15,fig.height=10}
@@ -320,188 +454,5 @@ BYGV80 %>%
 ```
 
 
-```{r fig.width=15,fig.height=10}
-BYGV80 %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
-  group_by(STAT) %>% 
-  dplyr::mutate(VALUE=lead(VALUE)-VALUE) %>% 
-  ggplot(.,aes(x=DATE,y=VALUE,color=STAT)) +
-  geom_line() +
-  geom_point() +
-  facet_wrap(~STAT,scales="free") +
-  theme(legend.position="bottom") +
-  scale_y_continuous(labels = scales::number_format(big.mark=" ")) +
-  geom_hline(yintercept = 0) +
-  theme_money_printer_go_brrr(base_size=16) 
-```
 
 
-# Byggekonjunktur
-
-```{r }
-BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
-BYGV80 <- dst_get_data(table = "BYGV80", 
-                       BYGFASE="*",
-                       ANVENDELSE="*",
-                       Tid="*",
-                       lang = "da")
-
-BYGV80 = BYGV80 %>% 
-  filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
-  dplyr::mutate(BYGFASE=factor(BYGFASE,levels=c("Tilladt byggeri","Påbegyndt byggeri","Byggeri under opførelse","Fuldført byggeri"))) %>% 
-  group_by(BYGFASE,ANVENDELSE) %>%
-  group_by(BYGFASE,ANVENDELSE) %>%
-  dplyr::mutate(value=scale(value,center=TRUE,scale=TRUE)) %>% 
-  dplyr::mutate(ema=TTR::EMA(value,n=9)) %>% 
-  ungroup() %>% 
-  arrange(BYGFASE,ANVENDELSE,TID) %>% 
-  filter(TID>=ymd("2000-01-01"))
-
-```
-
-## Flats
-
-```{r fig.height=15,fig.width=10 }
-
-BYGV80 %>% 
-  filter(ANVENDELSE == "Etageboliger") %>% 
-  ggplot(.,aes(x=TID,y=value,color=BYGFASE)) +
-  geom_point() +
-  geom_line(aes(x=TID,y=ema),linetype=2,color="black") +
-  scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
-  theme(legend.position = "bottom") +
-  facet_wrap(~BYGFASE,scales = "free",ncol=1) +
-  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
-  theme(legend.position = "bottom") +
-  labs(title="Parcelhuse") +
-  geom_hline(yintercept = 0) +
-  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
-  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
-  theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Denmark: Flats Construction",
-       x=NULL,
-       y="(SD)",
-       caption = timestamp_caption())
-
-```
-
-```{r fig.height=15,fig.width=10 }
-
-BYGV80 %>% 
-  filter(ANVENDELSE == "Parcelhuse") %>% 
-  ggplot(.,aes(x=TID,y=value,color=BYGFASE)) +
-  geom_point() +
-  geom_line(aes(x=TID,y=ema),linetype=2,color="black") +
-  scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
-  theme(legend.position = "bottom") +
-  facet_wrap(~BYGFASE,scales = "free",ncol=1) +
-  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
-  theme(legend.position = "bottom") +
-  labs(title="Parcelhuse") +
-  geom_hline(yintercept = 0) +
-  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
-  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
-  theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Denmark: Houses Construction",
-       x=NULL,
-       y="(SD)",
-       caption = timestamp_caption())
-
-```
-
-
-## Rolling sums of changes
-
-```{r fig.height=15,fig.width=10 }
-BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
-BYGV80 <- dst_get_data(table = "BYGV80", 
-                       BYGFASE="*",
-                       ANVENDELSE="*",
-                       Tid="*",
-                       lang = "da")
-
-BYGV80 = BYGV80 %>% 
-  filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
-  dplyr::mutate(BYGFASE=factor(BYGFASE,levels=c("Tilladt byggeri","Påbegyndt byggeri","Byggeri under opførelse","Fuldført byggeri"))) %>% 
-  group_by(BYGFASE,ANVENDELSE)
-
-BYGV80 %>% 
-  group_by(BYGFASE,ANVENDELSE) %>%
-  dplyr::mutate(chg=value-lag(value)) %>% 
-  na.omit() %>% 
-  dplyr::mutate(chg=cumsum(chg)) %>% 
-  dplyr::mutate(ema=TTR::EMA(chg,n=9)) %>% 
-  ungroup() %>% 
-  arrange(BYGFASE,ANVENDELSE,TID) %>% 
-  filter(TID>=ymd("2000-01-01")) %>% 
-  ggplot(.,aes(x=TID,y=ema,color=ANVENDELSE)) +
-  geom_line() +
-  facet_wrap(~BYGFASE,scales = "free",ncol=1) +
-  geom_hline(yintercept = 0) +
-  theme_money_printer_go_brrr(base_size=12) +
-  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
-  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
-  labs(title="Denmark: Rolling Sum of Changes",
-       x=NULL,
-       y=NULL,
-       caption = timestamp_caption())
-
-
-```
-
-
-## Backlog
-
-```{r}
-
-BYGV80 %>% 
-  group_by(BYGFASE,ANVENDELSE) %>% 
-  arrange(BYGFASE,ANVENDELSE,TID)  %>% 
-  filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
-  filter(BYGFASE %in% c("Tilladt byggeri","Fuldført byggeri")) %>% 
-  dplyr::mutate(value=cumsum(value)) %>% 
-  spread(BYGFASE,value) %>% 
-  dplyr::mutate(backlog=`Tilladt byggeri`-`Fuldført byggeri`) %>% 
-  # dplyr::mutate(backlog=scale(backlog,center=TRUE,scale=TRUE)) %>% 
-  ggplot(.,aes(x=TID,y=backlog,color=ANVENDELSE)) +
-  geom_point(size=0.7) +
-  # geom_smooth(span=0.25) +
-  theme(legend.position = "bottom") +
-  geom_hline(yintercept = 0,linetype=2) +
-  theme_money_printer_go_brrr(base_size=12) +
-  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
-  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
-  labs(title="Denmark: Backlog of Construction (Permits % Completed)",
-       x=NULL,
-       y="(SD)",
-       caption = timestamp_caption())
-
-```
-
-```{r}
-
-BYGV80 %>% 
-  group_by(BYGFASE,ANVENDELSE) %>% 
-  arrange(BYGFASE,ANVENDELSE,TID)  %>% 
-  filter(ANVENDELSE %in% c("Parcelhuse","Etageboliger")) %>% 
-  filter(BYGFASE %in% c("Byggeri under opførelse","Fuldført byggeri")) %>% 
-  # dplyr::mutate(value=cumsum(value)) %>% 
-  spread(BYGFASE,value) %>% 
-  dplyr::mutate(backlog=`Byggeri under opførelse`-`Fuldført byggeri`) %>% 
-  # dplyr::mutate(backlog=scale(backlog,center=TRUE,scale=TRUE)) %>% 
-  ggplot(.,aes(x=TID,y=backlog,color=ANVENDELSE)) +
-  geom_point(size=0.7) +
-  # geom_smooth(span=0.25) +
-  theme(legend.position = "bottom") +
-  labs(title="Backlog: 'Byggeri under opførelse' - 'Fuldført Byggeri'") +
-  scale_x_date(date_breaks = "2 years",date_labels = "%Y") +
-  geom_hline(yintercept = 0,linetype=2)  +
-  theme_money_printer_go_brrr(base_size=12) +
-  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
-  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
-  labs(title="Denmark: Backlog of Construction (Started % Completed)",
-       x=NULL,
-       y="(SD)",
-       caption = timestamp_caption())
-
-```
