@@ -12,7 +12,7 @@ output: html_document
 }
 </style>
 
-```{r fed_yield_curve, include=FALSE}
+```{r housing_us,include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 ```
 
@@ -71,7 +71,7 @@ df_housing_us = do.call("rbind",lapply(c("MORTGAGE30US","CSUSHPINSA","NASDAQCOM"
   }))
 
 df_CSUSHPINSA = df_housing_us %>% 
-  crossing(data.frame(peak=c("2006","2022"),
+  tidyr::crossing(data.frame(peak=c("2006","2022"),
            peak_date=c(ymd("2006-07-01",ymd("2022-06-01"))))) %>% 
   filter(date>=peak_date-years(3)) %>% 
   filter(date<=peak_date+years(5)) %>% 
@@ -86,7 +86,7 @@ df_CSUSHPINSA = df_housing_us %>%
 ```
 
 
-```{r}
+```{r fig.width=10,fig.height=10}
 df_CSUSHPINSA %>% 
   ggplot(.,aes(x=index_diffdate,y=index,color=series_id)) +
   geom_line() +
@@ -94,12 +94,13 @@ df_CSUSHPINSA %>%
   facet_wrap(~peak,ncol=1,scales="free_y") +
   # geom_text_repel(aes(label=label),nudge_x = 0, direction = "y", hjust = "left") +
   geom_text(aes(label=label),nudge_x = 0, direction = "y", hjust = "left") +
-  scale_x_continuous(expand=expansion(add=c(0,1000)))
+  scale_x_continuous(expand=expansion(add=c(0,1000))) +
+  theme_money_printer_go_brrr(base_size = 14)
   # geom_vline(aes(xintercept = peak_date))
 ```
 
 
-```{r}
+```{r fig.height=10,fig.width=10}
 df_CSUSHPINSA %>% 
   ggplot(.,aes(x=index_diffdate,y=index,color=peak)) +
   geom_line() +
@@ -109,6 +110,7 @@ df_CSUSHPINSA %>%
   geom_text(aes(label=label),nudge_x = 0, direction = "y", hjust = "left") +
   scale_x_continuous(expand=expansion(add=c(0,1000))) +
   geom_hline(yintercept = 100,linetype=2) +
-  geom_vline(xintercept = 0,linetype=2)
+  geom_vline(xintercept = 0,linetype=2) +
+  theme_money_printer_go_brrr(base_size = 14)
   # geom_vline(aes(xintercept = peak_date))
 ```
