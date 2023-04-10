@@ -39,11 +39,16 @@ source(file = "money_theme.R")
 
 # Housing: Denmark
 
+```{r}
+
+
+```
+
 ```{r gam_adjust}
 gam_adjust = function(data) {
   print("one")
   
-  grid <- expand.grid(span = seq(0.1, 0.5, len = 10), degree = c(1))
+  # grid <- expand.grid(span = seq(0.1, 0.5, len = 10), degree = c(1))
   # fit_gam = suppressWarnings(expr =  { train(y = data$VALUE, 
   #       x = data %>% dplyr::select(DATE),
   #       tuneGrid=grid,
@@ -53,7 +58,7 @@ gam_adjust = function(data) {
   fit_smooth = caret::train(y = data$VALUE, 
                             x = data %>% dplyr::select(DATE), 
                             method="gamLoess",
-                            tuneGrid=grid,
+                            # tuneGrid=grid,
                             trControl=trainControl(method = "repeatedcv",number = 5,repeats = 1))
   # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE, 
   #                           x = data %>% dplyr::select(DATE), 
