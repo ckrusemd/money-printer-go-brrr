@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r housing_dk}
-knitr::opts_chunk$set(echo = TRUE,include=TRUE)
+knitr::opts_chunk$set(echo = TRUE,include=TRUE,messsage=TRUE)
 options(scipen=999)
 
 ```
@@ -39,10 +39,14 @@ source(file = "money_theme.R")
 
 # Housing: Denmark
 
+```{r}
+message("one")
+```
 
 
 ```{r gam_adjust}
 gam_adjust = function(data) {
+  message("one")
   print("one")
   
   # grid <- expand.grid(span = seq(0.1, 0.5, len = 10), degree = c(1))
@@ -52,11 +56,11 @@ gam_adjust = function(data) {
   #       method = "gamLoess") })
   print("two")
   
-  # fit_smooth = caret::train(y = data$VALUE, 
-  #                           x = data %>% dplyr::select(DATE), 
-  #                           method="gam",
-  #                           # tuneGrid=grid,
-  #                           trControl=trainControl(method = "repeatedcv",number = 5,repeats = 1))
+  fit_smooth = caret::train(y = data$VALUE,
+                            x = data %>% dplyr::select(DATE),
+                            method="gam",
+                            # tuneGrid=grid,
+                            trControl=trainControl(method = "repeatedcv",number = 5,repeats = 1))
   # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE, 
   #                           x = data %>% dplyr::select(DATE), 
   #                           method="gamLoess",
