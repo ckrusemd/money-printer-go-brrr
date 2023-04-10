@@ -39,6 +39,8 @@ source(file = "money_theme.R")
 
 # Housing: Denmark
 
+
+
 ```{r gam_adjust}
 gam_adjust = function(data) {
   print("one")
@@ -52,7 +54,7 @@ gam_adjust = function(data) {
   
   fit_smooth = caret::train(y = data$VALUE, 
                             x = data %>% dplyr::select(DATE), 
-                            method="gamLoess",
+                            method="gam",
                             # tuneGrid=grid,
                             trControl=trainControl(method = "repeatedcv",number = 5,repeats = 1))
   # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE, 
@@ -106,6 +108,9 @@ BYGV80 <- dst_get_data(table = "BYGV80",
 print(BYGV80)
 ```
 
+```{r}
+library(gam)
+```
 
 ```{r dst_1c}
 BYGV80 = BYGV80 %>% 
