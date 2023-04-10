@@ -58,9 +58,7 @@ gam_adjust = function(data) {
   
   fit_smooth = caret::train(y = data$VALUE,
                             x = data %>% dplyr::select(DATE),
-                            method="gam",
-                            # tuneGrid=grid,
-                            trControl=trainControl(method = "repeatedcv",number = 5,repeats = 1))
+                            method="gam")
   # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE, 
   #                           x = data %>% dplyr::select(DATE), 
   #                           method="gamLoess",
@@ -68,8 +66,8 @@ gam_adjust = function(data) {
   #                           trControl=trainControl(method = "repeatedcv",number = 5,repeats = 1)) })
   
   print("three")
-  data #%>% 
-    # dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.))# %>% 
+  data %>% 
+    dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.))# %>%
     # dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
     # dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
     # dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>% 
