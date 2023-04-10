@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r housing_dk}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE,include=TRUE)
 options(scipen=999)
 
 ```
