@@ -39,11 +39,6 @@ source(file = "money_theme.R")
 
 # Housing: Denmark
 
-```{r}
-
-
-```
-
 ```{r gam_adjust}
 gam_adjust = function(data) {
   print("one")
@@ -68,16 +63,16 @@ gam_adjust = function(data) {
   
   print("three")
   data %>% 
-    dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.)) %>% 
-    dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
-    dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
-    dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>% 
-    arrange(desc(DATE)) %>% 
-    dplyr::mutate(VALUE_CHG=VALUE-lead(VALUE)) %>% 
-    filter(!is.na(VALUE_CHG)) %>% 
-    arrange((DATE)) %>% 
-    dplyr::mutate(VALUE_SUM_CHG=cumsum(VALUE_CHG)) %>% 
-    dplyr::mutate(VALUE_SUM_CHG_SCALED=scale(VALUE_SUM_CHG,center=TRUE,scale=TRUE))
+    dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.))# %>% 
+    # dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
+    # dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
+    # dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>% 
+    # arrange(desc(DATE)) %>% 
+    # dplyr::mutate(VALUE_CHG=VALUE-lead(VALUE)) %>% 
+    # filter(!is.na(VALUE_CHG)) %>% 
+    # arrange((DATE)) %>% 
+    # dplyr::mutate(VALUE_SUM_CHG=cumsum(VALUE_CHG)) %>% 
+    # dplyr::mutate(VALUE_SUM_CHG_SCALED=scale(VALUE_SUM_CHG,center=TRUE,scale=TRUE))
   
 }
 ```
@@ -105,6 +100,10 @@ BYGV80 <- dst_get_data(table = "BYGV80",
   dplyr::rename(VALUE=value) %>% 
   group_by(PROPERTY_TYPE,STAT) %>% 
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed'))
+```
+
+```{r}
+print(BYGV80)
 ```
 
 
