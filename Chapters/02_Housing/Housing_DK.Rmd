@@ -104,7 +104,6 @@ BYGV80 <- dst_get_data(table = "BYGV80",
 
 
 ```{r dst_1c}
-install.packages('caret', dependencies = c('Depends', 'Suggests'))
 BYGV80 = BYGV80 %>% 
   do(gam_adjust(.))
 ```
