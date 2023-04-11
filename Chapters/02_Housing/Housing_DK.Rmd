@@ -136,11 +136,31 @@ lm(VALUE~DATE,data=data)
 print(sessionInfo())
 ```
 
+```{r}
+library(caret)
+
+#view DataFrame
+df <- data.frame(x=c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14),
+                 y=c(1, 4, 7, 13, 19, 24, 20, 15, 13, 11, 15, 18, 22, 27))
+
+
+#define k-fold cross validation method
+ctrl <- trainControl(method = "cv", number = 5)
+grid <- expand.grid(span = seq(0.5, 0.9, len = 5), degree = 1)
+
+#perform cross-validation using smoothing spans ranginf from 0.5 to 0.9
+model <- train(y ~ x, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
+
+#print results of k-fold cross-validation
+print(model)
+```
+
+
 ```{r fitsmooth,message = TRUE,warning = TRUE,include = TRUE,error=TRUE}
   # fit_smooth = 
   caret::train(y = as.numeric(data$VALUE),
                x = data %>% ungroup() %>% dplyr::select(DATE) %>% as.data.frame(),
-               method="bam",
+               method="gam",
                metric="RMSE")
 ```
 
