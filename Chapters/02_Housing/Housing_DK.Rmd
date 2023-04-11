@@ -132,6 +132,10 @@ lm(VALUE~DATE,data=data)
 ```
 
 
+```{r}
+print(sessionInfo())
+```
+
 ```{r fitsmooth,message = TRUE,warning = TRUE,include = TRUE,results = TRUE,error=TRUE}
   # fit_smooth = 
   caret::train(y = as.numeric(data$VALUE),
