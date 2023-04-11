@@ -114,6 +114,15 @@ data = BYGV80 %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse",STAT=="Tilladt bygg
 library(caret)
 ```
 
+```{r message=FALSE}
+message(data)
+```
+
+```{r message=FALSE}
+print(data)
+```
+
+
 ```{r fitsmooth,message = TRUE,warning = TRUE,include = TRUE,results = TRUE}
   fit_smooth = suppressWarnings({ caret::train(y = data$VALUE,
                             x = data %>% dplyr::select(DATE) %>% as.data.frame(),
