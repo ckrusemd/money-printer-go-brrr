@@ -43,17 +43,6 @@ source(file = "money_theme.R")
 message("one")
 ```
 
-
-```{r datasubset}
-data = BYGV80 %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse",STAT=="Tilladt byggeri")
-```
-
-```{r fitsmooth}
-  fit_smooth = caret::train(y = data$VALUE,
-                            x = data %>% dplyr::select(DATE) %>% as.data.frame(),
-                            method="gamLoess")
-```
-
 ```{r predict}
   data %>% 
     dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.))
@@ -120,6 +109,18 @@ BYGV80 <- dst_get_data(table = "BYGV80",
   group_by(PROPERTY_TYPE,STAT) %>% 
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed'))
 ```
+
+
+```{r datasubset}
+data = BYGV80 %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse",STAT=="Tilladt byggeri")
+```
+
+```{r fitsmooth}
+  fit_smooth = caret::train(y = data$VALUE,
+                            x = data %>% dplyr::select(DATE) %>% as.data.frame(),
+                            method="gamLoess")
+```
+
 
 ```{r}
 print(BYGV80)
