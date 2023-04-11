@@ -140,7 +140,7 @@ print(sessionInfo())
 library(gam)
   # fit_smooth = 
   caret::train(y = as.numeric(data$VALUE),
-               x = data %>% dplyr::select(DATE) %>% as.data.frame(),
+               x = data %>% ungroup() %>% dplyr::select(DATE) %>% as.data.frame(),
                method="gamLoess",
                family="gaussian",
                metric="RMSE")
