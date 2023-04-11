@@ -43,11 +43,6 @@ source(file = "money_theme.R")
 message("one")
 ```
 
-```{r predict}
-  data %>% 
-    dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.))
-```
-
 ```{r gam_adjust}
 gam_adjust = function(data) {
   message("one")
@@ -121,6 +116,11 @@ data = BYGV80 %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse",STAT=="Tilladt bygg
                             method="gamLoess")
 ```
 
+
+```{r predict}
+  data %>% 
+    dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.))
+```
 
 ```{r}
 print(BYGV80)
