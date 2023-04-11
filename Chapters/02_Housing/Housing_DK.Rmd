@@ -110,10 +110,10 @@ BYGV80 <- dst_get_data(table = "BYGV80",
 data = BYGV80 %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse",STAT=="Tilladt byggeri")
 ```
 
-```{r fitsmooth,message = TRUE,warning = TRUE,include = TRUE,results = TRUE,error=TRUE}
-  fit_smooth = caret::train(y = data$VALUE,
+```{r fitsmooth,message = TRUE,warning = TRUE,include = TRUE,results = TRUE}
+  fit_smooth = suppressWarnings({ caret::train(y = data$VALUE,
                             x = data %>% dplyr::select(DATE) %>% as.data.frame(),
-                            method="gamLoess")
+                            method="gamLoess")})
 ```
 
 
