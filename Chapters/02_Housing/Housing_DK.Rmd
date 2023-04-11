@@ -44,6 +44,21 @@ message("one")
 ```
 
 
+```{r datasubset}
+data = BYGV80 %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse",STAT=="Tilladt byggeri")
+```
+
+```{r fitsmooth}
+  fit_smooth = caret::train(y = data$VALUE,
+                            x = data %>% dplyr::select(DATE) %>% as.data.frame(),
+                            method="gamLoess")
+```
+
+```{r predict}
+  data %>% 
+    dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.))
+```
+
 ```{r gam_adjust}
 gam_adjust = function(data) {
   message("one")
@@ -57,8 +72,8 @@ gam_adjust = function(data) {
   print("two")
   
   fit_smooth = caret::train(y = data$VALUE,
-                            x = data %>% dplyr::select(DATE),
-                            method="gam")
+                            x = data %>% dplyr::select(DATE) %>% as.data.frame(),
+                            method="gamLoess")
   # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE, 
   #                           x = data %>% dplyr::select(DATE), 
   #                           method="gamLoess",
