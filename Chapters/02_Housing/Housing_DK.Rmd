@@ -132,12 +132,17 @@ lm(VALUE~DATE,data=data)
 ```
 
 
-```{r fitsmooth,message = TRUE,warning = TRUE,include = TRUE,results = TRUE}
-  fit_smooth = suppressWarnings({ caret::train(y = as.numeric(data$VALUE),
+```{r fitsmooth,message = TRUE,warning = TRUE,include = TRUE,results = TRUE,error=TRUE}
+  # fit_smooth = 
+  caret::train(y = as.numeric(data$VALUE),
                             x = data %>% dplyr::select(DATE) %>% dplyr::mutate(DATE=as.Date(DATE)) %>% as.data.frame(),
-                            method="gamLoess")})
+                            method="gamLoess")
 ```
 
+
+```{r}
+stop("Done")
+```
 
 ```{r predict}
   data %>% 
