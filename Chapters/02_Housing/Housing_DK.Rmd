@@ -59,7 +59,7 @@ gam_adjust = function(data) {
   # fit_smooth = gam(VALUE~DATE,data=data)
   fit_smooth = caret::train(y = data$VALUE,
   x = data %>% dplyr::select(DATE),
-  method="gam")
+  method="gamLoess")
   # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE, 
   #                           x = data %>% dplyr::select(DATE), 
   #                           method="gamLoess",
