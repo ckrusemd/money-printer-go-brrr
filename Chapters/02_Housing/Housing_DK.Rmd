@@ -111,10 +111,6 @@ BYGV80 <- dst_get_data(table = "BYGV80",
 print(BYGV80)
 ```
 
-```{r}
-library(gam)
-```
-
 ```{r dst_1c}
 BYGV80 = BYGV80 %>% 
   do(gam_adjust(.))
