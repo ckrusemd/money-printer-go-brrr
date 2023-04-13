@@ -83,6 +83,26 @@ gam_adjust = function(data) {
 ```
 
 
+```{r dst_byg1}
+BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
+BYG1 <- dst_get_data(table = "BYG1", 
+                       BRANCHE07="*",
+                       SÆSON="*",
+                       ART="*",
+                       Tid="*",
+                       lang = "da") %>% 
+  dplyr::rename(DATE=TID) %>% 
+  dplyr::rename(VALUE=value) %>% 
+  filter(BRANCHE07=="F Bygge og anlæg") %>% 
+  filter(SÆSON=="Sæsonkorrigeret") %>% 
+  filter(ART %in% c("I alt","Nybyggeri og tilbygning i alt","Reparation og vedligeholdelse i alt")) %>% 
+  group_by(BRANCHE07,SÆSON,ART) %>% 
+  arrange(BRANCHE07,SÆSON,ART,DATE) %>% 
+  do(gam_adjust(.))
+```
+
+
+
 ```{r dst_1a}
 BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
 ```
@@ -117,23 +137,6 @@ BYGV80 = BYGV80 %>%
 ```
 
 
-```{r dst_2}
-BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
-BYG1 <- dst_get_data(table = "BYG1", 
-                       BRANCHE07="*",
-                       SÆSON="*",
-                       ART="*",
-                       Tid="*",
-                       lang = "da") %>% 
-  dplyr::rename(DATE=TID) %>% 
-  dplyr::rename(VALUE=value) %>% 
-  filter(BRANCHE07=="F Bygge og anlæg") %>% 
-  filter(SÆSON=="Sæsonkorrigeret") %>% 
-  filter(ART %in% c("I alt","Nybyggeri og tilbygning i alt","Reparation og vedligeholdelse i alt")) %>% 
-  group_by(BRANCHE07,SÆSON,ART) %>% 
-  arrange(BRANCHE07,SÆSON,ART,DATE) %>% 
-  do(gam_adjust(.))
-```
 
 
 ```{r dst_3}
