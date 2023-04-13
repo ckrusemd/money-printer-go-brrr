@@ -37,7 +37,7 @@ source(file = "money_theme.R")
 
 ```
 
-```{r}
+```{r repreex}
 # Load required libraries
 library(caret)
 library(dplyr)
@@ -77,35 +77,6 @@ models_by_group <- train_data %>%
   group_by(group) %>%
   do(gamLoess_model = train_gamLoess_group(.))
 
-# Make predictions on the test dataset
-predictions_by_group <- test_data %>%
-  left_join(models_by_group, by = "group") %>%
-  rowwise() %>%
-  mutate(prediction = predict(gamLoess_model, .))
-
-# Evaluate model performance for each group
-performance_by_group <- predictions_by_group %>%
-  group_by(group) %>%
-  summarize(
-    RMSE = sqrt(mean((y - prediction) ^ 2)),
-    R2 = 1 - var(y - prediction) / var(y)
-  )
-
-print(performance_by_group)
-
-# Plot the true values and predictions for each group
-plot_df <- data.frame(
-  true = predictions_by_group$y,
-  predicted = predictions_by_group$prediction,
-  group = predictions_by_group$group
-)
-
-ggplot(plot_df, aes(x = true, y = predicted, color = group)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
-  labs(title = "True vs. Predicted by Group", x = "True Values", y = "Predicted Values") +
-  theme_minimal() +
-  scale_color_discrete(name = "Group")
 
 ```
 
