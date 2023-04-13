@@ -37,6 +37,78 @@ source(file = "money_theme.R")
 
 ```
 
+```{r}
+# Load required libraries
+library(caret)
+library(dplyr)
+library(ggplot2)
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Generate a synthetic dataset
+n <- 100
+group <- factor(sample(1:3, n, replace = TRUE))
+x1 <- runif(n, 0, 10)
+x2 <- runif(n, 0, 10)
+y <- 3 * x1 + 2 * x2 + rnorm(n, mean = 0, sd = 3)
+
+# Combine the variables into a data.frame
+data <- data.frame(group, x1, x2, y)
+
+# Split the data into training and testing sets
+train_indices <- createDataPartition(y, p = 0.7, list = FALSE)
+train_data <- data[train_indices, ]
+test_data <- data[-train_indices, ]
+
+# Function to train gamLoess model for each group
+train_gamLoess_group <- function(group_data) {
+  gamLoess_model <- train(
+    y ~ x1 + x2,
+    data = group_data,
+    method = "gamLoess",
+    trControl = trainControl(method = "cv", number = 10)
+  )
+  return(gamLoess_model)
+}
+
+# Train gamLoess models for each group
+models_by_group <- train_data %>%
+  group_by(group) %>%
+  do(gamLoess_model = train_gamLoess_group(.))
+
+# Make predictions on the test dataset
+predictions_by_group <- test_data %>%
+  left_join(models_by_group, by = "group") %>%
+  rowwise() %>%
+  mutate(prediction = predict(gamLoess_model, .))
+
+# Evaluate model performance for each group
+performance_by_group <- predictions_by_group %>%
+  group_by(group) %>%
+  summarize(
+    RMSE = sqrt(mean((y - prediction) ^ 2)),
+    R2 = 1 - var(y - prediction) / var(y)
+  )
+
+print(performance_by_group)
+
+# Plot the true values and predictions for each group
+plot_df <- data.frame(
+  true = predictions_by_group$y,
+  predicted = predictions_by_group$prediction,
+  group = predictions_by_group$group
+)
+
+ggplot(plot_df, aes(x = true, y = predicted, color = group)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(title = "True vs. Predicted by Group", x = "True Values", y = "Predicted Values") +
+  theme_minimal() +
+  scale_color_discrete(name = "Group")
+
+```
+
 # Housing: Denmark
 
 ```{r}
