@@ -69,7 +69,7 @@ test_data <- data[-train_indices, ]
     method = "rf",
     trControl = trainControl(method = "cv", number = 10)
   )
-print(warnings())
+warnings()
 ```
 
 ```{r repreex2a}
@@ -77,9 +77,10 @@ print(warnings())
     y ~ x1 + x2,
     data = data,
     method = "bam",
+    metric="RMSE",
     trControl = trainControl(method = "cv", number = 10)
   )
-print(warnings())
+warnings()
 ```
 
 ```{r repreex2b}
@@ -87,9 +88,10 @@ print(warnings())
     y ~ x1 + x2,
     data = data,
     method = "gamboost",
+    metric="RMSE",
     trControl = trainControl(method = "cv", number = 10)
   )
-print(warnings())
+warnings()
 ```
 
 ```{r repreex2c}
@@ -97,9 +99,10 @@ print(warnings())
     y ~ x1 + x2,
     data = data,
     method = "gam",
+    metric="RMSE",
     trControl = trainControl(method = "cv", number = 10)
   )
-print(warnings())
+warnings()
 ```
 
 ```{r repreex3}
@@ -119,6 +122,7 @@ models_by_group <- train_data %>%
   group_by(group) %>%
   do(gamLoess_model = train_gamLoess_group(.))
 
+warnings()
 
 ```
 
@@ -130,5 +134,6 @@ install.packages("gam")
     method = "gamLoess",
     trControl = trainControl(method = "cv", number = 10)
   )
+warnings()
 ```
 
