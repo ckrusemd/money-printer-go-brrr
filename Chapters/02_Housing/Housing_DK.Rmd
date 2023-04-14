@@ -29,6 +29,7 @@ pacman::p_load(tidyr,
                TTR,
                dkstat,
                httr,
+               randomForest,
                rvest,
                zoo,
                rvest)
