@@ -69,6 +69,7 @@ test_data <- data[-train_indices, ]
     method = "rf",
     trControl = trainControl(method = "cv", number = 10)
   )
+print(warnings())
 ```
 
 ```{r repreex2a}
@@ -78,6 +79,7 @@ test_data <- data[-train_indices, ]
     method = "bam",
     trControl = trainControl(method = "cv", number = 10)
   )
+print(warnings())
 ```
 
 ```{r repreex2b}
@@ -87,6 +89,7 @@ test_data <- data[-train_indices, ]
     method = "gamboost",
     trControl = trainControl(method = "cv", number = 10)
   )
+print(warnings())
 ```
 
 ```{r repreex2c}
@@ -96,6 +99,7 @@ test_data <- data[-train_indices, ]
     method = "gam",
     trControl = trainControl(method = "cv", number = 10)
   )
+print(warnings())
 ```
 
 ```{r repreex3}
@@ -119,6 +123,7 @@ models_by_group <- train_data %>%
 ```
 
 ```{r repreex4}
+install.packages("gam")
   gamLoess_model <- train(
     y ~ x1 + x2,
     data = data,
