@@ -25,12 +25,11 @@ pacman::p_load(tidyr,
                caret,
                glue,
                devtools,
-               gam,
+               # gam,
                TTR,
                dkstat,
                httr,
                randomForest,
-               rvest,
                zoo,
                rvest)
 source(file = "money_theme.R")
@@ -68,6 +67,33 @@ test_data <- data[-train_indices, ]
     y ~ x1 + x2,
     data = data,
     method = "rf",
+    trControl = trainControl(method = "cv", number = 10)
+  )
+```
+
+```{r repreex2a}
+  gamLoess_model <- train(
+    y ~ x1 + x2,
+    data = data,
+    method = "bam",
+    trControl = trainControl(method = "cv", number = 10)
+  )
+```
+
+```{r repreex2b}
+  gamLoess_model <- train(
+    y ~ x1 + x2,
+    data = data,
+    method = "gamboost",
+    trControl = trainControl(method = "cv", number = 10)
+  )
+```
+
+```{r repreex2c}
+  gamLoess_model <- train(
+    y ~ x1 + x2,
+    data = data,
+    method = "gam",
     trControl = trainControl(method = "cv", number = 10)
   )
 ```
