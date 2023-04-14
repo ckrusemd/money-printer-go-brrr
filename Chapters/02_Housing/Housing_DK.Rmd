@@ -91,7 +91,7 @@ models_by_group <- train_data %>%
 
 ```
 
-```{r repreex2}
+```{r repreex4}
   gamLoess_model <- train(
     y ~ x1 + x2,
     data = data,
