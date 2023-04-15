@@ -26,6 +26,7 @@ pacman::p_load(tidyr,
                glue,
                devtools,
                gam,
+               mgcv,
                mboost,
                import,
                TTR,
@@ -43,31 +44,43 @@ source(file = "money_theme.R")
 
 ```{r gam_adjust}
 gam_adjust = function(data) {
-  # message("one")
-  # print("one")
-  
-  # grid <- expand.grid(span = seq(0.1, 0.5, len = 10), degree = c(1))
-  # fit_gam = suppressWarnings(expr =  { train(y = data$VALUE, 
-  #       x = data %>% dplyr::select(DATE),
-  #       tuneGrid=grid,
-  #       method = "gamLoess") })
-  # print("two")
-  
-  fit_smooth = gam(VALUE~DATE,data=data)
-  # fit_smooth = caret::train(y = data$VALUE,
-  # x = data %>% dplyr::select(DATE),
-  # method="gamboost")
-  # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE,
-  #                           x = data %>% dplyr::select(DATE) %>% data.frame(),
-  #                           method="gamLoess",
-  #                           tuneGrid=expand.grid(span=seq(0,1,by=0.1),degree=c(1,2)),
-  #                           tuneLength=10,
-  #                           trControl=trainControl(method = "repeatedcv",number = 5,repeats = 5)) })
 
-  # gamloess(VALUE~DATE,data=data)
-  # print("three")
+    # data = BYGV80 %>% ungroup() %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse",STAT=="Tilladt byggeri")
+    
+    # Define a function to calculate RMSE
+    rmse <- function(predicted, actual) {
+      sqrt(mean((predicted - actual)^2))
+    }
+    
+    # Define a list of span values to test
+    # span_values <- seq(0.1, 2, by = 0.01)
+    # df_train = data %>% dplyr::mutate(INDEX=row_number())
+    # train_rows = caret::createDataPartition(df_train$VALUE,p = 0.9)[[1]]
+    
+    # Create a placeholder for results
+    # results <- do.call("rbind",lapply(span_values,function(span_value) {
+    #     model <- loess(formula = VALUE ~ INDEX, data = df_train %>% slice(train_rows), span = span_value)
+    #     predictions <- predict(model, df_train %>% slice(-train_rows))
+    #     rmse_value <- rmse(predictions, data$VALUE)
+    #     
+    #     # Append the results
+    #     data.frame(span = span_value, RMSE = rmse_value)
+    # }))
+    
+    fit_smooth = smooth.spline(data$DATE, data$VALUE, cv= TRUE) 
+    
+    # Find the best model
+    # best_model <- results %>%
+    #   arrange(RMSE) %>%
+    #   slice(1)
+    
+    # Fit the best model and display the summary
+    # best_span <- best_model$span
+    # fit_smooth <- loess(formula = VALUE ~ INDEX, data = data, span = best_span)
+    
   data %>% 
-    dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.)) %>%
+    # dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.)) %>%
+    dplyr::mutate(VALUE_SMOOTH=fit_smooth$y) %>%
     dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>%
@@ -83,21 +96,6 @@ gam_adjust = function(data) {
 
 
 ```{r dst_byg1}
-BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
-BYG1 <- dst_get_data(table = "BYG1", 
-                       BRANCHE07="*",
-                       SÆSON="*",
-                       ART="*",
-                       Tid="*",
-                       lang = "da") %>% 
-  dplyr::rename(DATE=TID) %>% 
-  dplyr::rename(VALUE=value) %>% 
-  filter(BRANCHE07=="F Bygge og anlæg") %>% 
-  filter(SÆSON=="Sæsonkorrigeret") %>% 
-  filter(ART %in% c("I alt","Nybyggeri og tilbygning i alt","Reparation og vedligeholdelse i alt")) %>% 
-  group_by(BRANCHE07,SÆSON,ART) %>% 
-  arrange(BRANCHE07,SÆSON,ART,DATE) %>% 
-  do(gam_adjust(.))
 
 BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
 BYGV80 <- dst_get_data(table = "BYGV80", 
@@ -117,6 +115,23 @@ BYGV80 <- dst_get_data(table = "BYGV80",
   group_by(PROPERTY_TYPE,STAT) %>% 
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
   do(gam_adjust(.))
+
+BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
+BYG1 <- dst_get_data(table = "BYG1", 
+                       BRANCHE07="*",
+                       SÆSON="*",
+                       ART="*",
+                       Tid="*",
+                       lang = "da") %>% 
+  dplyr::rename(DATE=TID) %>% 
+  dplyr::rename(VALUE=value) %>% 
+  filter(BRANCHE07=="F Bygge og anlæg") %>% 
+  filter(SÆSON=="Sæsonkorrigeret") %>% 
+  filter(ART %in% c("I alt","Nybyggeri og tilbygning i alt","Reparation og vedligeholdelse i alt")) %>% 
+  group_by(BRANCHE07,SÆSON,ART) %>% 
+  arrange(BRANCHE07,SÆSON,ART,DATE) %>% 
+  do(gam_adjust(.))
+
 
 PRIS90_meta <- dst_meta(table = "PRIS90", lang = "da")
 PRIS90 <- dst_get_data(table = "PRIS90", 
@@ -166,6 +181,16 @@ BYGV80 %>%
   # geom_vline(xintercept = seq.Date(from = dmy("01-01-2000"),to = dmy("01-01-2030"),by = "1 year"),linetype=2,alpha=0.7)  +
   # geom_vline(xintercept = seq.Date(from = dmy("01-08-2000"),to = dmy("01-08-2030"),by = "1 year"),linetype=2,alpha=0.8) +
   theme_money_printer_go_brrr(base_size=16) 
+```
+
+```{r eval=F}
+library(prophet)
+m <- prophet(df = data.frame(y=data$VALUE,ds=data$DATE))
+future <- make_future_dataframe(m, periods = 5*365)
+forecast <- predict(m, future)
+plot(m, forecast)
+prophet_plot_components(m, forecast)
+
 ```
 
 ```{r}
