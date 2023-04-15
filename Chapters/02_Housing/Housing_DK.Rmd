@@ -30,11 +30,9 @@ pacman::p_load(tidyr,
                TTR,
                dkstat,
                httr,
-               randomForest,
                zoo,
                rvest)
 source(file = "money_theme.R")
-
 
 ```
 
@@ -54,16 +52,18 @@ gam_adjust = function(data) {
   #       method = "gamLoess") })
   # print("two")
   
-  # fit_smooth = gam(VALUE~DATE,data=data)
-  fit_smooth = caret::train(y = data$VALUE,
-  x = data %>% dplyr::select(DATE),
-  method="gamboost")
-  # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE, 
-  #                           x = data %>% dplyr::select(DATE), 
+  fit_smooth = gam(VALUE~DATE,data=data)
+  # fit_smooth = caret::train(y = data$VALUE,
+  # x = data %>% dplyr::select(DATE),
+  # method="gamboost")
+  # fit_smooth = suppressWarnings(expr =  { caret::train(y = data$VALUE,
+  #                           x = data %>% dplyr::select(DATE) %>% data.frame(),
   #                           method="gamLoess",
-  #                           tuneGrid=grid,
-  #                           trControl=trainControl(method = "repeatedcv",number = 5,repeats = 1)) })
-  
+  #                           tuneGrid=expand.grid(span=seq(0,1,by=0.1),degree=c(1,2)),
+  #                           tuneLength=10,
+  #                           trControl=trainControl(method = "repeatedcv",number = 5,repeats = 5)) })
+
+  # gamloess(VALUE~DATE,data=data)
   # print("three")
   data %>% 
     dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.)) %>%
@@ -97,16 +97,8 @@ BYG1 <- dst_get_data(table = "BYG1",
   group_by(BRANCHE07,SÆSON,ART) %>% 
   arrange(BRANCHE07,SÆSON,ART,DATE) %>% 
   do(gam_adjust(.))
-```
 
-
-
-```{r dst_1a}
 BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
-```
-
-
-```{r dst_1b}
 BYGV80 <- dst_get_data(table = "BYGV80", 
                        BYGFASE="*",
                        ANVENDELSE="*",
@@ -122,22 +114,9 @@ BYGV80 <- dst_get_data(table = "BYGV80",
   dplyr::rename(DATE=TID) %>% 
   dplyr::rename(VALUE=value) %>% 
   group_by(PROPERTY_TYPE,STAT) %>% 
-  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed'))
-```
-
-```{r}
-print(BYGV80)
-```
-
-```{r dst_1c}
-BYGV80 = BYGV80 %>% 
+  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
   do(gam_adjust(.))
-```
 
-
-
-
-```{r dst_3}
 PRIS90_meta <- dst_meta(table = "PRIS90", lang = "da")
 PRIS90 <- dst_get_data(table = "PRIS90", 
                        ENHED="*",
@@ -148,10 +127,7 @@ PRIS90 <- dst_get_data(table = "PRIS90",
   dplyr::rename(VALUE=value) %>% 
   filter(ENHED=="Indeks") %>% 
   do(gam_adjust(.))
-```
 
-
-```{r dst_4}
 BYG42_meta <- dst_meta(table = "BYG42", lang = "da")
 BYG42 <- dst_get_data(table = "BYG42", 
                        HINDEKS="*",
