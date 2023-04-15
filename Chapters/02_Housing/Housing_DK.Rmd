@@ -472,7 +472,8 @@ BYGV80 %>%
 
 ## Model future completed construction
 
-```{r}
+```{r eval=F}
+library(randomForest)
 df_fit = BYGV80 %>% 
   dplyr::select(DATE,STAT,PROPERTY_TYPE,VALUE) %>% 
   filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
