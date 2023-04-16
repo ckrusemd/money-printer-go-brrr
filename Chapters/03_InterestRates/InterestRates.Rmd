@@ -1110,6 +1110,7 @@ df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
 
 
 ```{r}
+library(rf)
 fit_DFF = caret::train(x = df_predict_DFF %>% 
                               na.omit %>% 
                               dplyr::select(-date,-value) %>% 
