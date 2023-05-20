@@ -25,13 +25,16 @@ pacman::p_load(fredr,
                devtools,
                httr,
                DT,
+               ecb,
                httr,
                visNetwork,
                dkstat,
                data.table,
+               glue,
                pROC,
                rPref,
                progress,
+               PlayerRatings,
                quantmod,
                rvest,
                ggrepel,update = T)
@@ -99,7 +102,8 @@ df_yieldcurve =
 
 ## Treasury Bonds
 
-```{r }
+```{r unloadrf}
+unloadNamespace("randomForest")
 df_yieldcurve %>% 
   dplyr::mutate(value=value/100) %>% 
   ggplot(.,aes(x=date,y=value)) +
@@ -1109,7 +1113,7 @@ df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
 ```
 
 
-```{r}
+```{r libraryrf}
 library(randomForest)
 fit_DFF = caret::train(x = df_predict_DFF %>% 
                               na.omit %>% 
@@ -1195,6 +1199,8 @@ fit_CPIAUCSL = caret::train(x = df_predict_CPIAUCSL %>%
                          ntree=num_trees,
                          metric = "RMSE",
                          trControl=train_control)
+
+detach(package:randomForest,unload=TRUE)
 ```
 
 
