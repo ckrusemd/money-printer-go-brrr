@@ -1195,7 +1195,7 @@ df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
                          y = df_predict_DFF %>% 
                            na.omit %>% 
                            .[["value"]],
-                         method = "rf",
+                         method = "rf",libraryrf
                          tuneGrid=data.frame(mtry=row_$mtry),
                          ntree=row_$num_trees,
                          metric = "RMSE",
@@ -1206,7 +1206,8 @@ df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
 
 
 ```{r libraryrf}
-library(rf)
+pacman::p_load(randomForest)
+# library(randomForest)
 fit_DFF = caret::train(x = df_predict_DFF %>% 
                               na.omit %>% 
                               dplyr::select(-date,-value) %>% 
