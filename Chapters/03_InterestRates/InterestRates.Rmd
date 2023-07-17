@@ -943,6 +943,18 @@ df_INFLATION =
 df_CSUSHPINSA = 
   fredr(series_id = "CSUSHPINSA") %>% 
   arrange(date)
+df_M2SL = 
+  fredr(series_id = "M2SL") %>% 
+  arrange(date)
+df_WILL5000INDFC = 
+  fredr(series_id = "WILL5000INDFC") %>% 
+  arrange(date)
+df_UMCSENT = 
+  fredr(series_id = "UMCSENT") %>% 
+  arrange(date)
+df_USREC = 
+  fredr(series_id = "USREC") %>% 
+  arrange(date)
 
 ```
 
@@ -1011,6 +1023,41 @@ df_DK_Long =
 df_CPIAUCSL = 
   df_INFLATION %>% 
   filter(series_id=="CPIAUCSL") %>% 
+  dplyr::select(date,value) %>% 
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+  tidyr::fill(value,.direction = "down")
+
+df_CSUSHPINSA = 
+  df_CSUSHPINSA %>% 
+  filter(series_id=="CSUSHPINSA") %>% 
+  dplyr::select(date,value) %>% 
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+  tidyr::fill(value,.direction = "down")
+
+df_M2SL = 
+  df_M2SL %>% 
+  filter(series_id=="M2SL") %>% 
+  dplyr::select(date,value) %>% 
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+  tidyr::fill(value,.direction = "down")
+
+df_WILL5000INDFC = 
+  df_WILL5000INDFC %>% 
+  filter(series_id=="WILL5000INDFC") %>% 
+  dplyr::select(date,value) %>% 
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+  tidyr::fill(value,.direction = "down")
+
+df_UMCSENT = 
+  df_UMCSENT %>% 
+  filter(series_id=="UMCSENT") %>% 
+  dplyr::select(date,value) %>% 
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+  tidyr::fill(value,.direction = "down")
+
+df_USREC = 
+  df_USREC %>% 
+  filter(series_id=="USREC") %>% 
   dplyr::select(date,value) %>% 
   tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
   tidyr::fill(value,.direction = "down")
@@ -1087,6 +1134,51 @@ df_predict_CPIAUCSL = df_yield_checkboard %>%
   spread(series_id,spread) %>% 
   arrange(desc(date))
 
+
+df_predict_CSUSHPINSA = df_yield_checkboard %>% 
+  filter(series_id!=joined_series) %>% 
+  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
+  left_join(df_CSUSHPINSA,by=c("one_year_ahead"="date")) %>% 
+  unite(series_id,series_id,joined_series) %>% 
+  dplyr::select(date,series_id,spread,value) %>% 
+  spread(series_id,spread) %>% 
+  arrange(desc(date))
+df_predict_M2SL = df_yield_checkboard %>% 
+  filter(series_id!=joined_series) %>% 
+  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
+  left_join(df_M2SL,by=c("one_year_ahead"="date")) %>% 
+  unite(series_id,series_id,joined_series) %>% 
+  dplyr::select(date,series_id,spread,value) %>% 
+  spread(series_id,spread) %>% 
+  arrange(desc(date))
+df_predict_WILL5000INDFC = df_yield_checkboard %>% 
+  filter(series_id!=joined_series) %>% 
+  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
+  left_join(df_WILL5000INDFC,by=c("one_year_ahead"="date")) %>% 
+  unite(series_id,series_id,joined_series) %>% 
+  dplyr::select(date,series_id,spread,value) %>% 
+  spread(series_id,spread) %>% 
+  arrange(desc(date))
+
+
+df_predict_UMCSENT = df_yield_checkboard %>% 
+  filter(series_id!=joined_series) %>% 
+  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
+  left_join(df_UMCSENT,by=c("one_year_ahead"="date")) %>% 
+  unite(series_id,series_id,joined_series) %>% 
+  dplyr::select(date,series_id,spread,value) %>% 
+  spread(series_id,spread) %>% 
+  arrange(desc(date))
+df_predict_USREC = df_yield_checkboard %>% 
+  filter(series_id!=joined_series) %>% 
+  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
+  left_join(df_USREC,by=c("one_year_ahead"="date")) %>% 
+  unite(series_id,series_id,joined_series) %>% 
+  dplyr::select(date,series_id,spread,value) %>% 
+  spread(series_id,spread) %>% 
+  arrange(desc(date))
+
+
 ```
 
 ```{r eval=F}
@@ -1114,7 +1206,7 @@ df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
 
 
 ```{r libraryrf}
-library(randomForest)
+library(rf)
 fit_DFF = caret::train(x = df_predict_DFF %>% 
                               na.omit %>% 
                               dplyr::select(-date,-value) %>% 
@@ -1192,6 +1284,66 @@ fit_CPIAUCSL = caret::train(x = df_predict_CPIAUCSL %>%
                               dplyr::select(-date,-value) %>% 
                               data.frame(),
                          y = df_predict_CPIAUCSL %>% 
+                           na.omit %>% 
+                           .[["value"]],
+                         method = "rf",
+                         tuneGrid=tune_grid,
+                         ntree=num_trees,
+                         metric = "RMSE",
+                         trControl=train_control)
+fit_CSUSHPINSA = caret::train(x = df_predict_CSUSHPINSA %>% 
+                              na.omit %>% 
+                              dplyr::select(-date,-value) %>% 
+                              data.frame(),
+                         y = df_predict_CSUSHPINSA %>% 
+                           na.omit %>% 
+                           .[["value"]],
+                         method = "rf",
+                         tuneGrid=tune_grid,
+                         ntree=num_trees,
+                         metric = "RMSE",
+                         trControl=train_control)
+fit_M2SL = caret::train(x = df_predict_M2SL %>% 
+                              na.omit %>% 
+                              dplyr::select(-date,-value) %>% 
+                              data.frame(),
+                         y = df_predict_M2SL %>% 
+                           na.omit %>% 
+                           .[["value"]],
+                         method = "rf",
+                         tuneGrid=tune_grid,
+                         ntree=num_trees,
+                         metric = "RMSE",
+                         trControl=train_control)
+fit_WILL5000INDFC = caret::train(x = df_predict_WILL5000INDFC %>% 
+                              na.omit %>% 
+                              dplyr::select(-date,-value) %>% 
+                              data.frame(),
+                         y = df_predict_WILL5000INDFC %>% 
+                           na.omit %>% 
+                           .[["value"]],
+                         method = "rf",
+                         tuneGrid=tune_grid,
+                         ntree=num_trees,
+                         metric = "RMSE",
+                         trControl=train_control)
+fit_UMCSENT = caret::train(x = df_predict_UMCSENT %>% 
+                              na.omit %>% 
+                              dplyr::select(-date,-value) %>% 
+                              data.frame(),
+                         y = df_predict_UMCSENT %>% 
+                           na.omit %>% 
+                           .[["value"]],
+                         method = "rf",
+                         tuneGrid=tune_grid,
+                         ntree=num_trees,
+                         metric = "RMSE",
+                         trControl=train_control)
+fit_USREC = caret::train(x = df_predict_USREC %>% 
+                              na.omit %>% 
+                              dplyr::select(-date,-value) %>% 
+                              data.frame(),
+                         y = df_predict_USREC %>% 
                            na.omit %>% 
                            .[["value"]],
                          method = "rf",
@@ -1550,6 +1702,140 @@ df_predict_DK_Short %>%
 
 ```
 
+
+
+## USREC
+
+```{r }
+
+df_predict_UMCSENT %>% 
+    dplyr::mutate(pred_UMCSENT=predict(fit_UMCSENT,.)) %>% 
+  dplyr::select(date,pred_UMCSENT,value) %>% 
+  dplyr::mutate(date=date+years(1)) %>%
+  gather(pred,val,pred_UMCSENT:value) %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
+  # filter(one_year) %>% 
+  ggplot(.,aes(x=date,y=val,color=pred)) +
+  geom_line(size=1) +
+  # scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  # scale_y_continuous(breaks = seq(0,10,0.5),limits=c(0,NA)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  add_fomc_meeting_dates() +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_hline(yintercept = 2,linetype=2) +
+  # geom_hline(yintercept = 0,linetype=2) +
+  # facet_wrap(~one_year,scales="free",ncol=1) +
+  theme_money_printer_go_brrr(base_size=12) +
+  labs(title="Recession Prob",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
+
+```
+
+## USREC
+
+```{r }
+
+df_predict_USREC %>% 
+    dplyr::mutate(pred_USREC=predict(fit_USREC,.)) %>% 
+  dplyr::select(date,pred_USREC,value) %>% 
+  dplyr::mutate(date=date+years(1)) %>%
+  gather(pred,val,pred_USREC:value) %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
+  filter(one_year) %>%
+  ggplot(.,aes(x=date,y=val,color=pred)) +
+  geom_line(size=1) +
+  # scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  # scale_y_continuous(breaks = seq(0,10,0.5),limits=c(0,NA)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  add_fomc_meeting_dates() +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_hline(yintercept = 1,linetype=2) +
+  # geom_hline(yintercept = 0,linetype=2) +
+  # facet_wrap(~one_year,scales="free",ncol=1) +
+  theme_money_printer_go_brrr(base_size=12) +
+  labs(title="Recession Prob",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
+
+```
+
+## WILLSHITE
+
+```{r }
+
+df_predict_WILL5000INDFC %>% 
+    dplyr::mutate(pred_WILL5000INDFC=predict(fit_WILL5000INDFC,.)) %>% 
+  dplyr::select(date,pred_WILL5000INDFC,value) %>% 
+  dplyr::mutate(date=date+years(1)) %>%
+  gather(pred,val,pred_WILL5000INDFC:value) %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
+  filter(one_year) %>%
+  ggplot(.,aes(x=date,y=val,color=pred)) +
+  geom_line(size=1) +
+  # scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  # scale_y_continuous(breaks = seq(0,10,0.5),limits=c(0,NA)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  add_fomc_meeting_dates() +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_hline(yintercept = 2,linetype=2) +
+  # geom_hline(yintercept = 0,linetype=2) +
+  # facet_wrap(~one_year,scales="free",ncol=1) +
+  theme_money_printer_go_brrr(base_size=12) +
+  labs(title="Predicted/Observed YoY Willshire",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
+
+```
+
+## M2
+
+```{r }
+
+df_predict_M2SL %>% 
+    dplyr::mutate(pred_M2SL=predict(fit_M2SL,.)) %>% 
+  dplyr::select(date,pred_M2SL,value) %>% 
+  dplyr::mutate(date=date+years(1)) %>%
+  gather(pred,val,pred_M2SL:value) %>%
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  dplyr::mutate(date=ifelse(one_year,
+                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
+  filter(!is.na(date)) %>% 
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
+  # filter(one_year) %>% 
+  ggplot(.,aes(x=date,y=val,color=pred)) +
+  geom_line(size=1) +
+  # scale_x_date(date_breaks = "1 month",date_labels = "%b") +
+  # scale_y_continuous(breaks = seq(0,10,0.5),limits=c(0,NA)) +
+  theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  add_fomc_meeting_dates() +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_hline(yintercept = 2,linetype=2) +
+  # geom_hline(yintercept = 0,linetype=2) +
+  # facet_wrap(~one_year,scales="free",ncol=1) +
+  theme_money_printer_go_brrr(base_size=12) +
+  labs(title="Predicted/Observed YoY M2",
+       x=NULL,
+       y="(%)",
+       caption = timestamp_caption())
+
+```
+
 ## Inflation Expectations
 
 ```{r }
@@ -1798,6 +2084,7 @@ df_predict_DF %>%
   dplyr::mutate(obstime=ifelse(one_year,
                             ifelse(obstime>=Sys.Date()-years(1),obstime,NA),obstime)) %>% 
   filter(!is.na(obstime)) %>% 
+  filter(one_year) %>% 
   dplyr::mutate(obstime=as.Date(obstime,origin="1970-01-01")) %>%
   ggplot(.,aes(x=obstime,y=val,color=pred)) +
   geom_line() +
