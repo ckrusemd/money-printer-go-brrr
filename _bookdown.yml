@@ -7,9 +7,9 @@ delete_merged_file: true
 # ]
 
 rmd_subdir: [
-#"Chapters/01_Indicators",
-#"Chapters/02_Housing",
- "Chapters/03_InterestRates",
+"Chapters/01_Indicators",
+"Chapters/02_Housing",
+ "Chapters/03_InterestRates" #,
 #"Chapters/04_Markets",
 #"Chapters/05_ETFs"
 ]
