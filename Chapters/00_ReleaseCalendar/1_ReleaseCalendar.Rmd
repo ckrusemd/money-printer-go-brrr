@@ -1,0 +1,101 @@
+---
+title: "Release Calendar"
+author: "Christian Kruse"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r  include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
+options(scipen=999)
+```
+
+```{r}
+
+if (!require(pacman)) { install.packages("pacman") }
+pacman::p_load(fredr,
+               dplyr,
+               tidyr,
+               lubridate,
+               caret,
+               partykit,
+               pROC,
+               gganimate,
+               devtools,
+               httr,
+               DT,
+               httr,
+               visNetwork,
+               dkstat,
+               data.table,
+               pROC,
+               igraph,
+               visNetwork,
+               rPref,
+               progress,
+               quantmod,
+               rvest,
+               ggrepel)
+source(file = "money_theme.R")
+```
+
+# Release Calendar
+
+```{r }
+readRenviron(path = "Renviron.site")
+fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
+```
+
+```{r}
+df_series = do.call("rbind",lapply(c(0,1000*seq(10)),function(offset_) {
+fredr::fredr_tags_series("nsa",order_by = "popularity",sort_order = "desc",offset = offset_)
+})) %>% 
+  filter(frequency_short %in% c("M","W","Q")) %>% 
+  dplyr::select(id,title,frequency_short,last_updated,popularity)
+```
+
+## Last week
+
+```{r}
+df_series %>% 
+  filter(last_updated>=Sys.Date()-days(7)) %>% 
+  DT::datatable()
+```
+
+## Upcoming next week
+
+
+```{r}
+fredr::fredr_tags()
+```
+
+```{r}
+fredr::fredr_category_series()
+```
+
+```{r}
+fredr::fredr_releases_dates()
+```
+
+```{r}
+fredr::fredr_series_updates() %>% 
+  filter(frequency %in% c("Monthly, End of Period",
+                          "Monthly",
+                          "Weekly, Ending Friday",
+                          "Quarterly"))
+  distinct(frequency)
+```
+
+
+```{r}
+
+fredr::fredr_releases_dates(sort_order = "desc",
+                            order_by = "release_date",
+                            include_release_dates_with_no_data=TRUE) %>% 
+  filter(date>=Sys.Date())
+```
+
+
+```{r}
+fredr::
+```

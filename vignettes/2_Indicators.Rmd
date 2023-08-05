@@ -126,6 +126,7 @@ df_NASDAQCOM %>%
 ### FRED Data
 
 ```{r}
+
 series_ids = unique(c("CBBTCUSD",
                "NASDAQCOM",
                "T10Y2Y",

@@ -464,6 +464,16 @@ plot(g, vertex.label.family = "sans", vertex.label.font = 2, vertex.label.cex = 
 ### DK Long Interest Rate
 
 ```{r}
+
+df_best_corr %>%
+  ungroup() %>% 
+  filter(x1 %in% c("Lang.rente")) %>% 
+  filter(abs(corr_time_value) > 0.85) 
+
+```
+
+
+```{r}
 df_best_corr %>%
   ungroup() %>% 
   filter(x1 %in% c("Lang.rente")) %>% 
@@ -524,7 +534,7 @@ corr_extra = data.frame(x1=all_ids,
 filtered_cor_df <- df_best_corr %>%
   ungroup() %>% 
   filter(x1 %in% c("Enfamiliehuse_Indeks","PCEPI","CSUSHPINSA","M2SL","PCEPI","TLT","AUTHNOTT","Byggeri under opførelse","CurveLongShort","Lang.Rente")) %>% 
-  filter(abs(corr_time_value) > 0.85)
+  filter(abs(corr_time_value) > 0.9)
 
 # Create a nodes data frame
 nodes <- data.frame(id = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)), label = unique(c(filtered_cor_df$x1, filtered_cor_df$x2)))
@@ -541,6 +551,15 @@ visNetwork(nodes, edges) %>%
   visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
   visInteraction(navigationButtons = TRUE)
 
+# ChatGPT:
+
+filtered_cor_df %>% 
+  dplyr::select(-corr_value) %>% 
+  dplyr::mutate(corr_time_value=scales::number(corr_time_value,accuracy=0.01)) %>% 
+  dplyr::mutate(label_=paste0(x1,"<->",x2,": ",corr_time_value)) %>% 
+  pull(label_) %>% 
+  paste(.,collapse="\n") %>% 
+  cat(.)
 ```
 
 
