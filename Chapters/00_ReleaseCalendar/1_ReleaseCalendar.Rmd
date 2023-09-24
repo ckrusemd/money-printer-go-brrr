@@ -95,7 +95,3 @@ fredr::fredr_releases_dates(sort_order = "desc",
   filter(date>=Sys.Date())
 ```
 
-
-```{r}
-fredr::
-```
