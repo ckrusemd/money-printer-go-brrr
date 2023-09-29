@@ -22,9 +22,11 @@ pacman::p_load(fredr,
                pROC,
                gganimate,
                devtools,
+               gridExtra,
                httr,
                DT,
                httr,
+               glue,
                visNetwork,
                dkstat,
                data.table,
@@ -35,6 +37,258 @@ pacman::p_load(fredr,
                rvest,
                ggrepel)
 source(file = "money_theme.R")
+
+# library("devtools")
+# install_github("rOpenGov/dkstat")
+library(dkstat)
+```
+
+```{r }
+readRenviron(path = "Renviron.site")
+fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
 # Markets
+
+Price index DK
+
+```{r}
+# Indexed to 2015
+df_PRIS114 = dkstat::dst_get_data(table = "PRIS114",
+                     VAREGR = "00 Nettoprisindeks i alt",
+                     ENHED = "Indeks",
+                     Tid = "*") %>% 
+  arrange(TID) %>% 
+  dplyr::mutate(Index=value/100) %>% 
+  tidyr::complete(TID=seq.Date(from=min(TID,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
+  tidyr::fill(TID,.direction = "down")  %>% 
+  tidyr::fill(value,.direction = "down")   %>% 
+  tidyr::fill(VAREGR,.direction = "down")   %>% 
+  tidyr::fill(ENHED,.direction = "down")    %>% 
+  tidyr::fill(Index,.direction = "down") %>% 
+  dplyr::select(TID,value) %>% 
+  dplyr::rename(date=TID) %>% 
+  dplyr::mutate(series_id="PRIS114")
+
+```
+
+Price index US
+
+```{r}
+df_CPIAUCNS = fredr::fredr("CPIAUCNS") %>% 
+    dplyr::select(series_id,
+                  date,
+                  value) %>% 
+    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
+    tidyr::fill(value,.direction = "down") %>% 
+    tidyr::fill(series_id,.direction = "down") %>% 
+  dplyr::mutate(index=ifelse(date==ymd("2015-01-01"),value,NA)) %>% 
+  tidyr::fill(index,.direction = "downup") %>% 
+  dplyr::mutate(value=100*value/index) %>% 
+  dplyr::select(-index)
+```
+
+Index 1 (To keep nominal prices)
+
+```{r}
+df_nominal = df_CPIAUCNS %>% 
+  dplyr::mutate(value=1,
+                series_id="NOMINAL")
+```
+
+
+Gold price, Silver Price, Oil Price, Bitcoin, USD
+
+```{r}
+
+series_ids_yahoo = unique(c("CL=F",
+                            "GC=F",
+                            "SI=F",
+                            "BTC-USD",
+                            "USDDKK=X"))
+
+df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
+      temp_df = getSymbols(ticker, env = NULL) %>% 
+      as.data.frame(.) %>% 
+      dplyr::mutate(Date=row.names(.)) %>% 
+      dplyr::mutate(Date=gsub("X","",Date)) %>% 
+      dplyr::mutate(Date=ymd(Date)) %>% 
+      dplyr::select(c(7,1)) %>% 
+      setNames(.,c("date","value")) %>% 
+      dplyr::mutate(series_id=ticker) %>% 
+      tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+      tidyr::fill(value,.direction = "down")  %>%
+      tidyr::fill(series_id,.direction = "down")
+      
+      row.names(temp_df) = NULL
+      return( temp_df )
+})) %>% 
+  bind_rows(df_CPIAUCNS) %>% 
+  bind_rows(df_PRIS114) %>% 
+  bind_rows(df_nominal)
+
+```
+
+Tickers
+
+```{r}
+series_ids_yahoo = unique(c("GC=F",
+                            "SI=F",
+                            "BTC-USD",
+                            "ETH-USD",
+                            "^IXIC",
+                            "^GSPC",
+                            "^OMXC25"))
+
+df_tickers_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
+      temp_df = getSymbols(ticker, env = NULL) %>% 
+      as.data.frame(.) %>% 
+      dplyr::mutate(Date=row.names(.)) %>% 
+      dplyr::mutate(Date=gsub("X","",Date)) %>% 
+      dplyr::mutate(Date=ymd(Date)) %>% 
+      dplyr::select(c(7,1)) %>% 
+      setNames(.,c("date","price")) %>% 
+      dplyr::mutate(ticker=ticker) %>% 
+      tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+      tidyr::fill(price,.direction = "down")  %>%
+      tidyr::fill(ticker,.direction = "down")
+      
+      row.names(temp_df) = NULL
+      return( temp_df )
+})) 
+```
+
+```{r}
+df_adjusted = df_tickers_yahoo %>% 
+  inner_join( df_macro_yahoo ) %>% 
+  dplyr::mutate(index=price/value) %>% 
+  dplyr::select(-price,-value)
+
+```
+
+Plot function
+
+```{r}
+draw_plots = function(data) {
+  
+  ticker_ = unique(data$ticker)
+  temp_df = df_adjusted %>% filter(ticker==ticker_)
+  
+# All time plot
+p1 = temp_df %>% 
+  filter(series_id=="NOMINAL") %>% 
+  ggplot(.,aes(x=date,y=index)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%Y",date_breaks = "5 years") +
+  labs(x=NULL,y=NULL,title=glue("{ticker_}"),subtitle="All Time")
+
+# Last year
+p2 = temp_df %>% 
+  filter(series_id=="NOMINAL") %>%  
+  filter(date>=Sys.Date()-years(1)) %>% 
+  ggplot(.,aes(x=date,y=index)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%b",date_breaks = "1 month") +
+  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  labs(x=NULL,y=NULL,subtitle="Last Year")
+
+# SMA
+p3 = temp_df %>% 
+  filter(series_id=="NOMINAL") %>% 
+  arrange(date) %>% 
+  dplyr::mutate(sma200=TTR::SMA(index,n=200)) %>% 
+  dplyr::mutate(index=index-sma200) %>% 
+  filter(date>=Sys.Date()-years(1)) %>% 
+  ggplot(.,aes(x=date,y=index)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%b",date_breaks = "1 month") +
+  geom_hline(yintercept = 0,linetype=2) +
+  labs(x=NULL,y=NULL,subtitle="SMA 200")
+
+# RSI
+p4 = temp_df %>% 
+  filter(series_id=="NOMINAL") %>% 
+  dplyr::mutate(rsi=TTR::RSI(index,n=30)) %>% 
+  filter(date>=Sys.Date()-years(1)) %>% 
+  ggplot(.,aes(x=date,y=rsi)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%b",date_breaks = "1 month") +
+  geom_hline(yintercept = c(20,70),linetype=2) +
+  labs(x=NULL,y=NULL,subtitle="RSI")
+
+# Real terms (US)
+p5 = temp_df %>% 
+  filter(series_id=="CPIAUCNS") %>% 
+  ggplot(.,aes(x=date,y=index)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
+  labs(x=NULL,y=NULL,subtitle="Real Terms (US)")
+
+# US Dollars
+p6 = temp_df %>% 
+  filter(series_id=="USDDKK=X") %>% 
+  ggplot(.,aes(x=date,y=index)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
+  labs(x=NULL,y=NULL,subtitle="DKK")
+
+# Oil
+p7 = temp_df %>% 
+  filter(series_id=="CL=F") %>% 
+  ggplot(.,aes(x=date,y=index)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
+  scale_y_continuous(limits=c(0,150)) +
+  labs(x=NULL,y=NULL,subtitle="Crude Oil")
+
+# Silver
+p8 = temp_df %>% 
+  filter(series_id=="SI=F") %>% 
+  ggplot(.,aes(x=date,y=index)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
+  labs(x=NULL,y=NULL,subtitle="Silver")
+
+p5 = grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,ncol=1)
+print(p5)
+
+}
+```
+
+## SP500
+```{r fig.height=20,fig.width=10}
+draw_plots(data = df_tickers_yahoo %>% filter(ticker=="^GSPC"))
+```
+
+## OMX C25
+```{r fig.height=20,fig.width=10}
+draw_plots(data = df_tickers_yahoo %>% filter(ticker=="^OMXC25"))
+```
+
+## NASDAQ
+```{r fig.height=20,fig.width=10}
+draw_plots(data = df_tickers_yahoo %>% filter(ticker=="^IXIC"))
+```
+
+## BITCOIN
+```{r fig.height=20,fig.width=10}
+draw_plots(data = df_tickers_yahoo %>% filter(ticker=="BTC-USD"))
+```
+
+## GOLD
+```{r fig.height=20,fig.width=10}
+draw_plots(data = df_tickers_yahoo %>% filter(ticker=="GC=F"))
+```
+
+## Silver
+```{r fig.height=20,fig.width=10}
+draw_plots(data = df_tickers_yahoo %>% filter(ticker=="SI=F"))
+```
