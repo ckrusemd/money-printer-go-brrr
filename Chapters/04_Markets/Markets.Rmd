@@ -257,7 +257,16 @@ p8 = temp_df %>%
   scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
   labs(x=NULL,y=NULL,subtitle="Silver")
 
-p5 = grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,ncol=1)
+# Gold
+p9 = temp_df %>% 
+  filter(series_id=="GC=F") %>% 
+  ggplot(.,aes(x=date,y=index)) +
+  geom_line() +
+  theme_money_printer_go_brrr(12) +
+  scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
+  labs(x=NULL,y=NULL,subtitle="Gold")
+
+p5 = grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,ncol=1)
 print(p5)
 
 }
