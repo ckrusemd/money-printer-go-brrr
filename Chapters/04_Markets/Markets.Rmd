@@ -68,7 +68,8 @@ df_PRIS114 = dkstat::dst_get_data(table = "PRIS114",
   tidyr::fill(Index,.direction = "down") %>% 
   dplyr::select(TID,value) %>% 
   dplyr::rename(date=TID) %>% 
-  dplyr::mutate(series_id="PRIS114")
+  dplyr::mutate(series_id="PRICE_INDEX",
+                currency="DKK")
 
 ```
 
@@ -84,16 +85,19 @@ df_CPIAUCNS = fredr::fredr("CPIAUCNS") %>%
     tidyr::fill(series_id,.direction = "down") %>% 
   dplyr::mutate(index=ifelse(date==ymd("2015-01-01"),value,NA)) %>% 
   tidyr::fill(index,.direction = "downup") %>% 
-  dplyr::mutate(value=100*value/index) %>% 
+  dplyr::mutate(value=100*value/index,
+                series_id="PRICE_INDEX",
+                currency="USD") %>% 
   dplyr::select(-index)
 ```
 
 Index 1 (To keep nominal prices)
 
 ```{r}
-df_nominal = df_CPIAUCNS %>% 
-  dplyr::mutate(value=1,
-                series_id="NOMINAL")
+df_nominal = expand.grid(currency=c("USD","DKK"),
+                         value=1,
+                         series_id="NOMINAL",
+                         date=seq.Date(min(df_CPIAUCNS$date),max(df_CPIAUCNS$date),by="1 day"))
 ```
 
 
@@ -105,6 +109,7 @@ series_ids_yahoo = unique(c("CL=F",
                             "GC=F",
                             "SI=F",
                             "BTC-USD",
+                            "DKKUSD=X",
                             "USDDKK=X"))
 
 df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
@@ -122,7 +127,23 @@ df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
       
       row.names(temp_df) = NULL
       return( temp_df )
-})) %>% 
+}))
+
+# USD
+df_macro_yahoo_usd = df_macro_yahoo %>% 
+  filter(!series_id=="USDDKK=X") %>% 
+  dplyr::mutate(currency="USD")
+
+# DKK
+df_macro_yahoo_dkk = df_macro_yahoo %>% 
+  inner_join( df_macro_yahoo %>% filter(series_id=="USDDKK=X") %>% dplyr::select(date,value) %>% dplyr::rename(usd=value)) %>% 
+  filter(!series_id=="DKKUSD=X") %>% 
+  dplyr::mutate(value=value*usd,
+                currency="DKK") %>% 
+  dplyr::select(-usd)
+
+df_macros = df_macro_yahoo_usd %>% 
+  bind_rows( df_macro_yahoo_dkk ) %>% 
   bind_rows(df_CPIAUCNS) %>% 
   bind_rows(df_PRIS114) %>% 
   bind_rows(df_nominal)
@@ -159,8 +180,9 @@ df_tickers_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
 ```
 
 ```{r}
+
 df_adjusted = df_tickers_yahoo %>% 
-  inner_join( df_macro_yahoo ) %>% 
+  inner_join( df_macros ) %>% 
   dplyr::mutate(index=price/value) %>% 
   dplyr::select(-price,-value)
 
@@ -172,7 +194,7 @@ Plot function
 draw_plots = function(data) {
   
   ticker_ = unique(data$ticker)
-  temp_df = df_adjusted %>% filter(ticker==ticker_)
+  temp_df = data %>% filter(ticker==ticker_)
   
 # All time plot
 p1 = temp_df %>% 
@@ -266,38 +288,73 @@ p9 = temp_df %>%
   scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
   labs(x=NULL,y=NULL,subtitle="Gold")
 
-p5 = grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,ncol=1)
-print(p5)
+  # Index
+  p10 = temp_df  %>% 
+    filter(series_id %in% c("PRICE_INDEX","NOMINAL")) %>% 
+    group_by(series_id) %>% 
+    dplyr::mutate(nominal_2015=ifelse(date==ymd("2015-01-01"),index,NA)) %>% 
+    tidyr::fill(nominal_2015,.direction = "downup") %>% 
+    ungroup() %>% 
+    dplyr::mutate(index=100*index/nominal_2015) %>% 
+    dplyr::select(-nominal_2015) %>% 
+    ggplot(aes(x=date,y=index,color=series_id,group=series_id)) +
+    geom_line() +
+    theme_money_printer_go_brrr(12) +
+    scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
+    labs(x=NULL,y=NULL,subtitle="Indexed 2015")
+
+  # Above/below price index
+  p11 = temp_df  %>% 
+    filter(series_id %in% c("PRICE_INDEX","NOMINAL")) %>% 
+    group_by(series_id) %>% 
+    dplyr::mutate(nominal_2015=ifelse(date==ymd("2015-01-01"),index,NA)) %>% 
+    tidyr::fill(nominal_2015,.direction = "downup") %>% 
+    ungroup() %>% 
+    dplyr::mutate(index=100*index/nominal_2015) %>% 
+    dplyr::select(-nominal_2015) %>% 
+    dplyr::mutate(priceindex=ifelse(series_id=="PRICE_INDEX",index,NA)) %>% 
+    tidyr::fill(priceindex,.direction = "downup") %>% 
+    dplyr::mutate(index=index-priceindex) %>% 
+    filter(!series_id=="PRICE_INDEX") %>% 
+    ggplot(aes(x=date,y=index,color=series_id,group=series_id)) +
+    geom_line() +
+    theme_money_printer_go_brrr(12) +
+    scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
+    labs(x=NULL,y=NULL,subtitle="Above/below price trend") +
+    geom_hline(yintercept = 0,linetype=2)
+
+p_all = grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,ncol=1)
+print(p_all)
 
 }
 ```
 
 ## SP500
-```{r fig.height=20,fig.width=10}
-draw_plots(data = df_tickers_yahoo %>% filter(ticker=="^GSPC"))
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^GSPC",currency=="USD"))
 ```
 
 ## OMX C25
-```{r fig.height=20,fig.width=10}
-draw_plots(data = df_tickers_yahoo %>% filter(ticker=="^OMXC25"))
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^OMXC25",currency=="DKK"))
 ```
 
 ## NASDAQ
-```{r fig.height=20,fig.width=10}
-draw_plots(data = df_tickers_yahoo %>% filter(ticker=="^IXIC"))
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^IXIC",currency=="USD"))
 ```
 
 ## BITCOIN
-```{r fig.height=20,fig.width=10}
-draw_plots(data = df_tickers_yahoo %>% filter(ticker=="BTC-USD"))
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="BTC-USD",currency=="USD"))
 ```
 
 ## GOLD
-```{r fig.height=20,fig.width=10}
-draw_plots(data = df_tickers_yahoo %>% filter(ticker=="GC=F"))
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="GC=F",currency=="USD"))
 ```
 
 ## Silver
-```{r fig.height=20,fig.width=10}
-draw_plots(data = df_tickers_yahoo %>% filter(ticker=="SI=F"))
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SI=F",currency=="USD"))
 ```
