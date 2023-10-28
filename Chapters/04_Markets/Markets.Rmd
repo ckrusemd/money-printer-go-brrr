@@ -152,13 +152,80 @@ df_macros = df_macro_yahoo_usd %>%
 
 Tickers
 
+
+Short:
+- SHV: iShares Short Treasury Bond ETF
+- TBF: ProShares Short 20+ Yr Treasury
+- TTT: UltraPro Short 20+ Year Treasury
+- TBX: Short 7-10 Year Treasury
+- PST: UltraShort 7-10 Year Treasury
+- TBT: UltraShort 20+ Year Treasury
+
+Long:
+- MBB: iShares MBS ETF
+- GOVT: iShares U.S. Treasury Bond ETF
+- SGOV: iShares 0-3 Month Treasury Bond ETF
+- SHY: iShares 1-3 Year Treasury Bond ETF
+- IEI: iShares 3-7 Year Treasury Bond ETF
+- IEF: iShares 7-10 Year Treasury Bond ETF
+- UST: Ultra 7-10 Year Treasury
+- TLH: iShares 10-20 Year Treasury Bond ETF
+- TLT: iShares 20+ Year Treasury Bond ETF
+- UBT: Ultra 20+ Year Treasury
+
+Commodities:
+- IAU: iShares Gold Trust
+- SLV: iShares Silver Trust
+
 ```{r}
 series_ids_yahoo = unique(c("GC=F",
                             "SI=F",
                             "BTC-USD",
                             "ETH-USD",
+                            "^RUT",
+                            "^W5000",
                             "^IXIC",
                             "^GSPC",
+                            
+                            "SHV",
+                            "TBF",
+                            "TTT",
+                            "TBX",
+                            "PST",
+                            "TBT",
+                            
+                            "XLK",
+                            "XLV",
+                            "XLY",
+                            "XLP",
+                            "XLU",
+                            "XLF",
+                            "XLI",
+                            "XLB",
+                            "XLE",
+                            "XLRE",
+                            "XLC",
+                            
+                            "REW",
+                            "RXD",
+                            "SCC",
+                            "SDP",
+                            "SKF",
+                            "SIJ",
+                            "SMN",
+                            "DUG",
+                            "SRS",
+                            
+                            "MBB",
+                            "GOVT",
+                            "SGOV",
+                            "SHY",
+                            "IEI",
+                            "IEF",
+                            "UST",
+                            "UBT",
+                            "TLT",
+                            
                             "^OMXC25"))
 
 df_tickers_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
@@ -216,6 +283,42 @@ p2 = temp_df %>%
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   labs(x=NULL,y=NULL,subtitle="Last Year")
 
+# Indicator heatmap
+p2b = temp_df %>% 
+  filter(series_id=="NOMINAL") %>% 
+  arrange((date)) %>% 
+  dplyr::mutate(value_rsi=TTR::RSI(index),
+                value_macd=TTR::MACD(index)[,1]-TTR::MACD(index)[,2],
+                value_cci=TTR::CCI(index),
+                value_goldencross=TTR::SMA(index,n=50)-TTR::SMA(index,n=200)) %>% 
+  dplyr::mutate(value_lastdate=ifelse(index<last(index) & !date==max(date),as.Date(date),as.Date(NA))) %>% 
+  dplyr::mutate(value_lastdate=max(value_lastdate,na.rm=T)) %>% 
+  dplyr::mutate(value_lastdate=as.numeric(date-as.Date(value_lastdate))) %>% 
+  tidyr::fill(value_lastdate,.direction = "down") %>% 
+  dplyr::mutate(p_rsi=pnorm(value_rsi,mean=mean(value_rsi,na.rm=T),sd=sd(value_rsi,na.rm=T)),
+                p_macd=pnorm(value_macd,mean=mean(value_macd,na.rm=T),sd=sd(value_macd,na.rm=T)),
+                p_cci=pnorm(value_cci,mean=mean(value_cci,na.rm=T),sd=sd(value_cci,na.rm=T)),
+                p_goldencross=pnorm(value_goldencross,mean=mean(value_goldencross,na.rm=T),sd=sd(value_goldencross,na.rm=T)),
+                p_pnorm=pnorm(index,mean=mean(tail(index,3*365),na.rm=T),sd=sd(tail(index,3*365),na.rm=T)), 
+                p_lastdate=0.5) %>% 
+  filter(date==max(date)) %>% 
+  dplyr::select(-currency,-index) %>% 
+  gather(stat,val,value_rsi:p_lastdate) %>% 
+  separate(stat,into=c("type","metric")) %>% 
+  spread(type,val) %>% 
+  ggplot(aes(x=metric,y=ticker,fill=p)) +
+  geom_tile() +
+  geom_text(aes(label=paste0(scales::number(value,0.01)," (",scales::percent(p,0.1),")")),color="white") + 
+  scale_fill_gradientn(colours=hcl.colors(10, palette = "ag_GrnYl"),
+                       na.value = "transparent",
+                       breaks=c(0,0.5,1),
+                       labels=c("Minimum",0.5,"Maximum"),
+                       limits=c(0,1)) +
+  theme_money_printer_go_brrr(12) +
+  theme(legend.position="null",
+        axis.text.y=element_blank()) +
+  labs(x=NULL,y=NULL)
+  
 # SMA
 p3 = temp_df %>% 
   filter(series_id=="NOMINAL") %>% 
@@ -323,7 +426,9 @@ p9 = temp_df %>%
     labs(x=NULL,y=NULL,subtitle="Above/below price trend") +
     geom_hline(yintercept = 0,linetype=2)
 
-p_all = grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,ncol=1)
+p_all = grid.arrange(p1,p2,p2b,p3,p4,
+                     # p5,
+                     p6,p7,p8,p9,p10,p11,ncol=1)
 print(p_all)
 
 }
@@ -334,14 +439,24 @@ print(p_all)
 draw_plots(data = df_adjusted %>% filter(ticker=="^GSPC",currency=="USD"))
 ```
 
+## NASDAQ
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^IXIC",currency=="USD"))
+```
+
 ## OMX C25
 ```{r fig.height=25,fig.width=10}
 draw_plots(data = df_adjusted %>% filter(ticker=="^OMXC25",currency=="DKK"))
 ```
 
-## NASDAQ
+## RUSSELL 2000
 ```{r fig.height=25,fig.width=10}
-draw_plots(data = df_adjusted %>% filter(ticker=="^IXIC",currency=="USD"))
+draw_plots(data = df_adjusted %>% filter(ticker=="^RUT",currency=="USD"))
+```
+
+## WILLSHIRE
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^W5000",currency=="USD"))
 ```
 
 ## BITCOIN
@@ -358,3 +473,169 @@ draw_plots(data = df_adjusted %>% filter(ticker=="GC=F",currency=="USD"))
 ```{r fig.height=25,fig.width=10}
 draw_plots(data = df_adjusted %>% filter(ticker=="SI=F",currency=="USD"))
 ```
+# Bond ETFs
+
+Short:
+- SHV: iShares Short Treasury Bond ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SHV",currency=="USD"))
+```
+- TBF: ProShares Short 20+ Yr Treasury
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="TBF",currency=="USD"))
+```
+- TTT: UltraPro Short 20+ Year Treasury
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="TTT",currency=="USD"))
+```
+- TBX: Short 7-10 Year Treasury
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="TBX",currency=="USD"))
+```
+- PST: UltraShort 7-10 Year Treasury
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="PST",currency=="USD"))
+```
+- TBT: UltraShort 20+ Year Treasury
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="TBT",currency=="USD"))
+```
+
+Long:
+- MBB: iShares MBS ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="MBB",currency=="USD"))
+```
+- GOVT: iShares U.S. Treasury Bond ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="GOVT",currency=="USD"))
+```
+- SGOV: iShares 0-3 Month Treasury Bond ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SGOV",currency=="USD"))
+```
+- SHY: iShares 1-3 Year Treasury Bond ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SHY",currency=="USD"))
+```
+- IEI: iShares 3-7 Year Treasury Bond ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="IEI",currency=="USD"))
+```
+- IEF: iShares 7-10 Year Treasury Bond ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="IEF",currency=="USD"))
+```
+- UST: Ultra 7-10 Year Treasury
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="UST",currency=="USD"))
+```
+- TLH: iShares 10-20 Year Treasury Bond ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="TBT",currency=="USD"))
+```
+- TLT: iShares 20+ Year Treasury Bond ETF
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="TLT",currency=="USD"))
+```
+- UBT: Ultra 20+ Year Treasury
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="UBT",currency=="USD"))
+```
+
+Commodities:
+- IAU: iShares Gold Trust
+- SLV: iShares Silver Trust
+
+```{r}
+
+```
+
+# Sector ETFs
+
+Long:
+
+- Technology: Technology Select Sector SPDR Fund (XLK)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLK",currency=="USD"))
+```
+- Health Care: Health Care Select Sector SPDR Fund (XLV)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLV",currency=="USD"))
+```
+- Consumer Discretionary: Consumer Discretionary Select Sector SPDR Fund (XLY)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLY",currency=="USD"))
+```
+- Consumer Staples: Consumer Staples Select Sector SPDR Fund (XLP)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLP",currency=="USD"))
+```
+- Utilities: Utilities Select Sector SPDR Fund (XLU)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLU",currency=="USD"))
+```
+- Financials: Financial Select Sector SPDR Fund (XLF)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLF",currency=="USD"))
+```
+- Industrials: Industrial Select Sector SPDR Fund (XLI)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLI",currency=="USD"))
+```
+- Materials: Materials Select Sector SPDR Fund (XLB)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLB",currency=="USD"))
+```
+- Energy: Energy Select Sector SPDR Fund (XLE)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLE",currency=="USD"))
+```
+- Real Estate: Real Estate Select Sector SPDR Fund (XLRE)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLRE",currency=="USD"))
+```
+- Communication Services: Communication Services Select Sector SPDR Fund (XLC)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLC",currency=="USD"))
+```
+
+Shorts:
+
+Technology Sector: ProShares UltraShort Technology - REW (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="REW",currency=="USD"))
+```
+Health Care Sector: ProShares UltraShort Health Care - RXD (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="RXD",currency=="USD"))
+```
+Consumer Discretionary Sector: ProShares UltraShort Consumer Services - SCC (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SCC",currency=="USD"))
+```
+Utilities Sector: ProShares UltraShort Utilities - SDP (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SDP",currency=="USD"))
+```
+Financials Sector: ProShares UltraShort Financials - SKF (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SKF",currency=="USD"))
+```
+Industrials Sector: ProShares UltraShort Industrials - SIJ (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SIJ",currency=="USD"))
+```
+Materials Sector: ProShares UltraShort Basic Materials - SMN (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SMN",currency=="USD"))
+```
+Energy Sector: ProShares UltraShort Oil & Gas - DUG (Note: This is 2x leveraged, and specifically targets the oil and gas industry)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="DUG",currency=="USD"))
+```
+Real Estate Sector: ProShares UltraShort Real Estate - SRS (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SRS",currency=="USD"))
+```
+
