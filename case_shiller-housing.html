@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>5 Case_Shiller Housing | Markets</title>
+  <meta name="description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
+  <meta name="generator" content="bookdown 0.33 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="5 Case_Shiller Housing | Markets" />
+  <meta property="og:type" content="book" />
+  
+  <meta property="og:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
+  <meta name="github-repo" content="ckrusemd/Aarhus-daylight-weather" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="5 Case_Shiller Housing | Markets" />
+  
+  <meta name="twitter:description" content="Since 1971, Money Printer Has Gone BRRR. Let’s Make the Most of It. A Series of Macroeconomic Notebooks." />
+  
+
+<meta name="author" content="Christian Kruse" />
+
+
+<meta name="date" content="2024-03-27" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="indicators.html"/>
+<link rel="next" href="us-housing-data.html"/>
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
+<link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
+<script src="libs/htmlwidgets-1.6.1/htmlwidgets.js"></script>
+<link href="libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet" />
+<script src="libs/datatables-binding-0.27/datatables.js"></script>
+<link href="libs/dt-core-1.12.1/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="libs/dt-core-1.12.1/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="libs/dt-core-1.12.1/js/jquery.dataTables.min.js"></script>
+<link href="libs/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet" />
+<script src="libs/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+<link href="libs/vis-9.1.0/vis-network.min.css" rel="stylesheet" />
+<script src="libs/vis-9.1.0/vis-network.min.js"></script>
+<script src="libs/visNetwork-binding-2.1.2/visNetwork.js"></script>
+
+
+<style type="text/css">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> Money Printer Go BRRR</a></li>
+<li class="chapter" data-level="2" data-path="release-calendar.html"><a href="release-calendar.html"><i class="fa fa-check"></i><b>2</b> Release Calendar</a>
+<ul>
+<li class="chapter" data-level="2.1" data-path="release-calendar.html"><a href="release-calendar.html#function"><i class="fa fa-check"></i><b>2.1</b> Function</a></li>
+<li class="chapter" data-level="2.2" data-path="release-calendar.html"><a href="release-calendar.html#all"><i class="fa fa-check"></i><b>2.2</b> All</a></li>
+<li class="chapter" data-level="2.3" data-path="release-calendar.html"><a href="release-calendar.html#last-week"><i class="fa fa-check"></i><b>2.3</b> Last week</a></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="unemployment.html"><a href="unemployment.html"><i class="fa fa-check"></i><b>3</b> Unemployment</a></li>
+<li class="chapter" data-level="4" data-path="indicators.html"><a href="indicators.html"><i class="fa fa-check"></i><b>4</b> Indicators</a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="indicators.html"><a href="indicators.html#etfs-data"><i class="fa fa-check"></i><b>4.1</b> ETFs data</a></li>
+<li class="chapter" data-level="4.2" data-path="indicators.html"><a href="indicators.html#data"><i class="fa fa-check"></i><b>4.2</b> Data</a>
+<ul>
+<li class="chapter" data-level="4.2.1" data-path="indicators.html"><a href="indicators.html#finansdanmark"><i class="fa fa-check"></i><b>4.2.1</b> FinansDanmark</a></li>
+<li class="chapter" data-level="4.2.2" data-path="indicators.html"><a href="indicators.html#fred"><i class="fa fa-check"></i><b>4.2.2</b> FRED</a></li>
+<li class="chapter" data-level="4.2.3" data-path="indicators.html"><a href="indicators.html#yahoo"><i class="fa fa-check"></i><b>4.2.3</b> Yahoo</a></li>
+</ul></li>
+<li class="chapter" data-level="4.3" data-path="indicators.html"><a href="indicators.html#combine"><i class="fa fa-check"></i><b>4.3</b> Combine</a>
+<ul>
+<li class="chapter" data-level="4.3.1" data-path="indicators.html"><a href="indicators.html#all-data"><i class="fa fa-check"></i><b>4.3.1</b> All Data</a></li>
+</ul></li>
+<li class="chapter" data-level="4.4" data-path="indicators.html"><a href="indicators.html#combine-1"><i class="fa fa-check"></i><b>4.4</b> Combine</a></li>
+<li class="chapter" data-level="4.5" data-path="indicators.html"><a href="indicators.html#cross-correlations"><i class="fa fa-check"></i><b>4.5</b> Cross correlations</a></li>
+<li class="chapter" data-level="4.6" data-path="indicators.html"><a href="indicators.html#descriptive"><i class="fa fa-check"></i><b>4.6</b> Descriptive</a>
+<ul>
+<li class="chapter" data-level="4.6.1" data-path="indicators.html"><a href="indicators.html#leading"><i class="fa fa-check"></i><b>4.6.1</b> Leading</a></li>
+<li class="chapter" data-level="4.6.2" data-path="indicators.html"><a href="indicators.html#coincident"><i class="fa fa-check"></i><b>4.6.2</b> Coincident</a></li>
+<li class="chapter" data-level="4.6.3" data-path="indicators.html"><a href="indicators.html#lagging"><i class="fa fa-check"></i><b>4.6.3</b> Lagging</a></li>
+</ul></li>
+<li class="chapter" data-level="4.7" data-path="indicators.html"><a href="indicators.html#main-graph"><i class="fa fa-check"></i><b>4.7</b> Main graph</a></li>
+<li class="chapter" data-level="4.8" data-path="indicators.html"><a href="indicators.html#individual-patterns"><i class="fa fa-check"></i><b>4.8</b> Individual patterns</a>
+<ul>
+<li class="chapter" data-level="4.8.1" data-path="indicators.html"><a href="indicators.html#dk-long-interest-rate"><i class="fa fa-check"></i><b>4.8.1</b> DK Long Interest Rate</a></li>
+<li class="chapter" data-level="4.8.2" data-path="indicators.html"><a href="indicators.html#dk-houseprices"><i class="fa fa-check"></i><b>4.8.2</b> DK Houseprices</a></li>
+<li class="chapter" data-level="4.8.3" data-path="indicators.html"><a href="indicators.html#employment"><i class="fa fa-check"></i><b>4.8.3</b> Employment</a></li>
+<li class="chapter" data-level="4.8.4" data-path="indicators.html"><a href="indicators.html#nasdaq"><i class="fa fa-check"></i><b>4.8.4</b> NASDAQ</a></li>
+<li class="chapter" data-level="4.8.5" data-path="indicators.html"><a href="indicators.html#spy"><i class="fa fa-check"></i><b>4.8.5</b> SPY</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="case_shiller-housing.html"><a href="case_shiller-housing.html"><i class="fa fa-check"></i><b>5</b> Case_Shiller Housing</a></li>
+<li class="chapter" data-level="6" data-path="us-housing-data.html"><a href="us-housing-data.html"><i class="fa fa-check"></i><b>6</b> US Housing Data</a></li>
+<li class="chapter" data-level="7" data-path="housing-denmark.html"><a href="housing-denmark.html"><i class="fa fa-check"></i><b>7</b> Housing: Denmark</a>
+<ul>
+<li class="chapter" data-level="7.1" data-path="housing-denmark.html"><a href="housing-denmark.html#construction-activity"><i class="fa fa-check"></i><b>7.1</b> Construction Activity</a></li>
+<li class="chapter" data-level="7.2" data-path="housing-denmark.html"><a href="housing-denmark.html#employment-1"><i class="fa fa-check"></i><b>7.2</b> Employment</a></li>
+<li class="chapter" data-level="7.3" data-path="housing-denmark.html"><a href="housing-denmark.html#backlog"><i class="fa fa-check"></i><b>7.3</b> Backlog</a></li>
+<li class="chapter" data-level="7.4" data-path="housing-denmark.html"><a href="housing-denmark.html#rolling-sums-of-changes"><i class="fa fa-check"></i><b>7.4</b> Rolling sums of changes</a></li>
+<li class="chapter" data-level="7.5" data-path="housing-denmark.html"><a href="housing-denmark.html#leadinglagging"><i class="fa fa-check"></i><b>7.5</b> Leading/Lagging</a>
+<ul>
+<li class="chapter" data-level="7.5.1" data-path="housing-denmark.html"><a href="housing-denmark.html#tilladt---påbegyndt"><i class="fa fa-check"></i><b>7.5.1</b> Tilladt -&gt; Påbegyndt</a></li>
+<li class="chapter" data-level="7.5.2" data-path="housing-denmark.html"><a href="housing-denmark.html#påbegyndt---under-opførelse"><i class="fa fa-check"></i><b>7.5.2</b> Påbegyndt -&gt; Under opførelse</a></li>
+<li class="chapter" data-level="7.5.3" data-path="housing-denmark.html"><a href="housing-denmark.html#under-opførelse---fuldført-byggeri"><i class="fa fa-check"></i><b>7.5.3</b> Under opførelse -&gt; Fuldført Byggeri</a></li>
+<li class="chapter" data-level="7.5.4" data-path="housing-denmark.html"><a href="housing-denmark.html#tilladt---fuldført"><i class="fa fa-check"></i><b>7.5.4</b> Tilladt -&gt; Fuldført</a></li>
+<li class="chapter" data-level="7.5.5" data-path="housing-denmark.html"><a href="housing-denmark.html#recent-developments"><i class="fa fa-check"></i><b>7.5.5</b> Recent developments</a></li>
+</ul></li>
+<li class="chapter" data-level="7.6" data-path="housing-denmark.html"><a href="housing-denmark.html#model-future-completed-construction"><i class="fa fa-check"></i><b>7.6</b> Model future completed construction</a></li>
+</ul></li>
+<li class="chapter" data-level="8" data-path="interest-rates.html"><a href="interest-rates.html"><i class="fa fa-check"></i><b>8</b> Interest Rates</a>
+<ul>
+<li class="chapter" data-level="8.1" data-path="interest-rates.html"><a href="interest-rates.html#treasury-bonds"><i class="fa fa-check"></i><b>8.1</b> Treasury Bonds</a></li>
+<li class="chapter" data-level="8.2" data-path="interest-rates.html"><a href="interest-rates.html#since-2001"><i class="fa fa-check"></i><b>8.2</b> Since 2001</a>
+<ul>
+<li class="chapter" data-level="8.2.1" data-path="interest-rates.html"><a href="interest-rates.html#previous-12-months"><i class="fa fa-check"></i><b>8.2.1</b> Previous 12 Months</a></li>
+</ul></li>
+<li class="chapter" data-level="8.3" data-path="interest-rates.html"><a href="interest-rates.html#yield-curve"><i class="fa fa-check"></i><b>8.3</b> Yield Curve</a></li>
+<li class="chapter" data-level="8.4" data-path="interest-rates.html"><a href="interest-rates.html#treasury-bonds-spreads"><i class="fa fa-check"></i><b>8.4</b> Treasury Bonds Spreads</a>
+<ul>
+<li class="chapter" data-level="8.4.1" data-path="interest-rates.html"><a href="interest-rates.html#dff-to-all"><i class="fa fa-check"></i><b>8.4.1</b> DFF to All</a></li>
+<li class="chapter" data-level="8.4.2" data-path="interest-rates.html"><a href="interest-rates.html#year-to-10-year-t-bond"><i class="fa fa-check"></i><b>8.4.2</b> 2-Year to 10-Year T-Bond</a></li>
+<li class="chapter" data-level="8.4.3" data-path="interest-rates.html"><a href="interest-rates.html#year-mortgage-to-30-year-t-bond"><i class="fa fa-check"></i><b>8.4.3</b> 30-Year Mortgage to 30-Year T-Bond</a></li>
+</ul></li>
+<li class="chapter" data-level="8.5" data-path="interest-rates.html"><a href="interest-rates.html#yield-checkboard"><i class="fa fa-check"></i><b>8.5</b> Yield Checkboard</a></li>
+<li class="chapter" data-level="8.6" data-path="interest-rates.html"><a href="interest-rates.html#fed-funds-rate-and-wilson"><i class="fa fa-check"></i><b>8.6</b> Fed Funds Rate and Wilson</a></li>
+</ul></li>
+<li class="chapter" data-level="9" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html"><i class="fa fa-check"></i><b>9</b> Denmark Mortgage Bonds</a>
+<ul>
+<li class="chapter" data-level="9.1" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html#short-long-spread"><i class="fa fa-check"></i><b>9.1</b> Short, Long + Spread</a>
+<ul>
+<li class="chapter" data-level="9.1.1" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html#previous-12-months-1"><i class="fa fa-check"></i><b>9.1.1</b> Previous 12 Months</a></li>
+<li class="chapter" data-level="9.1.2" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html#spread"><i class="fa fa-check"></i><b>9.1.2</b> Spread</a></li>
+<li class="chapter" data-level="9.1.3" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html#short-w-ecb-rate-changes"><i class="fa fa-check"></i><b>9.1.3</b> Short w/ ECB Rate Changes</a></li>
+</ul></li>
+<li class="chapter" data-level="9.2" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html#parabolic-support-and-resistance"><i class="fa fa-check"></i><b>9.2</b> Parabolic Support and Resistance</a></li>
+<li class="chapter" data-level="9.3" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html#historic-5-year-forward-rate-increases"><i class="fa fa-check"></i><b>9.3</b> Historic 5-Year Forward Rate Increases</a></li>
+<li class="chapter" data-level="9.4" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html#lowest-long-yield-and-smallest-spread"><i class="fa fa-check"></i><b>9.4</b> Lowest Long Yield and Smallest Spread</a></li>
+<li class="chapter" data-level="9.5" data-path="denmark-mortgage-bonds.html"><a href="denmark-mortgage-bonds.html#best-time-to-go-fixed"><i class="fa fa-check"></i><b>9.5</b> Best Time to Go Fixed</a></li>
+</ul></li>
+<li class="chapter" data-level="10" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html"><i class="fa fa-check"></i><b>10</b> Predict US Interest Rates</a>
+<ul>
+<li class="chapter" data-level="10.1" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#predicted-us-yield"><i class="fa fa-check"></i><b>10.1</b> Predicted US Yield</a></li>
+<li class="chapter" data-level="10.2" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#future-yield-curves"><i class="fa fa-check"></i><b>10.2</b> Future Yield Curves</a></li>
+<li class="chapter" data-level="10.3" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#future-fed-fomc-meeting-rate-changes"><i class="fa fa-check"></i><b>10.3</b> Future FED FOMC Meeting Rate changes</a></li>
+<li class="chapter" data-level="10.4" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#danish-short-and-long"><i class="fa fa-check"></i><b>10.4</b> Danish Short and Long</a></li>
+<li class="chapter" data-level="10.5" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#usrec"><i class="fa fa-check"></i><b>10.5</b> USREC</a></li>
+<li class="chapter" data-level="10.6" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#usrec-1"><i class="fa fa-check"></i><b>10.6</b> USREC</a></li>
+<li class="chapter" data-level="10.7" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#willshite"><i class="fa fa-check"></i><b>10.7</b> WILLSHITE</a></li>
+<li class="chapter" data-level="10.8" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#m2"><i class="fa fa-check"></i><b>10.8</b> M2</a></li>
+<li class="chapter" data-level="10.9" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#inflation-expectations"><i class="fa fa-check"></i><b>10.9</b> Inflation Expectations</a></li>
+<li class="chapter" data-level="10.10" data-path="predict-us-interest-rates.html"><a href="predict-us-interest-rates.html#previous-hiking-cycles"><i class="fa fa-check"></i><b>10.10</b> Previous Hiking Cycles</a></li>
+</ul></li>
+<li class="chapter" data-level="11" data-path="ecb-yield.html"><a href="ecb-yield.html"><i class="fa fa-check"></i><b>11</b> ECB Yield</a>
+<ul>
+<li class="chapter" data-level="11.1" data-path="ecb-yield.html"><a href="ecb-yield.html#yield-curve-1"><i class="fa fa-check"></i><b>11.1</b> Yield Curve</a></li>
+<li class="chapter" data-level="11.2" data-path="ecb-yield.html"><a href="ecb-yield.html#spreads"><i class="fa fa-check"></i><b>11.2</b> Spreads</a>
+<ul>
+<li class="chapter" data-level="11.2.1" data-path="ecb-yield.html"><a href="ecb-yield.html#s10s"><i class="fa fa-check"></i><b>11.2.1</b> 2s10s</a></li>
+</ul></li>
+<li class="chapter" data-level="11.3" data-path="ecb-yield.html"><a href="ecb-yield.html#predict-yield"><i class="fa fa-check"></i><b>11.3</b> Predict Yield</a></li>
+<li class="chapter" data-level="11.4" data-path="ecb-yield.html"><a href="ecb-yield.html#extrapolate"><i class="fa fa-check"></i><b>11.4</b> Extrapolate</a></li>
+<li class="chapter" data-level="11.5" data-path="ecb-yield.html"><a href="ecb-yield.html#ecb-to-danish-yields"><i class="fa fa-check"></i><b>11.5</b> ECB to Danish Yields</a></li>
+</ul></li>
+<li class="chapter" data-level="12" data-path="markets.html"><a href="markets.html"><i class="fa fa-check"></i><b>12</b> Markets</a>
+<ul>
+<li class="chapter" data-level="12.1" data-path="markets.html"><a href="markets.html#sp500"><i class="fa fa-check"></i><b>12.1</b> SP500</a></li>
+<li class="chapter" data-level="12.2" data-path="markets.html"><a href="markets.html#nasdaq-1"><i class="fa fa-check"></i><b>12.2</b> NASDAQ</a></li>
+<li class="chapter" data-level="12.3" data-path="markets.html"><a href="markets.html#omx-c25"><i class="fa fa-check"></i><b>12.3</b> OMX C25</a></li>
+<li class="chapter" data-level="12.4" data-path="markets.html"><a href="markets.html#russell-2000"><i class="fa fa-check"></i><b>12.4</b> RUSSELL 2000</a></li>
+<li class="chapter" data-level="12.5" data-path="markets.html"><a href="markets.html#willshire"><i class="fa fa-check"></i><b>12.5</b> WILLSHIRE</a></li>
+<li class="chapter" data-level="12.6" data-path="markets.html"><a href="markets.html#bitcoin"><i class="fa fa-check"></i><b>12.6</b> BITCOIN</a></li>
+<li class="chapter" data-level="12.7" data-path="markets.html"><a href="markets.html#gold"><i class="fa fa-check"></i><b>12.7</b> GOLD</a></li>
+<li class="chapter" data-level="12.8" data-path="markets.html"><a href="markets.html#silver"><i class="fa fa-check"></i><b>12.8</b> Silver</a></li>
+</ul></li>
+<li class="chapter" data-level="13" data-path="bond-etfs.html"><a href="bond-etfs.html"><i class="fa fa-check"></i><b>13</b> Bond ETFs</a></li>
+<li class="chapter" data-level="14" data-path="sector-etfs.html"><a href="sector-etfs.html"><i class="fa fa-check"></i><b>14</b> Sector ETFs</a></li>
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Markets</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="case_shiller-housing" class="section level1 hasAnchor" number="5">
+<h1><span class="header-section-number">5</span> Case_Shiller Housing<a href="case_shiller-housing.html#case_shiller-housing" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-7483995aeed2c39a47d3" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-7483995aeed2c39a47d3">{"x":{"filter":"none","vertical":false,"data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38"],["CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA"],["MSPUS","^GSPC","SPY","XLK","VOOG","VOOV","GDP","Enfamiliehuse_Indeks","SSO","VGT","QQQ","M2SL","^IXIC","DDM","XLB","XLV","DIA","CPIAUCSL","PCEPI","XLI","VHT","XLU","UPRO","XLY","VIOG","VIOV","PA=F","JJG","XLF","XLP","HEDJ","IWM","PAYEMS","^OMXC25","WOOD","PALL","WALCL","ACTLISCOUUS"],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,4,0,4,0,0,8,0,0,4,0,12,0,0,4,16,0,4],["0.98","0.96","0.96","0.96","0.96","0.96","0.96","0.96","0.95","0.95","0.95","0.95","0.94","0.94","0.94","0.94","0.94","0.94","0.94","0.93","0.93","0.93","0.92","0.92","0.92","0.91","0.90","0.90","0.90","0.90","0.90","0.90","0.90","0.89","0.86","0.86","0.86","-0.87"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>x1<\/th>\n      <th>x2<\/th>\n      <th>corr_value<\/th>\n      <th>corr_time_value<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":3},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false},"selection":{"mode":"multiple","selected":null,"target":"row","selectable":null}},"evals":[],"jsHooks":[]}</script>
+<div class="visNetwork html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-7afa178f20a3e3b885d8" style="width:672px;height:480px;"></div>
+<script type="application/json" data-for="htmlwidget-7afa178f20a3e3b885d8">{"x":{"nodes":{"id":["ACTLISCOUUS","CPIAUCSL","CSUSHPINSA","GDP","M2SL","PAYEMS","PCEPI","WOOD","BTC-USD","GC=F","^GSPC","^IXIC","^OMXC25","PA=F","MUB","JJG","JJC","LIT","JO","UDN","OILK","SSO","DDM","UPRO","TQQQ","DOG","GLD","IAU","SDS","SH","TWM","XLB","XLP","XLV","XLY","XLI","PALL","XLF","SPY","VGT","VHT","XLK","XLU","XLRE","EUDG","QQQ","DIA","VIOG","VOOG","HEDJ","IWM","VIOV","VOOV","FEP","IEV","M2V","UMCSENT","AUTHNOTT","COMPU1USA","HOUST1F","PERMIT","AUTHNOT1U","M1SL","INDPRO","HOUST","PERMIT1","MSPUS","WALCL","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Materialer","DGS30","Kort.rente","Lang.rente","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Materialer","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Materialer","Enfamiliehuse_Indeks","AAXJ"],"label":["ACTLISCOUUS","CPIAUCSL","CSUSHPINSA","GDP","M2SL","PAYEMS","PCEPI","WOOD","BTC-USD","GC=F","^GSPC","^IXIC","^OMXC25","PA=F","MUB","JJG","JJC","LIT","JO","UDN","OILK","SSO","DDM","UPRO","TQQQ","DOG","GLD","IAU","SDS","SH","TWM","XLB","XLP","XLV","XLY","XLI","PALL","XLF","SPY","VGT","VHT","XLK","XLU","XLRE","EUDG","QQQ","DIA","VIOG","VOOG","HEDJ","IWM","VIOV","VOOV","FEP","IEV","M2V","UMCSENT","AUTHNOTT","COMPU1USA","HOUST1F","PERMIT","AUTHNOT1U","M1SL","INDPRO","HOUST","PERMIT1","MSPUS","WALCL","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Materialer","DGS30","Kort.rente","Lang.rente","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Materialer","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Materialer","Enfamiliehuse_Indeks","AAXJ"],"x":[0.21796032120449,-0.135591135613068,-0.0485773542056436,-0.232487789238632,-0.182404729306167,-0.0823578108424742,-0.170035453789023,0.298052979367626,-0.0778781115759634,0.44890860895948,-0.0691576902742136,0.0851006259981448,-0.117787845270804,-0.43184906216532,-0.708435040458269,-0.433545351272711,0.439308485970369,0.832475345278963,-1,-0.753362316327378,-0.760158488313528,0.151367931376334,-0.181213479332591,-0.213963022246371,-0.635221143797718,-0.268659736358115,0.788476735574977,0.664920161272198,0.322404684408739,-0.152006116002515,0.0861951652412665,0.216633789930952,-0.100805016980393,0.0625985215031599,-0.00777865341887229,-0.113861587476123,-0.583059494309493,0.116255307498088,0.126603521691063,0.166386231398923,0.0235890712548583,-0.00273508771902409,-0.00382521742881292,-0.96328337472682,0.753640166668513,0.213267132159856,0.15428330636038,0.0913199566267631,0.232141389039779,-0.0879860343383528,-0.0320843492073681,0.0971118962208681,0.0532764453869501,0.394126712535949,0.860496564120547,0.240111544707474,0.511622586472004,0.932732842309342,0.603527979150652,0.75354860929298,1,0.702182237750309,0.64120083785062,-0.304712833728538,0.555549467761126,0.992915836767794,0.0768034168553786,-0.214583590532686,-0.497837455891442,-0.509609388079894,-0.874304960362465,-0.663563996363284,-0.377116062089217,-0.554014643367917,-0.420258869669476,-0.502694573933049,-0.564118109659375,-0.41912787406797,0.900794233808383],"y":[0.320757918179115,-0.200520347587243,-0.125886077660157,-0.173993586171629,-0.0593322073082651,-0.293662564824105,-0.200899310025088,-0.347575025839747,0.578735131542015,0.973580659441239,-0.0247889638250478,0.0996344237877325,0.283134215833247,0.187756360192714,-0.737617594644948,-0.216956696800048,0.0146445200030954,0.557321246802047,-0.145197296661516,0.0181217128330586,0.427879921911725,0.0582691519184801,-0.465951414303221,-0.387110839307464,0.249107660846973,0.370766267679129,0.693758320723189,0.862214904363504,0.891767831964134,0.395297253908714,0.954810964456911,-0.087499735764444,0.0404604923831431,0.000346734750297228,0.0552957126922533,-0.422427652371278,0.164679763882646,-0.579490591444492,-0.0426670225340455,-0.110041578323549,-0.0690327903729431,0.119025301921619,-0.477086682409023,-0.369511963050171,-0.750510074788853,0.00285301132194515,-0.214703210641717,-0.119902759957389,-0.162133846991041,-0.499883569573751,-0.389880967043818,-0.357356274020517,-0.417533190406882,-1,-0.606016160590489,1,0.848470284286659,-0.432324471445592,-0.873607410323777,-0.897822079181491,-0.558611530423742,0.0839441374480536,0.724941168873962,-0.600732900133587,-0.992450480097496,-0.302620635673908,-0.205424784676848,0.151529024217673,-0.420494407633579,-0.355400607534172,-0.570091258605762,-0.25628070491054,-0.388743059401903,-0.0972229979051952,-0.490961970226899,0.0117064190721154,-0.20479502743708,-0.0703339386475483,-0.75324411653755]},"edges":{"from":["ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","CPIAUCSL","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","GDP","GDP","GDP","GDP","GDP","M2SL","M2SL","M2SL","M2SL","M2SL","PAYEMS","PCEPI","PCEPI","WOOD","WOOD","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","GDP","GDP","M2SL","M2SL","PCEPI","ACTLISCOUUS","ACTLISCOUUS","GDP","GDP","GDP","M2SL","M2SL","WOOD","ACTLISCOUUS","CPIAUCSL","CPIAUCSL","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","GDP","GDP","GDP","GDP","M2SL","M2SL","M2SL","M2SL","PAYEMS","PCEPI","PCEPI","PCEPI","WOOD","WOOD","WOOD","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","GDP","GDP","M2SL","M2SL","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","GDP","GDP","GDP","GDP","GDP","GDP","M2SL","M2SL","M2SL","M2SL","M2SL","M2SL","PAYEMS","PAYEMS","PAYEMS","PAYEMS","PAYEMS","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","WOOD","WOOD","WOOD","WOOD","WOOD","WOOD","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","GDP","GDP","GDP","GDP","GDP","GDP","M2SL","M2SL","M2SL","M2SL","M2SL","PAYEMS","PAYEMS","PAYEMS","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","WOOD","WOOD","WOOD","WOOD","WOOD","WOOD","WOOD","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","GDP","GDP","GDP","GDP","GDP","GDP","GDP","GDP","M2SL","M2SL","M2SL","M2SL","M2SL","M2SL","M2SL","M2SL","PAYEMS","PAYEMS","PAYEMS","PAYEMS","PAYEMS","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","WOOD","WOOD","WOOD","WOOD","WOOD","WOOD","WOOD","WOOD","WOOD","ACTLISCOUUS","ACTLISCOUUS","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","GDP","GDP","M2SL","M2SL","M2SL","PAYEMS","PAYEMS","PCEPI","WOOD","WOOD","WOOD","WOOD","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","CPIAUCSL","CPIAUCSL","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","GDP","GDP","GDP","PAYEMS","PCEPI","PCEPI","PCEPI","WOOD","WOOD","WOOD","WOOD","ACTLISCOUUS","ACTLISCOUUS","ACTLISCOUUS","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CSUSHPINSA","CSUSHPINSA","CSUSHPINSA","GDP","GDP","GDP","GDP","GDP","GDP","M2SL","M2SL","M2SL","M2SL","M2SL","PAYEMS","PAYEMS","PAYEMS","PAYEMS","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","WOOD","WOOD","WOOD","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CPIAUCSL","CSUSHPINSA","GDP","GDP","GDP","GDP","GDP","GDP","GDP","M2SL","M2SL","M2SL","M2SL","M2SL","M2SL","M2SL","PAYEMS","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","PCEPI","WOOD"],"to":["BTC-USD","GC=F","^GSPC","^IXIC","^OMXC25","^GSPC","^IXIC","PA=F","^GSPC","^IXIC","^OMXC25","MUB","PA=F","^GSPC","^IXIC","^OMXC25","BTC-USD","PA=F","^GSPC","^IXIC","^OMXC25","^GSPC","^GSPC","^IXIC","^GSPC","^IXIC","JJG","JJG","WOOD","JJG","WOOD","JJG","WOOD","JJG","JJC","LIT","JJC","JO","UDN","OILK","UDN","JJC","SSO","DDM","SSO","UPRO","DDM","SSO","UPRO","DDM","SSO","TQQQ","UPRO","DDM","SSO","TQQQ","UPRO","DDM","DDM","SSO","UPRO","DDM","SSO","UPRO","DOG","GLD","IAU","SDS","SH","TWM","DOG","SH","DOG","SH","XLB","XLP","XLV","XLY","XLB","XLI","XLP","XLV","XLY","PALL","XLB","XLF","XLI","XLP","XLV","XLY","XLB","XLF","XLI","XLP","XLV","XLY","PALL","XLB","XLI","XLP","XLV","XLY","XLB","XLF","XLI","XLP","XLV","XLB","XLI","XLP","XLV","XLY","XLB","XLF","XLI","XLP","XLV","XLY","SPY","VGT","VHT","XLK","SPY","VGT","VHT","XLK","XLU","SPY","VGT","VHT","XLK","XLU","SPY","VGT","VHT","XLK","XLRE","XLU","SPY","VGT","VHT","XLK","XLU","SPY","VHT","XLU","SPY","VGT","VHT","XLK","XLU","EUDG","QQQ","SPY","VGT","VHT","XLK","XLU","DIA","QQQ","VIOG","VOOG","DIA","HEDJ","IWM","QQQ","VIOG","VIOV","VOOG","VOOV","DIA","HEDJ","IWM","QQQ","VIOG","VIOV","VOOG","VOOV","DIA","HEDJ","IWM","QQQ","VIOG","VIOV","VOOG","VOOV","DIA","HEDJ","IWM","QQQ","VIOG","VIOV","VOOG","VOOV","DIA","HEDJ","IWM","VIOV","VOOV","DIA","HEDJ","IWM","QQQ","VIOG","VIOV","VOOG","VOOV","DIA","FEP","HEDJ","IEV","IWM","VIOG","VIOV","VOOG","VOOV","M2V","UMCSENT","PCEPI","ACTLISCOUUS","CPIAUCSL","PCEPI","CPIAUCSL","PCEPI","ACTLISCOUUS","CPIAUCSL","PCEPI","CPIAUCSL","PCEPI","CPIAUCSL","AUTHNOTT","COMPU1USA","HOUST1F","PERMIT","AUTHNOT1U","M1SL","M2SL","INDPRO","M2SL","PAYEMS","M2SL","PAYEMS","INDPRO","M2SL","PAYEMS","INDPRO","INDPRO","M2SL","PAYEMS","AUTHNOT1U","HOUST","M2SL","PERMIT1","CSUSHPINSA","MSPUS","WALCL","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Materialer","CSUSHPINSA","DGS30","GDP","MSPUS","WALCL","GDP","MSPUS","WALCL","CSUSHPINSA","DGS30","Kort.rente","Lang.rente","MSPUS","WALCL","CSUSHPINSA","GDP","Lang.rente","MSPUS","WALCL","CSUSHPINSA","DGS30","GDP","MSPUS","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Materialer","CSUSHPINSA","DGS30","GDP","Lang.rente","MSPUS","WALCL","CSUSHPINSA","GDP","MSPUS","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Materialer","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Materialer","Enfamiliehuse_Indeks","Enfamiliehuse_Indeks","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Materialer","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Materialer","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Materialer","Enfamiliehuse_Indeks","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Materialer","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Materialer","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Materialer","Enfamiliehuse_Indeks","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for boliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for enfamiliehuse_Byggeomkostningsindeks i alt_Materialer","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Arbejdsomkostninger","BYG42_Byggeomkostningsindeks for etageboliger_Byggeomkostningsindeks i alt_Materialer","Enfamiliehuse_Indeks","AAXJ"],"color":["red","red","red","red","red","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","red","red","green","green","red","red","red","green","red","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","red","red","green","green","green","red","red","red","red","red","red","red","red","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","red","red","red","red","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","red","red","red","red","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","red","green","green","green","green","red","green","green","green","green","green","green","green","green","green","red","red","red","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","red","red","red","green","green","red","green","green","green","green","green","green","green","red","red","red","green","green","green","green","red","green","green","green","red","green","green","green","green","red","green","red","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green","green"],"width":[3.66745757006631,6.4639383799858,11.3454192733683,16.6477516759323,14.3032043968976,19.9574815844612,15.6628393558304,10.2725794464818,21.5591928187839,17.3890023821633,7.57313456136104,0.108766369696079,5.3472880753792,25.9050436858786,21.8822346385866,4.68899411390388,2.22101053598266,7.69680873176284,25.0839168724532,25.1530201785579,19.0658491810138,2.70583653958856,19.7770031923524,15.3896277197417,13.7826251570772,11.2753014575836,5.49114780724899,10.2164836845093,1.60214350059123,17.1135870209823,8.25524674517426,4.28390058689569,5.30235694496504,4.93016783452751,7.34990846961169,2.76675100437968,1.96459759874367,2.89630357755787,5.43006439759557,3.46770908403088,4.28879828241435,1.22897152261652,8.47722043361345,15.5647029424245,14.4344779074644,6.1000814879733,18.5179225356005,21.0787653177476,13.4003742322269,22.2713610447907,19.7556114078954,2.16509920427277,14.6749863381738,20.3883594038477,20.8576377695877,3.71274679457878,16.6163352058302,5.18601221907927,15.0792817383893,13.6770062273548,5.4782693525315,16.2988245664541,12.2645651794534,13.4794278929786,9.47617140540619,6.43770042794214,6.56246337656074,9.74150505951268,14.3244078175046,9.85972647089844,5.57606676969943,3.85424326349456,1.93707382760317,0.550082662980185,7.3612111027876,6.12650114781127,9.49208870791584,13.3011478616588,15.3936122734113,18.0812946669555,18.3816081922479,21.2790089449808,14.3275626424497,2.84698295911386,18.0773106004311,9.91864844967239,16.0058102746022,10.4348556220935,18.4832461813657,14.5959687661957,17.0577973888777,5.47303651743986,24.0279588270139,26.281868137559,28.4348051315623,25.1962728508263,4.48414722899424,18.8469619256433,20.7952746986313,23.5211127912343,26.6621092172977,25.0471893129014,1.58039897118027,1.31072145690526,11.0201090813726,6.31126407064561,5.29525465808992,15.2602211547913,18.1525407469408,19.5317008132677,21.6675187544632,14.7882005560239,20.1676920777291,20.820118813198,17.3531572889957,6.99003260991213,10.5879026078387,14.4336264975698,11.3741656715949,12.9978996555172,14.6423644189143,9.75309655299465,19.8920553864393,18.6597932088559,19.1829325951026,19.8235718245828,10.4030731737352,21.4433061033409,21.1997479317197,16.8059970894767,22.6080257558751,15.8577963952056,25.882574596157,20.4666969456242,27.7468926003233,20.6422961098577,4.10177989028194,23.0965295356287,25.0485682885973,23.7684140345344,26.7961991660711,22.9053948033825,17.5425261338734,2.64555067281553,2.50653772796579,8.34679819618645,19.7161934366816,17.9942289710753,19.730435129812,19.137075126839,11.6596701176454,6.73855935773367,6.97287950109392,13.810442396851,4.0700389188152,12.1543748195849,1.90432130117458,5.65767554303081,5.35783178793824,14.0319282881494,3.04749476987691,15.243385305498,18.933589535277,7.3604187078695,6.30424094803304,18.1956340913789,5.26966058568537,5.17461450145725,14.4966189963364,19.4028249614349,18.172932107882,9.07743086201747,9.44119194866457,19.4322002281777,13.9959945750236,12.2683368846297,21.4444964831628,23.1808944986611,25.9527462385052,3.32606091368565,18.8712330100086,21.6817998233106,19.8856266409034,13.9475861472643,23.2496703956734,24.8686359444529,23.5207238893323,5.01890038043826,17.0055169967224,25.0575310904855,19.0509290234555,12.0291497268773,26.1125013231528,20.6036690725968,6.5941569440993,6.24436392399043,0.087423659844801,6.8367830333706,8.5692384346861,18.9007682299665,6.9473027312187,7.28005620994451,17.7345399303992,6.00404772483689,5.99135220966461,14.5341674548137,19.4979504267107,16.161074354373,4.95498141549375,6.72608936968082,0.899089154070849,22.3728754449835,19.0467160827835,19.4136381771321,8.78104249239667,9.63746210650027,1.14331368850704,1.25864979073983,30,2.98692862934255,19.0716899182939,18.4647127485609,25.6182792829864,22.8067373941431,17.9390354018648,12.677389636558,8.705202787331,24.6594526134966,26.9072951561517,30,4.78109505194223,1.26652289838721,5.40727167266029,7.33166047620027,13.3474640625825,16.0445641706044,17.9390354018648,23.4661031657524,12.677389636558,24.6594526134966,19.7578243666346,10.0310310161847,13.665215260198,24.6588643107435,13.2535317129504,28.9569449707643,24.2124477641371,8.705202787331,26.9072951561517,7.04315878068519,6.13683476814389,5.30235694496513,5.40870342512826,2.98692862934255,7.30085148625724,20.8665483392131,26.7921752257614,19.0716899182939,5.17495137534117,25.6182792829864,24.7108555675743,22.0735376519347,22.8553098600015,26.1923102376375,1.1958545248257,22.8553098600015,6.93007198270744,9.29079037504802,24.3483356228892,29.017064182016,15.8933887471964,19.7578243666346,24.6588643107435,8.75963491722998,24.4303851271811,27.1495746066768,10.0310310161847,8.59853158737577,13.2535317129504,16.0500178154488,26.7309905971625,18.4647127485609,5.86824338689182,22.8067373941431,0.0461469679150545,22.47940533779,22.1017837413692,0.629565090168589,8.25524674517424,5.52838124170392,23.8560644587237,23.6918236237298,27.0349760055399,24.335564737272,24.887370414206,26.1169711955774,21.5143152796632,24.5452735294667,21.680340111814,24.3864247815166,22.2270116112252,24.9128779952568,18.4761070638538,24.8995446338094,22.0881024762257,13.8907053573741,21.9306287967418,14.7061234042236,22.4665491704457,9.60975213059615,12.3417446263966,0,24.4876536063637,24.3373672458801,26.9572657165945,24.9329107300272,24.8915346532878,26.2052895531052,3.59465340286537]},"nodesToDataframe":true,"edgesToDataframe":true,"options":{"width":"100%","height":"100%","nodes":{"shape":"dot","physics":false},"manipulation":{"enabled":false},"edges":{"smooth":false},"physics":{"stabilization":false},"interaction":{"navigationButtons":true,"zoomSpeed":1}},"groups":null,"width":null,"height":null,"idselection":{"enabled":true,"style":"width: 150px; height: 26px","useLabels":true,"main":"Select by id"},"byselection":{"enabled":false,"style":"width: 150px; height: 26px","multiple":false,"hideColor":"rgba(200,200,200,0.5)","highlight":false},"main":null,"submain":null,"footer":null,"background":"rgba(0, 0, 0, 0)","igraphlayout":{"type":"square"},"highlight":{"enabled":true,"hoverNearest":false,"degree":1,"algorithm":"all","hideColor":"rgba(200,200,200,0.5)","labelOnly":true},"collapse":{"enabled":false,"fit":false,"resetHighlight":true,"clusterOptions":null,"keepCoord":true,"labelSuffix":"(cluster)"},"tooltipStay":300,"tooltipStyle":"position: fixed;visibility:hidden;padding: 5px;white-space: nowrap;font-family: verdana;font-size:14px;font-color:#000000;background-color: #f5f4ed;-moz-border-radius: 3px;-webkit-border-radius: 3px;border-radius: 3px;border: 1px solid #808074;box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2);"},"evals":[],"jsHooks":[]}</script>
+
+<style type="text/css">
+.main-container {
+  max-width: 100% !important;
+  margin: auto;
+}
+</style>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="indicators.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="us-housing-data.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": false,
+"facebook": true,
+"twitter": true,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"whatsapp": false,
+"all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": null,
+"text": null
+},
+"history": {
+"link": null,
+"text": null
+},
+"view": {
+"link": null,
+"text": null
+},
+"download": null,
+"search": {
+"engine": "fuse",
+"options": null
+},
+"toc": {
+"collapse": "subsection"
+}
+});
+});
+</script>
+
+</body>
+
+</html>
