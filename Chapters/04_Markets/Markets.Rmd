@@ -182,7 +182,7 @@ series_ids_yahoo = unique(c("GC=F",
                             "SI=F",
                             "BTC-USD",
                             "ETH-USD",
-                            "^RUT",
+                            # "^RUT",
                             "^W5000",
                             "^IXIC",
                             "^GSPC",
@@ -267,7 +267,7 @@ draw_plots = function(data,lines=NA) {
   df_lines = temp_df %>% 
     filter(series_id=="NOMINAL") 
   
-  if (length(lines)>0) {
+  if (unique(!is.na(lines))) {
   df_lines = rbindlist(lapply(seq(length(lines)),function(line) {
     
     df_lines %>% 
@@ -289,12 +289,15 @@ p1 = temp_df %>%
   filter(series_id=="NOMINAL") %>% 
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
-  geom_line(data=df_lines,aes(x=date,y=predicted,color=category,group=category),linetype=2) +
   theme_money_printer_go_brrr(12) +
   theme(legend.position = "bottom") +
   scale_x_date(date_labels = "%Y",date_breaks = "5 years") +
   scale_y_continuous(limits = c(0,NA)) +
   labs(x=NULL,y=NULL,title=glue("{ticker_}"),subtitle="All Time")
+if (nrow(df_lines)>0) {
+  p1 = p1 + 
+    geom_line(data=df_lines,aes(x=date,y=predicted,color=category,group=category),linetype=2)
+}
 
 # Last year
 p2 = temp_df %>% 
@@ -302,12 +305,15 @@ p2 = temp_df %>%
   filter(date>=Sys.Date()-years(1)) %>% 
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
-  geom_line(data=df_lines %>% filter(date>=Sys.Date()-years(1)),aes(x=date,y=predicted,color=category,group=category),linetype=2) +
   theme_money_printer_go_brrr(12) +
   theme(legend.position = "bottom") +
   scale_x_date(date_labels = "%b",date_breaks = "1 month",limits = c(Sys.Date()-years(1),NA)) +
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   labs(x=NULL,y=NULL,subtitle="Last Year")
+
+
+
+
 
 # Indicator heatmap
 p2b = temp_df %>% 
