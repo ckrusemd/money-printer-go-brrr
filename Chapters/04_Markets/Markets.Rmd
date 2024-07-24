@@ -258,18 +258,42 @@ df_adjusted = df_tickers_yahoo %>%
 Plot function
 
 ```{r}
-draw_plots = function(data) {
+draw_plots = function(data,lines=NA) {
   
   ticker_ = unique(data$ticker)
   temp_df = data %>% filter(ticker==ticker_)
+  
+  # Lines
+  df_lines = temp_df %>% 
+    filter(series_id=="NOMINAL") 
+  
+  if (length(lines)>0) {
+  df_lines = rbindlist(lapply(seq(length(lines)),function(line) {
+    
+    df_lines %>% 
+      dplyr::mutate(series_id="SUPPORT",
+                    predicted=predict(
+        df_lines %>% 
+          filter(date %in% lines[[line]]) %>% 
+          lm(index~date,data=.),
+        .)) %>% 
+      dplyr::mutate(category=paste0("line",line))
+    
+  }))
+  } else {
+  df_lines = data.frame()
+  }
   
 # All time plot
 p1 = temp_df %>% 
   filter(series_id=="NOMINAL") %>% 
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
+  geom_line(data=df_lines,aes(x=date,y=predicted,color=category,group=category),linetype=2) +
   theme_money_printer_go_brrr(12) +
+  theme(legend.position = "bottom") +
   scale_x_date(date_labels = "%Y",date_breaks = "5 years") +
+  scale_y_continuous(limits = c(0,NA)) +
   labs(x=NULL,y=NULL,title=glue("{ticker_}"),subtitle="All Time")
 
 # Last year
@@ -278,8 +302,10 @@ p2 = temp_df %>%
   filter(date>=Sys.Date()-years(1)) %>% 
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
+  geom_line(data=df_lines %>% filter(date>=Sys.Date()-years(1)),aes(x=date,y=predicted,color=category,group=category),linetype=2) +
   theme_money_printer_go_brrr(12) +
-  scale_x_date(date_labels = "%b",date_breaks = "1 month") +
+  theme(legend.position = "bottom") +
+  scale_x_date(date_labels = "%b",date_breaks = "1 month",limits = c(Sys.Date()-years(1),NA)) +
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   labs(x=NULL,y=NULL,subtitle="Last Year")
 
@@ -347,7 +373,7 @@ p4 = temp_df %>%
 
 # Real terms (US)
 p5 = temp_df %>% 
-  filter(series_id=="CPIAUCNS") %>% 
+  filter(series_id=="PRICE_INDEX") %>% 
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -435,18 +461,24 @@ print(p_all)
 ```
 
 ## SP500
-```{r fig.height=25,fig.width=10}
-draw_plots(data = df_adjusted %>% filter(ticker=="^GSPC",currency=="USD"))
+```{r fig.height=30,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^GSPC",currency=="USD"),
+           lines = list(c(ymd("2020-03-23"),ymd("2023-10-30")),
+                        c(ymd("2018-01-20"),ymd("2022-01-01")))
+           )
 ```
 
 ## NASDAQ
 ```{r fig.height=25,fig.width=10}
-draw_plots(data = df_adjusted %>% filter(ticker=="^IXIC",currency=="USD"))
+draw_plots(data = df_adjusted %>% filter(ticker=="^IXIC",currency=="USD"),
+           lines = list(c(ymd("2020-03-23"),ymd("2023-01-03"))))
 ```
 
 ## OMX C25
 ```{r fig.height=25,fig.width=10}
-draw_plots(data = df_adjusted %>% filter(ticker=="^OMXC25",currency=="DKK"))
+draw_plots(data = df_adjusted %>% filter(ticker=="^OMXC25",currency=="DKK"),
+           lines = list(c(ymd("2020-03-23"),ymd("2023-10-30")),
+                        c(ymd("2018-01-20"),ymd("2022-01-01"))))
 ```
 
 ## RUSSELL 2000

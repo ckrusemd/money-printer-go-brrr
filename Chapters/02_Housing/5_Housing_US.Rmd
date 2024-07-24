@@ -61,7 +61,7 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
 
 ```{r}
-df_housing_us = do.call("rbind",lapply(c("MORTGAGE30US","CSUSHPINSA","NASDAQCOM","WILL5000INDFC","WM2NS","M2V","CPIAUCSL","MSACSR","ACTLISCOUUS","PERMIT","COMPUTSA","UNRATE"),function(series) { 
+df_housing_us = do.call("rbind",lapply(c("MORTGAGE30US","CSUSHPINSA","NASDAQCOM","WM2NS","M2V","CPIAUCSL","MSACSR","ACTLISCOUUS","PERMIT","COMPUTSA","UNRATE"),function(series) { 
   fredr(series_id = series) %>% 
     filter(!is.na(value)) %>% 
     dplyr::select(date,series_id,value) %>% 
