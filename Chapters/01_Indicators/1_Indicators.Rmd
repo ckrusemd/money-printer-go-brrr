@@ -54,7 +54,8 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 df_etfs = openxlsx::read.xlsx(xlsxFile = "Chapters/01_Indicators/etf_list.xlsx")
 
 df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
-      temp_df = getSymbols(ticker, env = NULL) %>% 
+  
+      temp_df = tryCatch(expr = { getSymbols(ticker, env = NULL) %>% 
       as.data.frame(.) %>% 
       dplyr::mutate(Date=row.names(.)) %>% 
       dplyr::mutate(Date=gsub("X","",Date)) %>% 
@@ -66,6 +67,8 @@ df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
       # tidyr::fill(value,.direction = "down")  %>% 
       # tidyr::fill(series_id,.direction = "down") 
       
+      
+      },error=function(e) { data.frame() })
       row.names(temp_df) = NULL
       return( temp_df )
 }))
