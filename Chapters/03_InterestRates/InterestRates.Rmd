@@ -31,6 +31,7 @@ pacman::p_load(fredr,
                dkstat,
                data.table,
                glue,
+               openxlsx,
                pROC,
                rPref,
                progress,
@@ -482,7 +483,7 @@ fit_draw_abline = function(date1,date2,value1,value2) {
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
 current_url = xml2::read_html(source_url) %>%
-  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(11) > a") %>% 
+  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(9) > strong > span > a") %>% 
   rvest::html_attr("href")
 xlsx_url = paste0("https://finansdanmark.dk/",current_url)
 
@@ -898,7 +899,7 @@ df_yieldcurve =
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
 current_url = xml2::read_html(source_url) %>%
-  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(11) > a") %>% 
+  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(9) > strong > span > a") %>% 
   rvest::html_attr("href")
 xlsx_url = paste0("https://finansdanmark.dk/",current_url)
 

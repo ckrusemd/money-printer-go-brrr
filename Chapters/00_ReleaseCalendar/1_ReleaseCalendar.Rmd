@@ -62,7 +62,6 @@ fredr::fredr_tags_series("nsa",order_by = "popularity",sort_order = "desc",offse
 ```{r}
 draw_plots = function(data) {
   
-  
 # All time plot
 
 series_id = unique(data$series_id)
@@ -220,3 +219,39 @@ for (series in unique(df_data$series_id)) {
 }
 
 ```
+
+## U6 vs UNRATE
+
+
+```{r}
+
+unrates = c("UNRATE","U6RATE")
+df_u6 = rbindlist(lapply(unrates,function(series_id) {
+  
+  series_info = fredr::fredr_series(series_id) %>% 
+    dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
+  fredr(series_id = series_id) %>% 
+    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
+    tidyr::fill(value,.direction = "down") %>% 
+    tidyr::fill(series_id,.direction = "down") %>% 
+      dplyr::select(-realtime_start,-realtime_end) %>% 
+      tidyr::crossing(series_info)
+  
+}),fill=TRUE)
+
+df_u6 %>% 
+  filter(date>=ymd("1994-01-01")) %>% 
+  ggplot(aes(x=date,y=value,color=series_id)) +
+   geom_line()
+
+
+df_u6 %>% 
+  distinct(series_id,date,value) %>% 
+  spread(series_id,value) %>% 
+  arrange(desc(date)) %>% 
+  dplyr::mutate(diff=U6RATE-UNRATE) %>% 
+  filter(date>=ymd("1994-01-01")) %>% 
+  ggplot(aes(x=date,y=diff)) +
+   geom_line()
+```
+
