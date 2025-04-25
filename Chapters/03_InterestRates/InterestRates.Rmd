@@ -51,6 +51,15 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
 ```
 
+
+# test ECB
+
+```{r ecb1}
+ecb::get_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))
+```
+
+
+# normal
 ```{r }
 df_yieldcurve = 
   fredr(series_id = "DGS1") %>% 
