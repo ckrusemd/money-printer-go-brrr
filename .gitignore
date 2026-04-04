@@ -1,48 +1,98 @@
-# History files
+# R history & session
 .Rhistory
 .Rapp.history
-
-# Session Data files
 .RData
-
-# User-specific files
 .Ruserdata
+.Rprofile
 
-# Example code in package build process
+# R build artifacts
 *-Ex.R
-
-# Output files from R CMD build
 /*.tar.gz
-
-# Output files from R CMD check
 /*.Rcheck/
-
-# RStudio files
 .Rproj.user/
 
-# produced vignettes
+# Vignette output
 vignettes/*.html
 vignettes/*.pdf
-vignettes/*.Rmd
 
-# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
+# OAuth2 token
 .httr-oauth
 
-# knitr and R markdown default cache directories
+# knitr / R Markdown cache & temp
 *_cache/
 /cache/
-
-# Temporary files created by R markdown
 *.utf8.md
 *.knit.md
 
-# R Environment Variables
+# R environment variables / credentials
 .Renviron
+Renviron.site
 
+# Environment variable files
+.env
+.env.*
+!.env.example
+
+# Bookdown output
 _book/
 _bookdown_files/
 
-# vignettes
+# macOS
+.DS_Store
 
+# Data files (regenerate via ETL pipeline)
+*.duckdb
+*.duckdb.wal
+*.parquet
+*.sqlite
+*.db
+*.db.wal
+datacollection/data/
+datacollection/benchmark_data/
+datacollection/benchmark_results/
+datacollection/Bolig/
+datacollection/symbols_*.csv
+datacollection/output/
+knowledgegraph/app/knowledge_graph.db*
+knowledgegraph/knowledge_graph_data.rds
+knowledgegraph/knowledge_graph_nodes.csv
+knowledgegraph/knowledge_graph_edges.csv
+knowledgegraph/correlations_detailed.csv
+knowledgegraph/leadership_analysis.csv
+knowledgegraph/stock_economic_relationships.csv
+knowledgegraph/network_data.json
+knowledgegraph/app/pris116_data_*.csv
+knowledgegraph/app/*_summary*.txt
+knowledgegraph/app/*_summary*.csv
+knowledgegraph/**/network_data.json
+
+# HPC / SLURM job output
+**/logs/slurm*
+datacollection/2025_*/
+knowledgegraph/2025_*/
+
+# Python
+__pycache__/
+*.pyc
+
+# Corporate / internal templates
+nn_template.pptx
+datacollection/generate_report.R
+datacollection/powerpoint_with_annotations.R
+
+# Vignette data
 vignettes/Data
-Renviron.site
+
+# IDE / editor
+.claude/
+.vscode/
+*.swp
+*.swo
+*~
+
+# renv libraries (lock files are kept)
+renv/library/
+renv/staging/
+renv/cellar/
+renv/sandbox/
+renv/python/
