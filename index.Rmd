@@ -8,7 +8,7 @@ documentclass: book
 bibliography: [book.bib, packages.bib]
 biblio-style: apalike
 link-citations: yes
-github-repo: ckrusemd/Aarhus-daylight-weather
+github-repo: ckrusemd/money-printer-go-brrr
 description: "Since 1971, Money Printer Has Gone BRRR. Let's Make the Most of It. A Series of Macroeconomic Notebooks."
 ---
 
