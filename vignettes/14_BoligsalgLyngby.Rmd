@@ -1,6 +1,6 @@
 ---
 title: "Boligsalg - Lyngby"
-author: "CAKU"
+author: "ckrusemd"
 date: "`r Sys.Date()`"
 output: html_document
 ---
