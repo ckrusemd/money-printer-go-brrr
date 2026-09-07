@@ -1,0 +1,32 @@
+name: Security checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check required files and whitespace
+        run: |
+          test -f renv.lock
+          test -f _bookdown.yml
+          test -f index.Rmd
+          test -f Dockerfile
+          git diff --check
+      - name: Scan source for credential material
+        run: |
+          ! rg -n -i \
+            'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|password\s*[:=]|api[_-]?key\s*[:=]' \
+            --glob '!*.ipynb' --glob '!*.lock' --glob '!renv/activate.R' .

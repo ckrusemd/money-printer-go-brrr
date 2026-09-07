@@ -1,0 +1,12 @@
+.git
+.github
+_book
+renv/library
+renv/staging
+*.ipynb
+*.html
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.log
