@@ -1,71 +1,66 @@
-on:
-  push:
-     branches:
-       - main
-  schedule:
-    - cron:  '3 0 * * *'
+name: Build and deploy Money Printer Go BRRR
 
-name: money-printer-go-brrr-render
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "**.R"
+      - "**.Rmd"
+      - "_bookdown.yml"
+      - "book.bib"
+      - "packages.bib"
+      - "index.Rmd"
+      - ".github/workflows/deploy_bookdown.yml"
+  schedule:
+    - cron: "3 0 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: money-printer-pages
+  cancel-in-progress: true
 
 jobs:
-  bookdown:
-    name: renderbook
-    #runs-on: macOS-latest
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: ghcr.io/ckrusemd/money-printer-go-brrr-r:latest
+      options: --user root
+    env:
+      FRED_API: ${{ secrets.FRED_API }}
     steps:
-      - name: Set up Git repository
-        uses: actions/checkout@v4
-      - name: Renviron
-        run: echo FRED_API=${{ secrets.FRED_API }} >> Renviron.site
-      - name: Render Book from Action
-        uses: ckrusemd/rmarkdown-action@v0.21
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Check repository configuration
+        run: |
+          test -f renv.lock
+          test -f _bookdown.yml
+          test -f index.Rmd
+      - name: Validate R sources
+        run: Rscript --vanilla -e 'parse(file = "money_theme.R")'
+      - name: Render Bookdown site
+        run: Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")'
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
         with:
-           input_file: index.Rmd
-      - uses: actions/upload-artifact@v4
-        with:
-          name: _book
-          path: _book/
+          path: _book
+          retention-days: 1
 
-  checkout-and-deploy:
+  deploy:
+    needs: build
     runs-on: ubuntu-latest
-    needs: bookdown
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Download artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: _book # optional
-        path: _book # optional
-    # - name: Deploy to GitHub Pages
-    #   uses: Cecilapp/GitHub-Pages-deploy@v3
-    #   with:
-    #     build_dir: _book/
-    #     email: ${{ secrets.EMAIL }}  #optional
-    #     jekyll: no                     # optional
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #     EMAIL: ${{ secrets.EMAIL }}
-    #     BUILD_DIR: _book/
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: _book
-        user_name: 'GitHub Actions'
-        user_email: ${{ secrets.EMAIL }}
-        allow_empty_commit: false
-        keep_files: true
-        force_orphan: true
-    - name: Send mail
-      uses: dawidd6/action-send-mail@v3
-      with:
-        server_address: smtp.gmail.com
-        server_port: 465
-        username: ${{secrets.MAIL_USERNAME}}
-        password: ${{secrets.MAIL_PASSWORD}}
-        subject: Money Printer Go Brrr - Daily Update
-        to: ${{secrets.MAIL_USERNAME}}
-        from: Christian Kruse
-        secure: true
-        body: https://ckrusemd.github.io/money-printer-go-brrr/
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

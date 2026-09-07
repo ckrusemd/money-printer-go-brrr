@@ -50,8 +50,8 @@ A collection of macroeconomic analysis notebooks covering interest rates, housin
 git clone https://github.com/ckrusemd/money-printer-go-brrr.git
 cd money-printer-go-brrr
 
-# Set up FRED API key
-echo "FRED_API=your_key_here" > Renviron.site
+# Set up FRED API key locally (do not commit this file)
+echo "FRED_API=your_key_here" > .Renviron
 
 # Restore R dependencies
 Rscript -e "renv::restore()"
@@ -80,7 +80,11 @@ python dashboard.py    # Runs on http://localhost:8051
 
 ## CI/CD
 
-A GitHub Actions workflow (`.github/workflows/deploy_bookdown.yml`) renders the book on every push to `main` and on a daily schedule, then deploys to GitHub Pages.
+A GitHub Actions workflow renders the book in a prebuilt public GHCR
+container on every relevant push to `main` and on a daily schedule, then
+deploys it to GitHub Pages. Set the repository secret `FRED_API` for
+publication. The container workflow rebuilds only when the R lockfile or
+container definition changes.
 
 ## License
 

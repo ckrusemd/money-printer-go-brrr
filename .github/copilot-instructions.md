@@ -48,7 +48,9 @@
 
 - `renv` is the default R dependency workflow; root and subprojects use `.Rprofile` to source `renv/activate.R`.
 - Chapter and vignette content is maintained as paired `.Rmd` + `.ipynb` files; keep both in sync when making structural edits.
-- FRED credentials are expected through environment variables (`FRED_API`) loaded via `Renviron.site` (workflow also injects this secret).
+- FRED credentials are expected through the `FRED_API` environment variable.
+  Use a local `.Renviron` file for development; GitHub Actions injects the
+  repository secret directly and never writes it to disk.
 - Shared R visuals commonly source `money_theme.R`; preserve this styling hook in chapter updates.
 - Output artifact convention in `datacollection` is date-partitioned directories with sequential names:
   - plots: `output/YYYY_MM_DD/plots/plotNNN.png`
