@@ -9,8 +9,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
         libcurl4-openssl-dev \
+        libfontconfig1-dev \
+        libfreetype6-dev \
+        libfribidi-dev \
         libglpk-dev \
+        libharfbuzz-dev \
+        libjpeg-dev \
+        libpng-dev \
         libssl-dev \
+        libtiff5-dev \
+        libwebp-dev \
         libxml2-dev \
         pkg-config \
         pandoc \
