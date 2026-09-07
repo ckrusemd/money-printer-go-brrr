@@ -21,7 +21,6 @@ WORKDIR /project
 COPY renv.lock renv.lock
 COPY renv/settings.json renv/settings.json
 COPY renv/activate.R renv/activate.R
-COPY .Rprofile .Rprofile
 
 RUN Rscript --vanilla -e 'install.packages("renv", repos = "https://cloud.r-project.org"); renv::restore(lockfile = "renv.lock", prompt = FALSE)'
 
