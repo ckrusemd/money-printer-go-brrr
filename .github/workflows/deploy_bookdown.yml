@@ -48,6 +48,12 @@ jobs:
           Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")'
           elapsed=$(( $(date +%s) - start_time ))
           echo "Pages render duration: ${elapsed}s" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Validate Pages artifact size
+        run: |
+          site_bytes=$(du -sb _book | cut -f1)
+          site_megabytes=$((site_bytes / 1024 / 1024))
+          echo "Pages artifact size: ${site_megabytes} MiB" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$site_bytes" -lt 943718400
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:

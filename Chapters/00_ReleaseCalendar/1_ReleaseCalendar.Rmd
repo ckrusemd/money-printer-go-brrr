@@ -37,7 +37,8 @@ pacman::p_load(fredr,
                progress,
                quantmod,
                rvest,
-               ggrepel)
+               ggrepel,
+               reactable)
 source(file = "money_theme.R")
 ```
 
@@ -119,7 +120,15 @@ print(p5)
 ```{r}
 df_series %>%
   head(100) %>%
-  DT::datatable()
+  reactable::reactable(
+    searchable = TRUE,
+    filterable = TRUE,
+    defaultPageSize = 25,
+    showPageSizeOptions = TRUE,
+    pageSizeOptions = c(25, 50, 100),
+    striped = TRUE,
+    bordered = TRUE
+  )
 ```
 
 

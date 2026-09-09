@@ -32,6 +32,6 @@ COPY renv.lock renv.lock
 COPY renv/settings.json renv/settings.json
 COPY renv/activate.R renv/activate.R
 
-RUN Rscript --vanilla -e 'install.packages("renv", repos = "https://cloud.r-project.org"); renv::restore(lockfile = "renv.lock", prompt = FALSE)'
+RUN Rscript --vanilla -e 'install.packages("renv", repos = "https://cloud.r-project.org"); renv::restore(lockfile = "renv.lock", prompt = FALSE); install.packages(c("plotly", "reactable"), repos = "https://cloud.r-project.org")'
 
 CMD ["Rscript", "--vanilla"]
