@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   checks:
@@ -15,7 +16,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out repository history
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Check required files and whitespace
@@ -28,5 +29,9 @@ jobs:
       - name: Scan source for credential material
         run: |
           ! rg -n -i \
-            'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|password\s*[:=]|api[_-]?key\s*[:=]' \
-            --glob '!*.ipynb' --glob '!*.lock' --glob '!renv/activate.R' .
+            'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|xox[baprs]-[0-9A-Za-z-]{10,}|password\s*[:=]|api[_-]?key\s*[:=]|secret\s*[:=]|token\s*[:=]' \
+            --glob '!.git/**' --glob '!renv.lock' --glob '!renv/activate.R' .
+
+      - name: Dependency review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@4901385134134e04cec5fbe5ddfe3b2c5bd5d976 # v4.0.0

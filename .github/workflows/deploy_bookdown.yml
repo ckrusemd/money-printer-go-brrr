@@ -34,7 +34,7 @@ jobs:
       FRED_API: ${{ secrets.FRED_API }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Check repository configuration
         run: |
           test -f renv.lock
@@ -45,7 +45,7 @@ jobs:
       - name: Render Bookdown site
         run: Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")'
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: _book
           retention-days: 1
@@ -64,4 +64,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
