@@ -43,7 +43,11 @@ jobs:
       - name: Validate R sources
         run: Rscript --vanilla -e 'parse(file = "money_theme.R")'
       - name: Render Bookdown site
-        run: Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")'
+        run: |
+          start_time=$(date +%s)
+          Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")'
+          elapsed=$(( $(date +%s) - start_time ))
+          echo "Pages render duration: ${elapsed}s" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
