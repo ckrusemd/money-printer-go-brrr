@@ -13,7 +13,8 @@ on:
       - "index.Rmd"
       - ".github/workflows/deploy_bookdown.yml"
   schedule:
-    - cron: "3 0 * * *"
+    # 04:00 CET = 03:00 UTC
+    - cron: "0 3 * * *"
 
 permissions:
   contents: read
