@@ -3,7 +3,7 @@ FROM rocker/r-ver:4.3.3
 LABEL org.opencontainers.image.source="https://github.com/ckrusemd/money-printer-go-brrr"
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    RENV_CONFIG_REPOS_OVERRIDE=https://cloud.r-project.org \
+    RENV_CONFIG_REPOS_OVERRIDE=https://packagemanager.posit.co/cran/2025-08-25 \
     RENV_PATHS_CACHE=/renv/cache
 
 RUN apt-get update \
