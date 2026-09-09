@@ -20,6 +20,7 @@ RUN apt-get update \
         libtiff5-dev \
         libwebp-dev \
         libxml2-dev \
+        libzmq3-dev \
         cmake \
         pkg-config \
         pandoc \
