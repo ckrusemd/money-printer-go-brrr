@@ -1,3 +1,19 @@
+## Cache identical remote observations for the duration of one render.
+## The cache is intentionally process-local so daily builds still fetch fresh data.
+.fredr_render_cache <- new.env(parent = emptyenv())
+
+fredr_cached <- function(series_id, ...) {
+  key <- paste(c(series_id, list(...)), collapse = "|")
+  if (!exists(key, envir = .fredr_render_cache, inherits = FALSE)) {
+    assign(key, fredr::fredr(series_id = series_id, ...), envir = .fredr_render_cache)
+  }
+  get(key, envir = .fredr_render_cache, inherits = FALSE)
+}
+
+fredr_cached_many <- function(series_ids, ...) {
+  dplyr::bind_rows(lapply(series_ids, fredr_cached, ...))
+}
+
 theme_money_printer_go_brrr <- function(base_size) {
 
   base_family = ""
