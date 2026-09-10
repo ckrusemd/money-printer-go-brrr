@@ -26,7 +26,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The full Bookdown render regularly exceeds 20 minutes on ubuntu-latest.
+    # Leave enough headroom for the scheduled run to finish and upload the site.
+    timeout-minutes: 45
     container:
       image: ghcr.io/ckrusemd/money-printer-go-brrr-r:latest
       options: --user root
