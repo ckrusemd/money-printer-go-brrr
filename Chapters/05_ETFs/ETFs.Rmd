@@ -35,6 +35,8 @@ pacman::p_load(fredr,
                rvest,
                ggrepel)
 source(file = file.path("..", "..", "money_theme.R"))
+dst_get_data <- dkstat::dst_get_data
+dst_meta <- dkstat::dst_meta
 ```
 
 # ETFs

@@ -35,6 +35,8 @@ pacman::p_load(tidyr,
                zoo,
                rvest)
 source(file = file.path("..", "..", "money_theme.R"))
+dst_get_data <- dkstat::dst_get_data
+dst_meta <- dkstat::dst_meta
 
 ```
 
@@ -526,4 +528,3 @@ BYGV80 %>%
   geom_vline(xintercept = Sys.Date()) +
   geom_line(data=df_fit,aes(x=DATE,y=Fuldført.byggeri),color="red")
 ```
-
