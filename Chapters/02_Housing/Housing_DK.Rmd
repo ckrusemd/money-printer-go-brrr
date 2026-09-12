@@ -77,6 +77,11 @@ gam_adjust = function(data) {
       }
     )
     smooth_values = if (is.null(fit_smooth)) data$VALUE else fit_smooth$y
+    ema_values = if (nrow(data) > 0) {
+      TTR::EMA(data$VALUE, n = min(20, nrow(data)))
+    } else {
+      numeric()
+    }
     
     # Find the best model
     # best_model <- results %>%
@@ -92,7 +97,7 @@ gam_adjust = function(data) {
     dplyr::mutate(VALUE_SMOOTH=smooth_values) %>%
     dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
-    dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>%
+    dplyr::mutate(VALUE_EMA=ema_values) %>%
     arrange(desc(DATE)) %>%
     dplyr::mutate(VALUE_CHG=VALUE-lead(VALUE)) %>%
     filter(!is.na(VALUE_CHG)) %>%
