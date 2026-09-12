@@ -48,7 +48,7 @@ pacman::p_load(fredr,
                directlabels,
                drc,
                ggrepel)
-source(file = "money_theme.R")
+source(file = file.path("..", "..", "money_theme.R"))
 
 ```
 

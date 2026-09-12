@@ -34,7 +34,7 @@ pacman::p_load(fredr,
                quantmod,
                rvest,
                ggrepel)
-source(file = "money_theme.R")
+source(file = file.path("..", "..", "money_theme.R"))
 ```
 
 # Crypto

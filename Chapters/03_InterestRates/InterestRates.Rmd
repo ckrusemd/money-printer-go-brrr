@@ -39,7 +39,7 @@ pacman::p_load(fredr,
                quantmod,
                rvest,
                ggrepel,update = T)
-source(file = "money_theme.R")
+source(file = file.path("..", "..", "money_theme.R"))
 ```
 
 # Interest Rates
@@ -2069,4 +2069,3 @@ df_ECB_DK %>%
 
 
 ```
-

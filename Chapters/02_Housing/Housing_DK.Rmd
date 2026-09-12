@@ -34,7 +34,7 @@ pacman::p_load(tidyr,
                httr,
                zoo,
                rvest)
-source(file = "money_theme.R")
+source(file = file.path("..", "..", "money_theme.R"))
 
 ```
 
@@ -526,5 +526,4 @@ BYGV80 %>%
   geom_vline(xintercept = Sys.Date()) +
   geom_line(data=df_fit,aes(x=DATE,y=Fuldført.byggeri),color="red")
 ```
-
 
