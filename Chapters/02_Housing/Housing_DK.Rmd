@@ -179,8 +179,11 @@ BYG42 <- dst_get_data(table = "BYG42",
 ## Construction Activity
 
 ```{r construc1,fig.width=20,fig.height=20}
-BYGV80 %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
+construction_data = BYGV80 %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse")
+if (nrow(construction_data) == 0) {
+  cat("Construction series unavailable from Statistics Denmark for this run.")
+} else {
+construction_data %>%
   # filter(DATE>=Sys.Date()-years(10)) %>% 
   ggplot(.,aes(x=DATE,y=VALUE_SMOOTH,color=STAT)) +
   geom_line() +
@@ -194,7 +197,8 @@ BYGV80 %>%
   scale_x_date(date_breaks = "2 years",date_labels = "%Y %b")  +
   # geom_vline(xintercept = seq.Date(from = dmy("01-01-2000"),to = dmy("01-01-2030"),by = "1 year"),linetype=2,alpha=0.7)  +
   # geom_vline(xintercept = seq.Date(from = dmy("01-08-2000"),to = dmy("01-08-2030"),by = "1 year"),linetype=2,alpha=0.8) +
-  theme_money_printer_go_brrr(base_size=16) 
+  theme_money_printer_go_brrr(base_size=16)
+}
 ```
 
 ```{r eval=F}
@@ -208,14 +212,17 @@ prophet_plot_components(m, forecast)
 ```
 
 ```{r}
-BYGV80 %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
+if (nrow(construction_data) == 0) {
+  cat("No construction series available for the cumulative-change chart.")
+} else {
+construction_data %>%
   ggplot(.,aes(x=DATE,y=VALUE_SUM_CHG_SCALED,color=STAT)) +
   geom_line() + 
   # facet_wrap(~STAT,scales="free") +
   # geom_line(aes(y=VALUE_SCALED),alpha=0.3) +
   theme_money_printer_go_brrr(base_size=12) +
   geom_hline(yintercept = 0,linetype=2)
+}
 ```
 
 ```{r fig.height=15,fig.width=10 }
