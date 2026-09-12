@@ -2,6 +2,12 @@ name: Send S&P 500 morning update
 
 on:
   workflow_dispatch:
+    inputs:
+      send_now:
+        description: "Send immediately for testing"
+        required: false
+        default: false
+        type: boolean
   schedule:
     # GitHub Actions cron is UTC. Run at both possible UTC hours and let the
     # job's Europe/Copenhagen guard select exactly 05:00 local time.
@@ -17,6 +23,7 @@ jobs:
         env:
           PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
           PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
+          SEND_NOW: ${{ inputs.send_now || false }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -28,7 +35,7 @@ jobs:
           from zoneinfo import ZoneInfo
 
           now = dt.datetime.now(ZoneInfo("Europe/Copenhagen"))
-          if now.hour != 5:
+          if os.environ["SEND_NOW"].lower() != "true" and now.hour != 5:
               print(f"Skipping: local time is {now:%Y-%m-%d %H:%M %Z}, not 05:00")
               raise SystemExit(0)
 
