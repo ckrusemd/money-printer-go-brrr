@@ -38,6 +38,7 @@ pacman::p_load(fredr,
                PlayerRatings,
                quantmod,
                rvest,
+               plotly,
                ggrepel,update = T)
 source(file = "money_theme.R")
 ```
@@ -104,7 +105,7 @@ df_yieldcurve =
 
 ```{r unloadrf}
 unloadNamespace("randomForest")
-df_yieldcurve %>%
+p_yieldcurve = df_yieldcurve %>%
   dplyr::mutate(value=value/100) %>%
   ggplot(.,aes(x=date,y=value)) +
   geom_line(aes(group=series_id,color=series_id)) +
@@ -115,6 +116,9 @@ df_yieldcurve %>%
        x="Date",
        y="Spread (%)",
        caption = timestamp_caption())
+
+plotly::ggplotly(p_yieldcurve, tooltip = c("x", "y", "colour")) %>%
+  plotly::config(displaylogo = FALSE, responsive = TRUE)
 ```
 
 
@@ -2069,4 +2073,3 @@ df_ECB_DK %>%
 
 
 ```
-
