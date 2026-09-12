@@ -153,18 +153,29 @@ source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsren
 current_url = xml2::read_html(source_url) %>%
   html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(11) > a") %>% 
   rvest::html_attr("href")
-xlsx_url = paste0("https://finansdanmark.dk/",current_url)
-
-df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
-df_interest$År[1] = 1997
-df_interest = df_interest %>% fill(År,.direction = "down")
-df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
-df_interest = df_interest %>% 
-  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
-  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
-  gather(series_id,value,CurveLongShort,Lang.rente,Kort.rente) %>% 
-  dplyr::rename(date=Date) %>% 
-  dplyr::select(date,value,series_id)
+df_interest = data.frame(
+  date = as.Date(character()), value = numeric(), series_id = character()
+)
+if (!is.na(current_url) && nzchar(current_url)) {
+  xlsx_url = paste0("https://finansdanmark.dk/", current_url)
+  df_interest = tryCatch({
+    interest = openxlsx::read.xlsx(xlsxFile = xlsx_url, startRow = 1)
+    interest$År[1] = 1997
+    interest = interest %>% fill(År, .direction = "down")
+    interest$Date = as.Date(paste(interest$År, interest$Uge, 1, sep="-"), "%Y-%U-%u")
+    interest %>%
+      dplyr::select(Date, Kort.rente, Lang.rente) %>%
+      dplyr::mutate(CurveLongShort = Lang.rente - Kort.rente) %>%
+      gather(series_id, value, CurveLongShort, Lang.rente, Kort.rente) %>%
+      dplyr::rename(date = Date) %>%
+      dplyr::select(date, value, series_id)
+  }, error = function(error) {
+    warning("Finans Danmark data unavailable; continuing without it: ", error$message)
+    df_interest
+  })
+} else {
+  warning("Finans Danmark download link unavailable; continuing without it")
+}
 
 ```
 
