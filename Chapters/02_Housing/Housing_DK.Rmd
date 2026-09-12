@@ -69,7 +69,14 @@ gam_adjust = function(data) {
     #     data.frame(span = span_value, RMSE = rmse_value)
     # }))
     
-    fit_smooth = smooth.spline(data$DATE, data$VALUE, cv= TRUE) 
+    fit_smooth = tryCatch(
+      smooth.spline(data$DATE, data$VALUE, cv = TRUE),
+      error = function(error) {
+        warning("Smoothing skipped for sparse or invalid group: ", error$message)
+        NULL
+      }
+    )
+    smooth_values = if (is.null(fit_smooth)) data$VALUE else fit_smooth$y
     
     # Find the best model
     # best_model <- results %>%
@@ -82,7 +89,7 @@ gam_adjust = function(data) {
     
   data %>% 
     # dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.)) %>%
-    dplyr::mutate(VALUE_SMOOTH=fit_smooth$y) %>%
+    dplyr::mutate(VALUE_SMOOTH=smooth_values) %>%
     dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>%
