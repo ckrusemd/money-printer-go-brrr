@@ -18,6 +18,7 @@ RUN apt-get update \
         libpng-dev \
         libssl-dev \
         libtiff5-dev \
+        libudunits2-dev \
         libwebp-dev \
         libxml2-dev \
         libzmq3-dev \
