@@ -1,0 +1,70 @@
+name: Send S&P 500 morning update
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub Actions cron is UTC. Run at both possible UTC hours and let the
+    # job's Europe/Copenhagen guard select exactly 05:00 local time.
+    - cron: "0 4,5 * * *"
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send S&P 500 update at 05:00 Copenhagen time
+        env:
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+          from zoneinfo import ZoneInfo
+
+          now = dt.datetime.now(ZoneInfo("Europe/Copenhagen"))
+          if now.hour != 5:
+              print(f"Skipping: local time is {now:%Y-%m-%d %H:%M %Z}, not 05:00")
+              raise SystemExit(0)
+
+          url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d"
+          request = urllib.request.Request(url, headers={"User-Agent": "money-printer-go-brrr/1.0"})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              payload = json.load(response)
+
+          result = payload["chart"]["result"][0]
+          closes = [value for value in result["indicators"]["quote"][0]["close"] if value is not None]
+          if len(closes) < 2:
+              raise RuntimeError("Yahoo Finance returned fewer than two S&P 500 closes")
+
+          latest, previous = closes[-1], closes[-2]
+          change = latest - previous
+          change_pct = change / previous * 100
+          sign = "+" if change >= 0 else ""
+          message = (
+              f"S&P 500: {latest:,.2f}\n"
+              f"Since yesterday: {sign}{change:,.2f} ({sign}{change_pct:.2f}%)\n"
+              f"Data date: {now:%Y-%m-%d}"
+          )
+
+          form = urllib.parse.urlencode({
+              "token": os.environ["PUSHOVER_API_TOKEN"],
+              "user": os.environ["PUSHOVER_USER"],
+              "title": "S&P 500 morning update",
+              "message": message,
+          }).encode()
+          request = urllib.request.Request(
+              "https://api.pushover.net/1/messages.json",
+              data=form,
+              method="POST",
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              if response.status != 200:
+                  raise RuntimeError(f"Pushover returned HTTP {response.status}")
+          print(message)
+          PY
