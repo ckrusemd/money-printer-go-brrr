@@ -2,13 +2,13 @@
 
 > Since 1971, Money Printer Has Gone BRRR. Let's Make the Most of It.
 
-A collection of macroeconomic analysis notebooks covering interest rates, housing markets, equity indices, ETFs, currencies, and crypto — published as a [bookdown site](https://ckrusemd.github.io/money-printer-go-brrr/).
+A collection of macroeconomic analysis notebooks covering interest rates, housing markets, equity indices, ETFs, currencies, and crypto — published as a [Quarto book](https://ckrusemd.github.io/money-printer-go-brrr/).
 
 ## Project Structure
 
 ```
-├── index.Rmd                     # Bookdown entry point
-├── _bookdown.yml                 # Chapter rendering config
+├── index.qmd                     # Quarto book landing page
+├── _quarto.yml                   # Quarto book configuration
 ├── money_theme.R                 # Shared ggplot2 theme
 ├── Chapters/
 │   ├── 00_ReleaseCalendar/       # Economic release calendar
@@ -57,7 +57,7 @@ echo "FRED_API=your_key_here" > .Renviron
 Rscript -e "renv::restore()"
 
 # Build the book
-Rscript -e "bookdown::render_book('index.Rmd', output_format = 'bookdown::gitbook')"
+quarto render
 ```
 
 ### Data Pipeline

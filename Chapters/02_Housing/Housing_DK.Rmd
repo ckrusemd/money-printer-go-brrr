@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r housing_dk}
-knitr::opts_chunk$set(echo = TRUE,include=TRUE,messsage=TRUE)
+knitr::opts_chunk$set(echo = FALSE, include = TRUE, message = FALSE, warning = FALSE)
 options(scipen=999)
 
 ```
@@ -526,6 +526,5 @@ BYGV80 %>%
   geom_vline(xintercept = Sys.Date()) +
   geom_line(data=df_fit,aes(x=DATE,y=Fuldført.byggeri),color="red")
 ```
-
 
 

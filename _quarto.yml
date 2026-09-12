@@ -1,0 +1,41 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Money Printer Go BRRR"
+  subtitle: "A macroeconomic research notebook"
+  author: "Christian Kruse"
+  description: "Data-driven notebooks on macroeconomics, markets, housing, and monetary policy."
+  site-url: "https://ckrusemd.github.io/money-printer-go-brrr/"
+  repo-url: "https://github.com/ckrusemd/money-printer-go-brrr"
+  repo-actions: [edit, issue]
+  search: true
+  page-navigation: true
+  chapters:
+    - index.qmd
+    - Chapters/00_ReleaseCalendar/1_ReleaseCalendar.Rmd
+    - Chapters/01_Indicators/1_Indicators.Rmd
+    - Chapters/02_Housing/5_Housing_US.Rmd
+    - Chapters/02_Housing/Housing_DK.Rmd
+    - Chapters/03_InterestRates/InterestRates.Rmd
+    - Chapters/04_Markets/Markets.Rmd
+    - Chapters/05_ETFs/ETFs.Rmd
+    - Chapters/06_Currency/Currency.Rmd
+    - Chapters/07_Crypto/Crypto.Rmd
+
+bibliography: [book.bib, packages.bib]
+
+execute:
+  echo: false
+  warning: false
+  message: false
+
+format:
+  html:
+    theme: [darkly, styles.scss]
+    toc: true
+    toc-depth: 3
+    smooth-scroll: true
+    link-external-newwindow: true
+    html-math-method: katex

@@ -4,7 +4,8 @@ LABEL org.opencontainers.image.source="https://github.com/ckrusemd/money-printer
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RENV_CONFIG_REPOS_OVERRIDE=https://packagemanager.posit.co/cran/2026-09-08 \
-    RENV_PATHS_CACHE=/renv/cache
+    RENV_PATHS_CACHE=/renv/cache \
+    QUARTO_VERSION=1.7.32
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
@@ -23,10 +24,20 @@ RUN apt-get update \
         libxml2-dev \
         libzmq3-dev \
         cmake \
+        curl \
         pkg-config \
         pandoc \
         pandoc-citeproc \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl --fail --location --retry 3 \
+      "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb" \
+      --output /tmp/quarto.deb \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends /tmp/quarto.deb \
+    && rm -f /tmp/quarto.deb \
+    && rm -rf /var/lib/apt/lists/* \
+    && quarto --version
 
 WORKDIR /project
 COPY renv.lock renv.lock

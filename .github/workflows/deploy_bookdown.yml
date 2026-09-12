@@ -7,10 +7,14 @@ on:
     paths:
       - "**.R"
       - "**.Rmd"
-      - "_bookdown.yml"
+      - "**.qmd"
+      - "_quarto.yml"
+      - "styles.scss"
       - "book.bib"
       - "packages.bib"
       - "index.Rmd"
+      - "Dockerfile"
+      - ".github/workflows/verify-quarto-book.yml"
       - ".github/workflows/deploy_bookdown.yml"
   schedule:
     # 04:00 CET = 03:00 UTC
@@ -40,16 +44,21 @@ jobs:
       - name: Check repository configuration
         run: |
           test -f renv.lock
-          test -f _bookdown.yml
-          test -f index.Rmd
+          test -f _quarto.yml
+          test -f index.qmd
       - name: Validate R sources
         run: Rscript --vanilla -e 'parse(file = "money_theme.R")'
-      - name: Render Bookdown site
+      - name: Render Quarto book
         run: |
           start_time=$(date +%s)
-          Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")'
+          quarto render
+          test -f _book/index.html
+          test -f _book/Chapters/03_InterestRates/InterestRates.html
+          artifact_size=$(du -sb _book | cut -f1)
+          test "$artifact_size" -lt 943718400
           elapsed=$(( $(date +%s) - start_time ))
           echo "Pages render duration: ${elapsed}s" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Pages artifact size: ${artifact_size} bytes" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
