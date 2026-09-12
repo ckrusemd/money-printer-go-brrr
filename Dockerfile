@@ -46,4 +46,7 @@ COPY renv/activate.R renv/activate.R
 
 RUN Rscript --vanilla -e 'install.packages("renv", repos = "https://cloud.r-project.org"); renv::restore(lockfile = "renv.lock", prompt = FALSE)'
 
+# dkstat is distributed through rOpenGov's R-universe rather than the lockfile.
+RUN Rscript --vanilla -e 'install.packages("dkstat", repos = c(ropengov = "https://ropengov.r-universe.dev", CRAN = "https://cloud.r-project.org"))'
+
 CMD ["Rscript", "--vanilla"]
