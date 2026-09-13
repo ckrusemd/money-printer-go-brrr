@@ -481,10 +481,17 @@ fit_draw_abline = function(date1,date2,value1,value2) {
 ```{r}
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
-current_url = xml2::read_html(source_url) %>%
-  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(9) > strong > span > a") %>%
-  rvest::html_attr("href")
-xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+finansdanmark_xlsx_url = function(url) {
+  hrefs = rvest::html_attr(rvest::html_elements(xml2::read_html(url), "a[href$='.xlsx']"), "href")
+  href = hrefs[!is.na(hrefs)][1]
+
+  if (is.na(href) || !nzchar(href)) {
+    stop("Finans Danmark did not publish an XLSX link at ", url)
+  }
+
+  xml2::url_absolute(href, url)
+}
+xlsx_url = finansdanmark_xlsx_url(source_url)
 
 ```
 
@@ -897,10 +904,7 @@ df_yieldcurve =
 ```{r}
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
-current_url = xml2::read_html(source_url) %>%
-  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(9) > strong > span > a") %>%
-  rvest::html_attr("href")
-xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+xlsx_url = finansdanmark_xlsx_url(source_url)
 
 df_DK = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
 
