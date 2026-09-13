@@ -61,7 +61,7 @@ jobs:
         run: |
           start_time=$(date +%s)
           set -o pipefail
-          Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")' 2>&1 | tee render.log
+          Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")' 2>&1 | tee "$GITHUB_WORKSPACE/render.log"
           elapsed=$(( $(date +%s) - start_time ))
           echo "Pages render duration: ${elapsed}s" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload failed render log
