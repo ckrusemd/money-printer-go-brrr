@@ -12,7 +12,9 @@ options(scipen=999)
 
 ```{r}
 
-if (!require(pacman)) { install.packages("pacman") }
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  stop("The locked publication environment is missing pacman.")
+}
 pacman::p_load(fredr,
                dplyr,
                tidyr,
@@ -21,14 +23,12 @@ pacman::p_load(fredr,
                partykit,
                ggplot2,
                pROC,
-               gganimate,
                devtools,
                httr,
                DT,
                ecb,
                httr,
                visNetwork,
-               dkstat,
                data.table,
                glue,
                openxlsx,
@@ -38,7 +38,7 @@ pacman::p_load(fredr,
                PlayerRatings,
                quantmod,
                rvest,
-               ggrepel,update = T)
+               ggrepel)
 source(file = "money_theme.R")
 ```
 
@@ -2069,4 +2069,3 @@ df_ECB_DK %>%
 
 
 ```
-
