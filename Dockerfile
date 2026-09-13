@@ -2,12 +2,17 @@ FROM rocker/r-ver:4.3.3@sha256:732d15020af326da9e919c07f70ca32bf5d3e409220af32e0
 
 LABEL org.opencontainers.image.source="https://github.com/ckrusemd/money-printer-go-brrr"
 
+ARG PANDOC_VERSION=3.1.11.1
+ARG PANDOC_SHA256=ab0ac0aa1c3f9b23243d14e43023e06cbce51a52420aba17d27bd0d9c28f73ac
+
 ENV DEBIAN_FRONTEND=noninteractive \
     RENV_CONFIG_REPOS_OVERRIDE=https://packagemanager.posit.co/cran/2026-09-08 \
     RENV_PATHS_CACHE=/renv/cache
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
+        ca-certificates \
+        curl \
         libcurl4-openssl-dev \
         libgdal-dev \
         libgeos-dev \
@@ -30,7 +35,12 @@ RUN apt-get update \
         gfortran \
         build-essential \
         pkg-config \
-        pandoc \
+    && curl --fail --location --silent --show-error \
+        "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb" \
+        --output /tmp/pandoc.deb \
+    && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum --check --strict \
+    && apt-get install --yes --no-install-recommends /tmp/pandoc.deb \
+    && rm -f /tmp/pandoc.deb \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /project
