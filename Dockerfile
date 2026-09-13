@@ -25,7 +25,6 @@ RUN apt-get update \
         cmake \
         pkg-config \
         pandoc \
-        pandoc-citeproc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /project
