@@ -17,7 +17,7 @@ RUN apt-get update \
         libjpeg-dev \
         libpng-dev \
         libssl-dev \
-        libtiff5-dev \
+        libtiff-dev \
         libudunits2-dev \
         libwebp-dev \
         libxml2-dev \
