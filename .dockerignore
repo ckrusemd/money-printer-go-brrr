@@ -1,12 +1,9 @@
-.git
-.github
-_book
-renv/library
-renv/staging
-*.ipynb
-*.html
-*.pdf
-*.png
-*.jpg
-*.jpeg
-*.log
+# The image only restores the locked R environment. Keep the build context
+# minimal so changes to analyses, notebook outputs, and data never slow or
+# invalidate the dependency-image build cache.
+**
+!Dockerfile
+!renv.lock
+!renv/
+!renv/activate.R
+!renv/settings.json

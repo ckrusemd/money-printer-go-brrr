@@ -1,4 +1,4 @@
-FROM rocker/r-ver:4.3.3
+FROM rocker/r-ver:4.3.3@sha256:732d15020af326da9e919c07f70ca32bf5d3e409220af32e0a4b6d0a89437309
 
 LABEL org.opencontainers.image.source="https://github.com/ckrusemd/money-printer-go-brrr"
 
