@@ -58,6 +58,7 @@ jobs:
       - name: Validate R sources
         run: Rscript --vanilla -e 'parse(file = "money_theme.R")'
       - name: Render Bookdown site
+        shell: bash
         run: |
           start_time=$(date +%s)
           set -o pipefail
