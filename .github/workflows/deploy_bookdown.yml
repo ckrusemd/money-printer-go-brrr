@@ -2,6 +2,9 @@ name: Build and deploy Money Printer Go BRRR
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Build R publication container"]
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -25,18 +28,23 @@ concurrency:
 
 jobs:
   build:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     # The full Bookdown render regularly exceeds 20 minutes on ubuntu-latest.
     # Leave enough headroom for the scheduled run to finish and upload the site.
     timeout-minutes: 45
     container:
-      image: ghcr.io/ckrusemd/money-printer-go-brrr-r:latest
+      image: ${{ github.event_name == 'workflow_run' && format('ghcr.io/ckrusemd/money-printer-go-brrr-r:{0}', github.event.workflow_run.head_sha) || 'ghcr.io/ckrusemd/money-printer-go-brrr-r:latest' }}
       options: --user root
     env:
       FRED_API: ${{ secrets.FRED_API }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - name: Check repository configuration
         run: |
           test -f renv.lock
