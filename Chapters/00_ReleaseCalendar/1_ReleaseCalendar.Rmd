@@ -39,6 +39,41 @@ pacman::p_load(fredr,
                rvest,
                ggrepel)
 source(file = file.path("..", "..", "money_theme.R"))
+
+fred_series_metadata = function(series_id) {
+  fredr::fredr_series(series_id) %>%
+    dplyr::select(id, title, frequency, units_short,
+                  seasonal_adjustment_short, popularity)
+}
+
+load_fred_series = function(series_ids, start_date = NULL) {
+  series_ids = unique(stats::na.omit(series_ids))
+  if (length(series_ids) == 0) {
+    return(data.frame())
+  }
+  data.table::rbindlist(lapply(series_ids, function(series_id) {
+    metadata = fred_series_metadata(series_id)
+    observations = if (is.null(start_date)) {
+      fredr_cached(series_id = series_id)
+    } else {
+      fredr_cached(series_id = series_id, observation_start = start_date)
+    }
+    if (nrow(observations) == 0) return(data.frame())
+    observations %>%
+      dplyr::select(-dplyr::any_of(c("realtime_start", "realtime_end"))) %>%
+      tidyr::crossing(metadata)
+  }), fill = TRUE)
+}
+
+render_series_panels = function(data) {
+  if (nrow(data) == 0) {
+    cat("No observations are available for this section.")
+    return(invisible(NULL))
+  }
+  for (series in unique(data$series_id)) {
+    draw_plots(data = dplyr::filter(data, series_id == series))
+  }
+}
 ```
 
 # Release Calendar
@@ -49,11 +84,20 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
 ```{r}
-df_series = do.call("rbind",lapply(c(0,1000*seq(10)),function(offset_) {
-fredr::fredr_tags_series("nsa",order_by = "popularity",sort_order = "desc",offset = offset_)
-})) %>%
-  filter(frequency_short %in% c("M","W","Q")) %>%
-  dplyr::select(id,title,frequency_short,last_updated,popularity)
+tag_page_size = 1000
+tag_pages = list()
+tag_offset = 0
+repeat {
+  page = fredr::fredr_tags_series(
+    "nsa", order_by = "popularity", sort_order = "desc", offset = tag_offset
+  )
+  tag_pages[[length(tag_pages) + 1]] = page
+  if (nrow(page) < tag_page_size || length(tag_pages) >= 20) break
+  tag_offset = tag_offset + tag_page_size
+}
+df_series = do.call("rbind", tag_pages) %>%
+  filter(frequency_short %in% c("M", "W", "Q")) %>%
+  dplyr::select(id, title, frequency_short, last_updated, popularity)
 ```
 
 ## Function
@@ -64,14 +108,20 @@ draw_plots = function(data) {
 
 # All time plot
 
-series_id = unique(data$series_id)
-description = unique(data$title)
+  if (nrow(data) < 2) {
+    cat("Not enough observations to calculate indicators for this series.")
+    return(invisible(NULL))
+  }
+  series_id = dplyr::first(data$series_id)
+  description = dplyr::first(data$title)
+  latest_date = max(data$date, na.rm = TRUE)
+  short_window = max(2, min(30, floor(nrow(data) / 2)))
 p1 = data %>%
   ggplot(.,aes(x=date,y=value)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
   scale_x_date(date_labels = "%Y",date_breaks = "5 years") +
-  labs(x=NULL,y=NULL,title=glue("{description}",subtitle="{series_id}"))
+  labs(x=NULL, y=NULL, title=description, subtitle=series_id)
 
 # Last year
 p2 = data %>%
@@ -80,16 +130,16 @@ p2 = data %>%
   geom_line() +
   theme_money_printer_go_brrr(12) +
   scale_x_date(date_labels = "%b",date_breaks = "1 month") +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = latest_date, linetype=2) +
   labs(x=NULL,y=NULL)
 
 # SMA
 p3 = data %>%
   arrange(date) %>%
-  dplyr::mutate(sma200=TTR::SMA(value,n=200)) %>%
-  dplyr::mutate(value=value-sma200) %>%
+  dplyr::mutate(sma=TTR::SMA(value,n=min(200, n()))) %>%
+  dplyr::mutate(deviation=value-sma) %>%
   filter(date>=Sys.Date()-years(1)) %>%
-  ggplot(.,aes(x=date,y=value)) +
+  ggplot(.,aes(x=date,y=deviation)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
   scale_x_date(date_labels = "%b",date_breaks = "1 month") +
@@ -99,16 +149,16 @@ p3 = data %>%
 # RSI
 p4 = data %>%
   arrange(date) %>%
-  dplyr::mutate(rsi=TTR::RSI(value,n=30)) %>%
+  dplyr::mutate(rsi=TTR::RSI(value,n=short_window)) %>%
   filter(date>=Sys.Date()-years(1)) %>%
   ggplot(.,aes(x=date,y=rsi)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
   scale_x_date(date_labels = "%b",date_breaks = "1 month") +
-  geom_hline(yintercept = c(20,70),linetype=2) +
+  geom_hline(yintercept = c(30,70),linetype=2) +
   labs(x=NULL,y=NULL)
 
-p5 = grid.arrange(p1,p2,p3,p4,ncol=1)
+  p5 = grid.arrange(p1,p2,p3,p4,ncol=1)
 print(p5)
 
 }
@@ -117,38 +167,27 @@ print(p5)
 ## All
 
 ```{r}
+table_limit = 100
+selection_limit = 25
 df_series %>%
-  head(100) %>%
+  head(table_limit) %>%
   DT::datatable()
 ```
 
 
 ```{r}
 top_x = df_series %>%
-  head(25) %>%
+  head(selection_limit) %>%
   pull(id)
 ```
 
 
 ```{r}
-df_data = rbindlist(lapply(top_x,function(series_id) {
-
-  series_info = fredr::fredr_series(series_id) %>%
-    dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
-  fredr_cached(series_id = series_id) %>%
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
-    tidyr::fill(value,.direction = "down") %>%
-    tidyr::fill(series_id,.direction = "down") %>%
-      dplyr::select(-realtime_start,-realtime_end) %>%
-      tidyr::crossing(series_info)
-
-}),fill=TRUE)
+df_data = load_fred_series(top_x)
 ```
 
 ```{r fig.height=20,fig.width=10}
-for (series in unique(df_data$series_id)) {
-  draw_plots(data = df_data %>% filter(series_id==series))
-}
+render_series_panels(df_data)
 ```
 
 ## Last week
@@ -162,31 +201,18 @@ df_series %>%
 ```{r}
 top_x = df_series %>%
   filter(last_updated>=Sys.Date()-days(7)) %>%
-  head(25) %>%
+  head(selection_limit) %>%
   pull(id)
 ```
 
 
 ```{r}
-df_data = rbindlist(lapply(top_x,function(series_id) {
-
-  series_info = fredr::fredr_series(series_id) %>%
-    dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
-  fredr_cached(series_id = series_id) %>%
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
-    tidyr::fill(value,.direction = "down") %>%
-    tidyr::fill(series_id,.direction = "down") %>%
-      dplyr::select(-realtime_start,-realtime_end) %>%
-      tidyr::crossing(series_info)
-
-}),fill=TRUE)
+df_data = load_fred_series(top_x)
 ```
 
 ```{r fig.height=20,fig.width=10}
 
-for (series in unique(df_data$series_id)) {
-  draw_plots(data = df_data %>% filter(series_id==series))
-}
+render_series_panels(df_data)
 
 ```
 
@@ -196,27 +222,14 @@ for (series in unique(df_data$series_id)) {
 ```{r}
 
 top_x = c("ICSA","UNRATE","CCSA","PAYEMS","CIVPART","HOHWMN02USM065S","CES0500000017","ADPWNUSNERSA","M08343USM232SNBR","LES1252881600Q")
-df_data = rbindlist(lapply(top_x,function(series_id) {
-
-  series_info = fredr::fredr_series(series_id) %>%
-    dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
-  fredr_cached(series_id = series_id) %>%
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
-    tidyr::fill(value,.direction = "down") %>%
-    tidyr::fill(series_id,.direction = "down") %>%
-      dplyr::select(-realtime_start,-realtime_end) %>%
-      tidyr::crossing(series_info)
-
-}),fill=TRUE)
+df_data = load_fred_series(top_x)
 ```
 
 
 
 ```{r fig.height=20,fig.width=10}
 
-for (series in unique(df_data$series_id)) {
-  draw_plots(data = df_data %>% filter(series_id==series))
-}
+render_series_panels(df_data)
 
 ```
 
@@ -225,24 +238,14 @@ for (series in unique(df_data$series_id)) {
 
 ```{r}
 
-unrates = c("UNRATE","U6RATE")
-df_u6 = rbindlist(lapply(unrates,function(series_id) {
-
-  series_info = fredr::fredr_series(series_id) %>%
-    dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
-  fredr_cached(series_id = series_id) %>%
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
-    tidyr::fill(value,.direction = "down") %>%
-    tidyr::fill(series_id,.direction = "down") %>%
-      dplyr::select(-realtime_start,-realtime_end) %>%
-      tidyr::crossing(series_info)
-
-}),fill=TRUE)
+unrates = c("UNRATE", "U6RATE")
+df_u6 = load_fred_series(unrates)
 
 df_u6 %>%
   filter(date>=ymd("1994-01-01")) %>%
   ggplot(aes(x=date,y=value,color=series_id)) +
-   geom_line()
+   geom_line() +
+   theme_money_printer_go_brrr(12)
 
 
 df_u6 %>%
@@ -252,5 +255,7 @@ df_u6 %>%
   dplyr::mutate(diff=U6RATE-UNRATE) %>%
   filter(date>=ymd("1994-01-01")) %>%
   ggplot(aes(x=date,y=diff)) +
-   geom_line()
+   geom_line() +
+   geom_hline(yintercept = 0, linetype = 2) +
+   theme_money_printer_go_brrr(12)
 ```
