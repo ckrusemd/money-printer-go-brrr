@@ -1166,13 +1166,12 @@ df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
                          y = df_predict_DFF %>%
                            na.omit %>%
                            .[["value"]],
-                         method = "rf",libraryrf
+                         method = "rf",
                          tuneGrid=data.frame(mtry=row_$mtry),
                          ntree=row_$num_trees,
                          metric = "RMSE",
                          trControl=train_control)$results
   }))
-}
 ```
 
 
