@@ -119,15 +119,16 @@ BYGV80 <- dst_get_data(table = "BYGV80",
                        lang = "da") %>% 
   group_by(BYGFASE,ANVENDELSE) %>% 
   arrange(BYGFASE,ANVENDELSE,TID) %>% 
-  filter(ANVENDELSE %in% c("Etageboliger","Parcelhuse")) %>% 
-  dplyr::mutate(ANVENDELSE=gsub("Etageboliger","FLAT",ANVENDELSE)) %>% 
-  dplyr::mutate(ANVENDELSE=gsub("Parcelhuse","HOUSE",ANVENDELSE)) %>% 
-  dplyr::rename(PROPERTY_TYPE=ANVENDELSE) %>% 
+  dplyr::mutate(PROPERTY_TYPE = dplyr::case_when(
+    grepl("etage|ejer|lejlig|flat", ANVENDELSE, ignore.case = TRUE) ~ "Ejerlejlighed",
+    grepl("parcel|række|enfamil|house|hus", ANVENDELSE, ignore.case = TRUE) ~ "Parcel-/rækkehuse",
+    TRUE ~ NA_character_
+  )) %>%
+  filter(!is.na(PROPERTY_TYPE)) %>%
   dplyr::rename(STAT=BYGFASE) %>% 
   dplyr::rename(DATE=TID) %>% 
   dplyr::rename(VALUE=value) %>% 
-  group_by(PROPERTY_TYPE,STAT) %>% 
-  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>%
   do(gam_adjust(.))
 
 BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
