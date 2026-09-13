@@ -9,6 +9,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
         libcurl4-openssl-dev \
+        libgdal-dev \
+        libgeos-dev \
         libfontconfig1-dev \
         libfreetype6-dev \
         libfribidi-dev \
@@ -21,8 +23,12 @@ RUN apt-get update \
         libudunits2-dev \
         libwebp-dev \
         libxml2-dev \
+        libproj-dev \
+        libsqlite3-dev \
         libzmq3-dev \
         cmake \
+        gfortran \
+        build-essential \
         pkg-config \
         pandoc \
     && rm -rf /var/lib/apt/lists/*
