@@ -1,0 +1,102 @@
+/*-- scss:defaults --*/
+$body-bg: #0b1020;
+$body-color: #d9e2f1;
+$primary: #39d0b5;
+$secondary: #94a3b8;
+$link-color: #66e3ca;
+$headings-color: #f6f8fc;
+$font-family-sans-serif: "Inter", "Avenir Next", "Segoe UI", sans-serif;
+$font-family-monospace: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+/*-- scss:rules --*/
+:root {
+  --mp-surface: #121a2e;
+  --mp-surface-raised: #17223a;
+  --mp-border: rgba(178, 203, 232, 0.16);
+  --mp-muted: #9dafc8;
+  --mp-accent-warm: #f4b860;
+}
+
+body {
+  background:
+    radial-gradient(circle at 10% -10%, rgba(57, 208, 181, 0.14), transparent 28rem),
+    radial-gradient(circle at 95% 10%, rgba(95, 141, 255, 0.12), transparent 30rem),
+    $body-bg;
+}
+
+.navbar, .sidebar, #quarto-sidebar {
+  background-color: rgba(11, 16, 32, 0.94);
+  border-color: var(--mp-border);
+}
+
+#quarto-content {
+  max-width: 1680px;
+}
+
+.hero-banner {
+  margin: 1.5rem 0 3.5rem;
+  padding: clamp(2rem, 7vw, 6rem);
+  border: 1px solid var(--mp-border);
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, rgba(23, 34, 58, 0.98), rgba(14, 23, 42, 0.92));
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.25);
+}
+
+.hero-banner h1 {
+  max-width: 12ch;
+  margin: 0.35rem 0 1rem;
+  font-size: clamp(3rem, 8vw, 6.8rem);
+  font-weight: 760;
+  letter-spacing: -0.065em;
+  line-height: 0.92;
+}
+
+.hero-banner p {
+  max-width: 46rem;
+  color: #c6d3e6;
+  font-size: 1.2rem;
+  line-height: 1.7;
+}
+
+.hero-kicker {
+  color: var(--mp-accent-warm);
+  font-size: 0.77rem;
+  font-weight: 750;
+  letter-spacing: 0.15em;
+}
+
+.hero-banner .btn { margin: 1rem 0.45rem 0 0; }
+
+.chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 3rem;
+}
+
+.chapter-card {
+  min-height: 10.5rem;
+  padding: 1.35rem;
+  border: 1px solid var(--mp-border);
+  border-radius: 0.85rem;
+  background: linear-gradient(145deg, rgba(23, 34, 58, 0.9), rgba(18, 26, 46, 0.9));
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.chapter-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(102, 227, 202, 0.55);
+  background: #1a2945;
+}
+
+.chapter-card h3 { margin-top: 0; }
+.chapter-card a { color: #f6f8fc; text-decoration: none; }
+.chapter-card p { color: var(--mp-muted); }
+
+.cell-output, .panel-tabset, .datatable { border-radius: 0.5rem; }
+table { --bs-table-bg: transparent; --bs-table-color: #d9e2f1; }
+pre.sourceCode, div.sourceCode { background: #0a0f1c; border: 1px solid var(--mp-border); }
+
+@media (max-width: 991px) {
+  .hero-banner { margin-top: 0.5rem; }
+}

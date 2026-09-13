@@ -36,7 +36,7 @@ pacman::p_load(fredr,
                quantmod,
                rvest,
                ggrepel)
-source(file = "money_theme.R")
+source(file = file.path("..", "..", "money_theme.R"))
 
 # library("devtools")
 # install_github("rOpenGov/dkstat")
@@ -676,4 +676,3 @@ Real Estate Sector: ProShares UltraShort Real Estate - SRS (Note: This is 2x lev
 ```{r fig.height=25,fig.width=10}
 draw_plots(data = df_adjusted %>% filter(ticker=="SRS",currency=="USD"))
 ```
-

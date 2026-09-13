@@ -36,7 +36,9 @@ pacman::p_load(fredr,
                quantmod,
                rvest,
                ggrepel)
-source(file = "money_theme.R")
+source(file = file.path("..", "..", "money_theme.R"))
+dst_get_data <- dkstat::dst_get_data
+dst_meta <- dkstat::dst_meta
 ```
 
 # Indicators
@@ -51,7 +53,7 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
 ```{r}
 
-df_etfs = openxlsx::read.xlsx(xlsxFile = "Chapters/01_Indicators/etf_list.xlsx")
+df_etfs = openxlsx::read.xlsx(xlsxFile = "etf_list.xlsx")
 
 df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
   
@@ -148,21 +150,53 @@ BYG42 <- dst_get_data(table = "BYG42",
 ```{r}
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
-current_url = xml2::read_html(source_url) %>%
-  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(11) > a") %>% 
-  rvest::html_attr("href")
-xlsx_url = paste0("https://finansdanmark.dk/",current_url)
-
-df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
-df_interest$År[1] = 1997
-df_interest = df_interest %>% fill(År,.direction = "down")
-df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
-df_interest = df_interest %>% 
-  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
-  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
-  gather(series_id,value,CurveLongShort,Lang.rente,Kort.rente) %>% 
-  dplyr::rename(date=Date) %>% 
-  dplyr::select(date,value,series_id)
+finans_page = xml2::read_html(source_url)
+current_url = finans_page %>%
+  rvest::html_elements("a[href*='.xlsx']") %>%
+  rvest::html_attr("href") %>%
+  .[!is.na(.)] %>%
+  .[grepl("obl[-_]rente|obligationsrente", ., ignore.case = TRUE)] %>%
+  dplyr::last()
+if (length(current_url) == 0) current_url = NA_character_
+df_interest = data.frame(
+  date = as.Date(character()), value = numeric(), series_id = character()
+)
+if (!is.na(current_url) && nzchar(current_url)) {
+  xlsx_url = xml2::url_absolute(current_url, source_url)
+  df_interest = tryCatch({
+    interest = openxlsx::read.xlsx(xlsxFile = xlsx_url, startRow = 1, check.names = TRUE)
+    year_name = names(interest)[grepl("^År$|^Ar$", names(interest))][1]
+    week_name = names(interest)[grepl("^Uge$", names(interest))][1]
+    short_name = names(interest)[grepl("^Kort[.]rente$|^Kort.rente", names(interest))][1]
+    long_name = names(interest)[grepl("^Lang[.]rente$|^Lang.rente", names(interest))][1]
+    euro_name = names(interest)[grepl("Kort.*euro.*rente", names(interest), ignore.case = TRUE)][1]
+    required_columns = c(year_name, week_name, short_name, long_name)
+    if (anyNA(required_columns)) stop("Finans Danmark spreadsheet columns changed")
+    interest = interest %>% fill(dplyr::all_of(c(year_name, week_name)), .direction = "down")
+    interest$Date = as.Date(
+      paste(as.integer(interest[[year_name]]), sprintf("%02d", as.integer(interest[[week_name]])), 1, sep="-"),
+      "%Y-%U-%u"
+    )
+    rate_data = interest %>%
+      dplyr::transmute(
+        Date = Date,
+        `Kort.rente` = .data[[short_name]],
+        `Lang.rente` = .data[[long_name]],
+        `Kort.euro.rente` = if (!is.na(euro_name)) .data[[euro_name]] else NA_real_
+      )
+    rate_data %>%
+      dplyr::mutate(CurveLongShort = Lang.rente - Kort.rente) %>%
+      gather(series_id, value, CurveLongShort, Lang.rente, Kort.rente) %>%
+      dplyr::rename(date = Date) %>%
+      dplyr::select(date, value, series_id) %>%
+      dplyr::filter(!is.na(date), !is.na(value))
+  }, error = function(error) {
+    warning("Finans Danmark data unavailable; continuing without it: ", error$message)
+    df_interest
+  })
+} else {
+  warning("Finans Danmark download link unavailable; continuing without it")
+}
 
 ```
 

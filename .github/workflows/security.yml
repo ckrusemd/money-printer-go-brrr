@@ -22,8 +22,8 @@ jobs:
       - name: Check required files and whitespace
         run: |
           test -f renv.lock
-          test -f _bookdown.yml
-          test -f index.Rmd
+          test -f _quarto.yml
+          test -f index.qmd
           test -f Dockerfile
           git diff --check
       - name: Scan source for credential material

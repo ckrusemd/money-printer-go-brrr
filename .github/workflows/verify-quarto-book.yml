@@ -1,0 +1,48 @@
+name: Verify Quarto book
+
+on:
+  pull_request:
+    paths:
+      - "**.R"
+      - "**.Rmd"
+      - "**.qmd"
+      - "_quarto.yml"
+      - "styles.scss"
+      - "Dockerfile"
+      - "renv.lock"
+      - ".github/workflows/verify-quarto-book.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    # Repository secrets are intentionally unavailable to forks.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      FRED_API: ${{ secrets.FRED_API }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Build publication image
+        run: docker build --tag money-printer-quarto:check .
+      - name: Render full Quarto book
+        run: >-
+          docker run --rm
+          --user root
+          --env FRED_API
+          --volume "$GITHUB_WORKSPACE:/project"
+          --workdir /project
+          money-printer-quarto:check
+          quarto render
+      - name: Verify generated site
+        run: |
+          test -f _book/index.html
+          test -f _book/Chapters/00_ReleaseCalendar/1_ReleaseCalendar.html
+          test -f _book/Chapters/07_Crypto/Crypto.html
+          artifact_size=$(du -sb _book | cut -f1)
+          test "$artifact_size" -lt 943718400
+          echo "Pages artifact size: ${artifact_size} bytes" >> "$GITHUB_STEP_SUMMARY"

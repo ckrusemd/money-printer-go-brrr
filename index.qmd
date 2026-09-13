@@ -1,0 +1,83 @@
+---
+title: "Money Printer Go BRRR"
+subtitle: "A macroeconomic research notebook"
+page-layout: full
+toc: false
+---
+
+::: {.hero-banner}
+::: {.hero-kicker}
+MACROECONOMICS · MARKETS · DATA
+:::
+
+# Money Printer Go BRRR
+
+Since 1971, money printers have gone BRRR. This is a living collection of data-led notebooks for following the forces behind rates, risk, growth, and liquidity.
+
+[Start with the release calendar](Chapters/00_ReleaseCalendar/1_ReleaseCalendar.Rmd){.btn .btn-primary .btn-lg}
+[View the source](https://github.com/ckrusemd/money-printer-go-brrr){.btn .btn-outline-light .btn-lg}
+:::
+
+## The notebook
+
+Each chapter is rendered from the analysis notebook that produces its charts and tables. The published book hides implementation code so the emphasis stays on the findings, while the source remains available from every page.
+
+::: {.chapter-grid}
+::: {.chapter-card}
+### [Release Calendar](Chapters/00_ReleaseCalendar/1_ReleaseCalendar.Rmd)
+
+Economic releases and the signals that move expectations.
+:::
+
+::: {.chapter-card}
+### [Indicators](Chapters/01_Indicators/1_Indicators.Rmd)
+
+Leading and lagging indicators for the broader cycle.
+:::
+
+::: {.chapter-card}
+### [US Housing](Chapters/02_Housing/5_Housing_US.Rmd)
+
+Housing activity, affordability, and market momentum in the United States.
+:::
+
+::: {.chapter-card}
+### [Danish Housing](Chapters/02_Housing/Housing_DK.Rmd)
+
+Construction, pricing, and demand in Denmark.
+:::
+
+::: {.chapter-card}
+### [Interest Rates](Chapters/03_InterestRates/InterestRates.Rmd)
+
+Policy, yield curves, and mortgage-market dynamics.
+:::
+
+::: {.chapter-card}
+### [Markets](Chapters/04_Markets/Markets.Rmd)
+
+Cross-asset performance, inflation-adjusted returns, and market breadth.
+:::
+
+::: {.chapter-card}
+### [ETFs](Chapters/05_ETFs/ETFs.Rmd)
+
+ETF comparisons, correlations, and allocation ideas.
+:::
+
+::: {.chapter-card}
+### [Currency](Chapters/06_Currency/Currency.Rmd)
+
+Currency markets, purchasing power, and relative-value trends.
+:::
+
+::: {.chapter-card}
+### [Crypto](Chapters/07_Crypto/Crypto.Rmd)
+
+Digital-asset analysis in a macroeconomic context.
+:::
+:::
+
+## Sources and cadence
+
+The analysis draws primarily on [FRED](https://fred.stlouisfed.org/), [Yahoo Finance](https://finance.yahoo.com/), [Statistics Denmark](https://www.dst.dk/), and [Finans Danmark](https://finansdanmark.dk/). The site is refreshed daily; market data may reflect the most recent trading day.

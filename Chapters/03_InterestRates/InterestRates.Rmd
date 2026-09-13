@@ -39,7 +39,7 @@ pacman::p_load(fredr,
                quantmod,
                rvest,
                ggrepel,update = T)
-source(file = "money_theme.R")
+source(file = file.path("..", "..", "money_theme.R"))
 ```
 
 # Interest Rates
@@ -1166,13 +1166,12 @@ df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
                          y = df_predict_DFF %>%
                            na.omit %>%
                            .[["value"]],
-                         method = "rf",libraryrf
+                         method = "rf",
                          tuneGrid=data.frame(mtry=row_$mtry),
                          ntree=row_$num_trees,
                          metric = "RMSE",
                          trControl=train_control)$results
   }))
-}
 ```
 
 
@@ -2069,4 +2068,3 @@ df_ECB_DK %>%
 
 
 ```
-

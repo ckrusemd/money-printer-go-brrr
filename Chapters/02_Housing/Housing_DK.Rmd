@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r housing_dk}
-knitr::opts_chunk$set(echo = TRUE,include=TRUE,messsage=TRUE)
+knitr::opts_chunk$set(echo = FALSE, include = TRUE, message = FALSE, warning = FALSE)
 options(scipen=999)
 
 ```
@@ -34,7 +34,9 @@ pacman::p_load(tidyr,
                httr,
                zoo,
                rvest)
-source(file = "money_theme.R")
+source(file = file.path("..", "..", "money_theme.R"))
+dst_get_data <- dkstat::dst_get_data
+dst_meta <- dkstat::dst_meta
 
 ```
 
@@ -67,7 +69,19 @@ gam_adjust = function(data) {
     #     data.frame(span = span_value, RMSE = rmse_value)
     # }))
     
-    fit_smooth = smooth.spline(data$DATE, data$VALUE, cv= TRUE) 
+    fit_smooth = tryCatch(
+      smooth.spline(data$DATE, data$VALUE, cv = TRUE),
+      error = function(error) {
+        warning("Smoothing skipped for sparse or invalid group: ", error$message)
+        NULL
+      }
+    )
+    smooth_values = if (is.null(fit_smooth)) data$VALUE else fit_smooth$y
+    ema_values = if (nrow(data) > 0) {
+      TTR::EMA(data$VALUE, n = min(20, nrow(data)))
+    } else {
+      numeric()
+    }
     
     # Find the best model
     # best_model <- results %>%
@@ -80,10 +94,10 @@ gam_adjust = function(data) {
     
   data %>% 
     # dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.)) %>%
-    dplyr::mutate(VALUE_SMOOTH=fit_smooth$y) %>%
+    dplyr::mutate(VALUE_SMOOTH=smooth_values) %>%
     dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
-    dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>%
+    dplyr::mutate(VALUE_EMA=ema_values) %>%
     arrange(desc(DATE)) %>%
     dplyr::mutate(VALUE_CHG=VALUE-lead(VALUE)) %>%
     filter(!is.na(VALUE_CHG)) %>%
@@ -105,15 +119,16 @@ BYGV80 <- dst_get_data(table = "BYGV80",
                        lang = "da") %>% 
   group_by(BYGFASE,ANVENDELSE) %>% 
   arrange(BYGFASE,ANVENDELSE,TID) %>% 
-  filter(ANVENDELSE %in% c("Etageboliger","Parcelhuse")) %>% 
-  dplyr::mutate(ANVENDELSE=gsub("Etageboliger","FLAT",ANVENDELSE)) %>% 
-  dplyr::mutate(ANVENDELSE=gsub("Parcelhuse","HOUSE",ANVENDELSE)) %>% 
-  dplyr::rename(PROPERTY_TYPE=ANVENDELSE) %>% 
+  dplyr::mutate(PROPERTY_TYPE = dplyr::case_when(
+    grepl("etage|ejer|lejlig|flat", ANVENDELSE, ignore.case = TRUE) ~ "Ejerlejlighed",
+    grepl("parcel|række|enfamil|house|hus", ANVENDELSE, ignore.case = TRUE) ~ "Parcel-/rækkehuse",
+    TRUE ~ NA_character_
+  )) %>%
+  filter(!is.na(PROPERTY_TYPE)) %>%
   dplyr::rename(STAT=BYGFASE) %>% 
   dplyr::rename(DATE=TID) %>% 
   dplyr::rename(VALUE=value) %>% 
-  group_by(PROPERTY_TYPE,STAT) %>% 
-  dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
+  group_by(PROPERTY_TYPE,STAT) %>%
   do(gam_adjust(.))
 
 BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
@@ -165,8 +180,11 @@ BYG42 <- dst_get_data(table = "BYG42",
 ## Construction Activity
 
 ```{r construc1,fig.width=20,fig.height=20}
-BYGV80 %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
+construction_data = BYGV80 %>% filter(PROPERTY_TYPE=="Parcel-/rækkehuse")
+if (nrow(construction_data) == 0) {
+  cat("Construction series unavailable from Statistics Denmark for this run.")
+} else {
+construction_data %>%
   # filter(DATE>=Sys.Date()-years(10)) %>% 
   ggplot(.,aes(x=DATE,y=VALUE_SMOOTH,color=STAT)) +
   geom_line() +
@@ -180,7 +198,8 @@ BYGV80 %>%
   scale_x_date(date_breaks = "2 years",date_labels = "%Y %b")  +
   # geom_vline(xintercept = seq.Date(from = dmy("01-01-2000"),to = dmy("01-01-2030"),by = "1 year"),linetype=2,alpha=0.7)  +
   # geom_vline(xintercept = seq.Date(from = dmy("01-08-2000"),to = dmy("01-08-2030"),by = "1 year"),linetype=2,alpha=0.8) +
-  theme_money_printer_go_brrr(base_size=16) 
+  theme_money_printer_go_brrr(base_size=16)
+}
 ```
 
 ```{r eval=F}
@@ -194,20 +213,26 @@ prophet_plot_components(m, forecast)
 ```
 
 ```{r}
-BYGV80 %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
+if (nrow(construction_data) == 0) {
+  cat("No construction series available for the cumulative-change chart.")
+} else {
+construction_data %>%
   ggplot(.,aes(x=DATE,y=VALUE_SUM_CHG_SCALED,color=STAT)) +
   geom_line() + 
   # facet_wrap(~STAT,scales="free") +
   # geom_line(aes(y=VALUE_SCALED),alpha=0.3) +
   theme_money_printer_go_brrr(base_size=12) +
   geom_hline(yintercept = 0,linetype=2)
+}
 ```
 
 ```{r fig.height=15,fig.width=10 }
 
-BYGV80 %>% 
-  filter(PROPERTY_TYPE == "Ejerlejlighed") %>% 
+flats_data = BYGV80 %>% filter(PROPERTY_TYPE == "Ejerlejlighed")
+if (nrow(flats_data) == 0) {
+  cat("No apartment construction series available for this run.")
+} else {
+flats_data %>%
   ggplot(.,aes(x=DATE,y=VALUE,color=STAT)) +
   geom_point() +
   geom_line(aes(x=DATE,y=VALUE_EMA),linetype=2,color="black") +
@@ -216,7 +241,7 @@ BYGV80 %>%
   facet_wrap(~STAT,scales = "free",ncol=1) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
   theme(legend.position = "bottom") +
-  labs(title="Parcelhuse") +
+  labs(title="Ejerlejligheder") +
   geom_hline(yintercept = 0) +
   geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
   geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
@@ -225,6 +250,7 @@ BYGV80 %>%
        x=NULL,
        y="(SD)",
        caption = timestamp_caption())
+}
 
 ```
 
@@ -526,6 +552,3 @@ BYGV80 %>%
   geom_vline(xintercept = Sys.Date()) +
   geom_line(data=df_fit,aes(x=DATE,y=Fuldført.byggeri),color="red")
 ```
-
-
-
