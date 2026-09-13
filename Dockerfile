@@ -1,4 +1,4 @@
-FROM rocker/r-ver:4.3.3
+FROM rocker/r-ver:4.6.1
 
 LABEL org.opencontainers.image.source="https://github.com/ckrusemd/money-printer-go-brrr"
 
