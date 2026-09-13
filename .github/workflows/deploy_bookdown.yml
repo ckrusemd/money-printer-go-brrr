@@ -60,9 +60,18 @@ jobs:
       - name: Render Bookdown site
         run: |
           start_time=$(date +%s)
-          Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")'
+          set -o pipefail
+          Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")' 2>&1 | tee render.log
           elapsed=$(( $(date +%s) - start_time ))
           echo "Pages render duration: ${elapsed}s" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload failed render log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookdown-render-log
+          path: render.log
+          if-no-files-found: warn
+          retention-days: 7
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
