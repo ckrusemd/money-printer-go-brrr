@@ -155,10 +155,7 @@ BYG42 <- dst_get_data(table = "BYG42",
 ```{r}
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
-current_url = xml2::read_html(source_url) %>%
-  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(11) > a") %>% 
-  rvest::html_attr("href")
-xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+xlsx_url = finansdanmark_xlsx_url(source_url)
 
 df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
 df_interest$År[1] = 1997
