@@ -55,4 +55,4 @@ jobs:
         run: >-
           docker run --rm
           ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          Rscript --vanilla -e 'stopifnot(as.character(getRversion()) == "4.3.3", requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), rmarkdown::pandoc_version() >= package_version("2.11"))'
+          Rscript --vanilla -e 'stopifnot(as.character(getRversion()) == "4.3.3", requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE), rmarkdown::pandoc_version() >= package_version("2.11"))'
