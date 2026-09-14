@@ -14,6 +14,23 @@ fredr_cached_many <- function(series_ids, ...) {
   dplyr::bind_rows(lapply(series_ids, fredr_cached, ...))
 }
 
+## Resolve the current mortgage-rate workbook without depending on page layout.
+## Finans Danmark changes the surrounding markup, but the published file link
+## remains the only XLSX anchor on the source page.
+finansdanmark_xlsx_url <- function(url) {
+  hrefs <- rvest::html_attr(
+    rvest::html_elements(xml2::read_html(url), "a[href$='.xlsx']"),
+    "href"
+  )
+  href <- hrefs[!is.na(hrefs) & nzchar(hrefs)][1]
+
+  if (length(href) == 0 || is.na(href) || !nzchar(href)) {
+    stop("Finans Danmark did not publish an XLSX link at ", url)
+  }
+
+  xml2::url_absolute(href, url)
+}
+
 theme_money_printer_go_brrr <- function(base_size) {
 
   base_family = ""
