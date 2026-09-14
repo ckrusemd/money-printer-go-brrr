@@ -1,5 +1,5 @@
 ---
-title: "Housing: Denmark"
+title: "Danish Housing Market"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 output: html_document
@@ -38,7 +38,7 @@ source(file = "money_theme.R")
 
 ```
 
-# Housing: Denmark
+# Danish Housing Market
 
 
 
@@ -526,6 +526,5 @@ BYGV80 %>%
   geom_vline(xintercept = Sys.Date()) +
   geom_line(data=df_fit,aes(x=DATE,y=Fuldført.byggeri),color="red")
 ```
-
 
 

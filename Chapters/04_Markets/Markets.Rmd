@@ -1,5 +1,5 @@
 ---
-title: "Markets"
+title: "Equity Markets and the S&P 500"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 output: html_document
@@ -48,7 +48,7 @@ readRenviron(path = "Renviron.site")
 fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
-# Markets
+# Equity Markets and the S&P 500
 
 Price index DK
 
@@ -676,4 +676,3 @@ Real Estate Sector: ProShares UltraShort Real Estate - SRS (Note: This is 2x lev
 ```{r fig.height=25,fig.width=10}
 draw_plots(data = df_adjusted %>% filter(ticker=="SRS",currency=="USD"))
 ```
-

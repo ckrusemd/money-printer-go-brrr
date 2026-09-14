@@ -1,5 +1,5 @@
 ---
-title: "Interest Rates"
+title: "Interest Rates and Yield Curves"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 output: html_document
@@ -42,7 +42,7 @@ pacman::p_load(fredr,
 source(file = "money_theme.R")
 ```
 
-# Interest Rates
+# Interest Rates and Yield Curves
 
 
 ```{r }

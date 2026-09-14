@@ -1,5 +1,5 @@
 ---
-title: "Release Calendar"
+title: "Economic Release Calendar"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 output: html_document
@@ -41,7 +41,7 @@ pacman::p_load(fredr,
 source(file = "money_theme.R")
 ```
 
-# Release Calendar
+# Economic Release Calendar
 
 ```{r }
 readRenviron(path = "Renviron.site")

@@ -1,16 +1,12 @@
 delete_merged_file: true
-# rmd_subdir: ["Chapters/01_Indicators",
-# "Chapters/02_Housing",
-# "Chapters/03_InterestRates",
-# "Chapters/04_Markets",
-# "Chapters/05_ETFs"
-# ]
-
-rmd_subdir: [
-"Chapters/00_ReleaseCalendar",
-#"Chapters/01_Indicators",
-#"Chapters/02_Housing",
-"Chapters/03_InterestRates"#,
-#"Chapters/04_Markets" #,
-#"Chapters/05_ETFs"
-]
+rmd_files:
+  - index.Rmd
+  - Chapters/00_ReleaseCalendar/1_ReleaseCalendar.Rmd
+  - Chapters/01_Indicators/1_Indicators.Rmd
+  - Chapters/02_Housing/5_Housing_US.Rmd
+  - Chapters/02_Housing/Housing_DK.Rmd
+  - Chapters/03_InterestRates/InterestRates.Rmd
+  - Chapters/04_Markets/Markets.Rmd
+  - Chapters/05_ETFs/ETFs.Rmd
+  - Chapters/06_Currency/Currency.Rmd
+  - Chapters/07_Crypto/Crypto.Rmd

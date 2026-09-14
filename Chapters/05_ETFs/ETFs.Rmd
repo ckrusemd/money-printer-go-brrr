@@ -1,5 +1,5 @@
 ---
-title: "ETFs"
+title: "ETF Tracking and Analysis"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 output: html_document
@@ -37,7 +37,7 @@ pacman::p_load(fredr,
 source(file = "money_theme.R")
 ```
 
-# ETFs
+# ETF Tracking and Analysis
 
 ```{r}
 

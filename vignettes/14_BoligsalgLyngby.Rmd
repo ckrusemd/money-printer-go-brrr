@@ -1,5 +1,5 @@
 ---
-title: "Boligsalg - Lyngby"
+title: "Lyngby Home Sales Analysis"
 author: "ckrusemd"
 date: "`r Sys.Date()`"
 output: html_document
