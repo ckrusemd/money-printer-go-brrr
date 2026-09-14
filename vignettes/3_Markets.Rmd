@@ -1,5 +1,5 @@
 ---
-title: "I Like the Stock"
+title: "Equity Sectors and Industries"
 output: html_document
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: "Indicators"
+title: "US Economic Indicators and FRED Releases"
 author: "Christian Kruse"
 date: "4/6/2022"
 output: html_document
@@ -725,4 +725,3 @@ predict(lm_aic,
                    T10Y2Y=-0.75
   ),interval="prediction")
 ```
-

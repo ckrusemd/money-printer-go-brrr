@@ -1,5 +1,5 @@
 ---
-title: "FED Rate Expectations Over Time"
+title: "Federal Funds Rate Expectations Over Time"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 output: html_document
