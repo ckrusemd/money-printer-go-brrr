@@ -1839,6 +1839,27 @@
       "Maintainer": "Dirk Eddelbuettel <edd@debian.org>",
       "Repository": "CRAN"
     },
+    "dkstat": {
+      "Package": "dkstat",
+      "Version": "0.0.0.9002",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "rOpenGov",
+      "RemoteRepo": "dkstat",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "822b4a0ada472d2911db879d5e3232ced7bca349",
+      "Depends": [
+        "R (>= 4.1)"
+      ],
+      "Imports": [
+        "httr",
+        "jsonlite",
+        "lubridate",
+        "stringr",
+        "cli"
+      ]
+    },
     "directlabels": {
       "Package": "directlabels",
       "Version": "2025.6.24",

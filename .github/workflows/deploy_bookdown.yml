@@ -54,7 +54,7 @@ jobs:
       - name: Verify render dependencies
         run: >-
           Rscript --vanilla -e
-          'stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE))'
+          'stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE))'
       - name: Validate R sources
         run: Rscript --vanilla -e 'parse(file = "money_theme.R")'
       - name: Render Bookdown site
