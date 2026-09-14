@@ -62,7 +62,7 @@ df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
 
 ```
 
-### Historically cheap
+## Historically cheap
 
 ```{r}
 df_etf_yahoo %>% 
@@ -150,7 +150,7 @@ BYG42 <- dst_get_data(table = "BYG42",
 ```
 
 
-### FinansDanmark
+## FinansDanmark
 
 ```{r}
 
@@ -173,7 +173,7 @@ df_interest = df_interest %>%
 
 ```
 
-### FRED
+## FRED
 
 ```{r}
 series_ids = unique(c("CBBTCUSD",
@@ -242,7 +242,7 @@ df_macro_fred = rbindlist(lapply(series_ids,function(series_id) {
 }))
 ```
 
-### Yahoo
+## Yahoo
 
 ```{r}
 
@@ -281,7 +281,7 @@ df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
 
 ## Combine
 
-### All Data
+## All Data
 
 ```{r}
 
@@ -361,7 +361,7 @@ df_ccfs %>%
 
 ## Descriptive
 
-### Most dominating current indicators
+## Most dominating current indicators
 
 ```{r}
 
@@ -480,7 +480,7 @@ visNetwork(nodes, edges) %>%
 ```
 
 
-# Bitcoin
+## Bitcoin
 
 ```{r}
 
@@ -491,7 +491,7 @@ df_ccfs %>%
 
 ```
 
-# Short housing
+## Short housing
 
 ```{r}
 df_ccfs %>% 
@@ -500,7 +500,7 @@ df_ccfs %>%
   datatable()
 ```
 
-# Short DFF
+## Short DFF
 
 ```{r}
 df_ccfs %>% 
@@ -508,7 +508,7 @@ df_ccfs %>%
   dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
   datatable()
 ```
-# Short Treasury
+## Short Treasury
 
 ```{r}
 df_ccfs %>% 

@@ -345,7 +345,7 @@ df_C25 %>%
 
 ```
 
-# Crypto
+## Crypto
 
 ## BTC
 
@@ -375,7 +375,7 @@ df_BTCUSD %>%
 
 ```
 
-# Stocks
+## Stocks
 
 ```{r eval=F}
 
@@ -444,7 +444,7 @@ tickers_filtered = df_quotes %>%
 ```
 
 
-# Sectors & Industries
+## Sectors & Industries
 
 ## Sectors
 
@@ -680,7 +680,7 @@ df_gamed %>%
 ```
 
 
-### Elo approach
+## Elo approach
 
 ```{r eval=F}
 

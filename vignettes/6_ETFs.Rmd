@@ -67,7 +67,7 @@ df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
 
 ```
 
-### Historically cheap
+## Historically cheap
 
 ```{r}
 df_etf_yahoo %>% 
@@ -151,7 +151,7 @@ BYG42 <- dst_get_data(table = "BYG42",
 ```
 
 
-### FinansDanmark
+## FinansDanmark
 
 ```{r}
 
@@ -174,7 +174,7 @@ df_interest = df_interest %>%
 
 ```
 
-### FRED
+## FRED
 
 ```{r}
 series_ids = unique(c("CBBTCUSD",
@@ -243,7 +243,7 @@ df_macro_fred = rbindlist(lapply(series_ids,function(series_id) {
 }))
 ```
 
-### Yahoo
+## Yahoo
 
 ```{r}
 
@@ -282,7 +282,7 @@ df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
 
 ## Combine
 
-### All Data
+## All Data
 
 ```{r}
 
@@ -354,7 +354,7 @@ df_ccfs %>%
 
 ## Descriptive
 
-### Most dominating current indicators
+## Most dominating current indicators
 
 ```{r}
 
@@ -380,7 +380,7 @@ df_threshold_indicators %>%
 
 ## Export
 
-### MARS
+## MARS
 
 ```{r}
 
@@ -402,7 +402,7 @@ df_mars_data = df_all %>%
 ```
 
 
-### Export to Excel
+## Export to Excel
 
 ```{r}
 
@@ -606,7 +606,7 @@ plot(subg, layout = layout, vertex.label.family = "sans", vertex.label.font = 2,
 
 ```
 
-# Bitcoin
+## Bitcoin
 
 ```{r}
 
@@ -615,7 +615,7 @@ df_ccfs %>%
 
 ```
 
-# Short housing
+## Short housing
 
 ```{r}
 df_ccfs %>% 
@@ -623,14 +623,14 @@ df_ccfs %>%
   arrange((best_corr_value))
 ```
 
-# Short DFF
+## Short DFF
 
 ```{r}
 df_ccfs %>% 
   filter(x1=="DFF") %>% 
   arrange((best_corr_value))
 ```
-# Short Treasury
+## Short Treasury
 
 ```{r}
 df_ccfs %>% 
@@ -696,7 +696,7 @@ best_corr_time = ccf_results$lag[best_corr_index]
 best_corr_value = ccf_results$acf[best_corr_index]
 ```
 
-# LM Regression
+## LM Regression
 
 ```{r eval=F}
 
@@ -800,7 +800,7 @@ df_kappa = df_kappa %>%
 
 ```
 
-# Example
+## Example
 
 ```{r eval=F}
 
@@ -903,9 +903,9 @@ tmp %>%
 ```
 
 
-# Multivariate
+## Multivariate
 
-# Current Indicator
+## Current Indicator
 
 ```{r eval=F}
 
