@@ -67,7 +67,9 @@ gam_adjust = function(data) {
     #     data.frame(span = span_value, RMSE = rmse_value)
     # }))
     
-    fit_smooth = smooth.spline(data$DATE, data$VALUE, cv= TRUE) 
+    # The spline fit was not used downstream, and can fail when Statistics
+    # Denmark returns a group with missing, duplicated, or constant dates.
+    # Keep the transformation robust to those API responses.
     
     # Find the best model
     # best_model <- results %>%
