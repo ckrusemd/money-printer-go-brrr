@@ -875,7 +875,8 @@ add_fomc_meeting_dates = function() {
 ```
 
 ```{r}
-num_trees=100
+set.seed(1971)
+num_trees=300
 tune_grid=data.frame(mtry=c(3))
 ```
 
@@ -998,7 +999,9 @@ df_yield_checkboard =
 
 ```{r}
 
-train_control = caret::trainControl(method = "repeatedcv",number = 5,repeats = 5)
+# Hyperparameters are fixed here. Model quality is assessed below with a
+# chronological expanding-window backtest, not random cross-validation.
+train_control = caret::trainControl(method = "none")
 
 ```
 
@@ -1181,6 +1184,31 @@ df_predict_USREC = df_yield_checkboard %>%
   arrange(desc(date))
 
 
+# Add absolute levels. Spreads alone cannot distinguish a parallel shift in
+# the curve, even though such a shift materially changes every target yield.
+df_level_features = df_yieldcurve %>%
+  dplyr::select(date,series_id,value) %>%
+  dplyr::mutate(series_id=paste0("level_",series_id)) %>%
+  tidyr::spread(series_id,value)
+
+add_level_features = function(data) {
+  data %>%
+    dplyr::left_join(df_level_features,by="date")
+}
+
+df_predict_DFF = add_level_features(df_predict_DFF)
+df_predict_DGS2 = add_level_features(df_predict_DGS2)
+df_predict_DGS10 = add_level_features(df_predict_DGS10)
+df_predict_MORTGAGE30US = add_level_features(df_predict_MORTGAGE30US)
+df_predict_DK_Short = add_level_features(df_predict_DK_Short)
+df_predict_DK_Long = add_level_features(df_predict_DK_Long)
+df_predict_CPIAUCSL = add_level_features(df_predict_CPIAUCSL)
+df_predict_CSUSHPINSA = add_level_features(df_predict_CSUSHPINSA)
+df_predict_M2SL = add_level_features(df_predict_M2SL)
+df_predict_UMCSENT = add_level_features(df_predict_UMCSENT)
+df_predict_USREC = add_level_features(df_predict_USREC)
+
+
 ```
 
 ```{r eval=F}
@@ -1197,19 +1225,19 @@ df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
                          y = df_predict_DFF %>%
                            na.omit %>%
                            .[["value"]],
-                         method = "rf",libraryrf
+                         method = "rf",
                          tuneGrid=data.frame(mtry=row_$mtry),
                          ntree=row_$num_trees,
                          metric = "RMSE",
                          trControl=train_control)$results
   }))
-}
 ```
 
 
 ```{r libraryrf}
 pacman::p_load(randomForest)
 # library(randomForest)
+set.seed(1971)
 fit_DFF = caret::train(x = df_predict_DFF %>%
                               na.omit %>%
                               dplyr::select(-date,-value) %>%
@@ -1347,7 +1375,156 @@ detach(package:randomForest,unload=TRUE)
 ```
 
 
-## Predicted US Yield
+## Honest Walk-Forward Validation
+
+The random forest is evaluated as a one-year-ahead forecasting model. Each
+backtest fit uses only observations whose one-year-ahead outcome was already
+known at the forecast origin. The test origins are quarterly to reduce overlap
+and deployment time. "Persistence" is the deliberately difficult baseline that
+assumes the yield one year from now will equal its current level.
+
+```{r rf-walk-forward-validation}
+
+rf_targets = list(
+  DFF = list(data=df_predict_DFF,current="level_DFF"),
+  DGS2 = list(data=df_predict_DGS2,current="level_DGS2"),
+  DGS10 = list(data=df_predict_DGS10,current="level_DGS10"),
+  MORTGAGE30US = list(data=df_predict_MORTGAGE30US,current="level_MORTGAGE30US")
+)
+
+walk_forward_rf = function(target_name,target_spec,
+                           initial_years=15,test_every_months=3) {
+  model_data = target_spec$data %>%
+    dplyr::mutate(target_date=date+years(1),
+                  month=lubridate::floor_date(date,"month")) %>%
+    dplyr::filter(!is.na(value)) %>%
+    dplyr::group_by(month) %>%
+    dplyr::filter(date==max(date)) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(-month) %>%
+    dplyr::arrange(date)
+
+  feature_names = setdiff(names(model_data),c("date","target_date","value"))
+  model_data = model_data %>%
+    dplyr::filter(stats::complete.cases(dplyr::select(.,dplyr::all_of(feature_names))))
+
+  first_origin = min(model_data$date)+years(initial_years)
+  origins = model_data %>%
+    dplyr::filter(date>=first_origin,!is.na(value)) %>%
+    dplyr::filter(lubridate::month(date) %in% seq(1,12,by=test_every_months)) %>%
+    dplyr::pull(date)
+
+  results = lapply(seq_along(origins),function(i) {
+    origin = origins[i]
+    train = model_data %>%
+      dplyr::filter(target_date<=origin,!is.na(value))
+    test = model_data %>%
+      dplyr::filter(date==origin,!is.na(value))
+
+    if (nrow(train)<120 || nrow(test)!=1) return(NULL)
+
+    set.seed(1971+i)
+    fit = randomForest::randomForest(
+      x=data.frame(train[,feature_names,drop=FALSE]),
+      y=train$value,
+      ntree=num_trees,
+      mtry=min(3,length(feature_names))
+    )
+
+    data.frame(
+      target=target_name,
+      origin=origin,
+      target_date=test$target_date,
+      actual=test$value,
+      random_forest=as.numeric(predict(fit,data.frame(test[,feature_names,drop=FALSE]))),
+      persistence=as.numeric(test[[target_spec$current]]),
+      curve_regime=ifelse(test$level_DGS10-test$level_DGS2<0,"Inverted","Normal")
+    )
+  })
+
+  dplyr::bind_rows(results)
+}
+
+rf_backtest = dplyr::bind_rows(lapply(names(rf_targets),function(target_name) {
+  walk_forward_rf(target_name,rf_targets[[target_name]])
+})) %>%
+  dplyr::arrange(target,origin) %>%
+  dplyr::group_by(target) %>%
+  dplyr::mutate(
+    error=random_forest-actual,
+    persistence_error=persistence-actual,
+    interval_half_width=vapply(seq_along(error),function(i) {
+      previous_errors=abs(error[seq_len(i-1)])
+      if (length(previous_errors)<8) return(NA_real_)
+      as.numeric(stats::quantile(previous_errors,0.80,na.rm=TRUE,type=8))
+    },numeric(1)),
+    lower_80=random_forest-interval_half_width,
+    upper_80=random_forest+interval_half_width
+  ) %>%
+  dplyr::ungroup()
+
+rf_metrics = rf_backtest %>%
+  dplyr::group_by(target) %>%
+  dplyr::summarise(
+    observations=dplyr::n(),
+    rf_rmse=sqrt(mean(error^2)),
+    persistence_rmse=sqrt(mean(persistence_error^2)),
+    rmse_skill=1-rf_rmse/persistence_rmse,
+    rf_mae=mean(abs(error)),
+    persistence_mae=mean(abs(persistence_error)),
+    interval_80_coverage=mean(actual>=lower_80 & actual<=upper_80,na.rm=TRUE),
+    .groups="drop"
+  )
+
+knitr::kable(
+  rf_metrics %>%
+    dplyr::mutate(dplyr::across(where(is.numeric),~round(.x,3))),
+  caption="Expanding-window one-year forecast performance. Positive skill means the forest beats persistence."
+)
+
+```
+
+```{r rf-walk-forward-chart, fig.height=8}
+
+rf_backtest %>%
+  dplyr::select(target,target_date,actual,random_forest,persistence) %>%
+  tidyr::gather(model,value,actual:persistence) %>%
+  ggplot(.,aes(x=target_date,y=value,color=model))+
+  geom_line(linewidth=0.45)+
+  facet_wrap(~target,scales="free_y",ncol=1)+
+  theme_money_printer_go_brrr(base_size=12)+
+  labs(title="Genuinely Out-of-Sample One-Year Yield Forecasts",
+       subtitle="Expanding-window random forest versus a no-change persistence benchmark",
+       x=NULL,y="Yield (%)",color=NULL,
+       caption=timestamp_caption())
+
+```
+
+```{r rf-regime-errors}
+
+rf_regime_metrics = rf_backtest %>%
+  dplyr::group_by(target,curve_regime) %>%
+  dplyr::summarise(
+    observations=dplyr::n(),
+    rf_mae=mean(abs(error)),
+    persistence_mae=mean(abs(persistence_error)),
+    .groups="drop"
+  )
+
+knitr::kable(
+  rf_regime_metrics %>%
+    dplyr::mutate(dplyr::across(where(is.numeric),~round(.x,3))),
+  caption="Errors by yield-curve regime at the forecast origin."
+)
+
+```
+
+
+## Legacy In-Sample US Diagnostics
+
+These plots are retained for exploratory diagnosis only. They contain fitted
+values from the full training sample and must not be interpreted as evidence of
+forecast accuracy; the walk-forward results above are the governing validation.
 
 ```{r }
 
@@ -1372,7 +1549,7 @@ df_predict_DFF %>%
   geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed T-Bond Yields",
+  labs(title="In-Sample Random-Forest Fit — Not Forecast Validation",
        x=NULL,
        y="(%)",
        caption = timestamp_caption()) +
@@ -1407,7 +1584,7 @@ df_predict_DFF %>%
   geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed T-Bond Yields",
+  labs(title="In-Sample Random-Forest Fits — Not Forecast Validation",
        x=NULL,
        y="(%)",
        caption = timestamp_caption()) +
@@ -1441,7 +1618,7 @@ df_predict_DFF %>%
   geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed T-Bond Yields",
+  labs(title="Experimental One-Year Random-Forest Scenarios",
        x=NULL,
        y="(%)",
        caption = timestamp_caption()) +
@@ -1472,7 +1649,7 @@ df_predict_DFF %>%
   geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed Spread 2-10 T-Bond Yields",
+  labs(title="Experimental One-Year 2s10s Spread Scenario",
        x=NULL,
        y="(%)",
        caption = timestamp_caption()) +
@@ -1480,45 +1657,82 @@ df_predict_DFF %>%
 
 ```
 
-## Future Yield Curves
+## Experimental One-Year Yield Scenario
+
+This is a conditional model scenario, not a market price or a promise. The
+random-forest estimate is shown beside persistence, with an empirically
+calibrated 80% interval from earlier walk-forward errors. A model with
+non-positive out-of-sample skill should not be preferred to persistence.
 
 ```{r fig.width=15,fig.height=15}
 
-df_predict_DFF %>%
-  dplyr::mutate(pred_DFF=predict(fit_DFF,.),
-                pred_DGS2=predict(fit_DGS2,.),
-                pred_DGS10=predict(fit_DGS10,.),
-                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>%
-  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>%
-  dplyr::mutate(date=date+years(1)) %>%
-  filter(date>=Sys.Date()) %>%
-  filter(date %in% unique(date)[seq(1,length(date),length.out=6)]) %>%
-  gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>%
-  dplyr::mutate(pred=factor(pred,levels=c("pred_DFF",
-                                          "pred_DGS2",
-                                          "pred_DGS10",
-                                          # "pred_DGS30",
-                                          "pred_MORTGAGE30US"))) %>%
-  ggplot(.,aes(x=pred,y=val,color=factor(date),group=date)) +
-  geom_line(size=1) +
-  scale_y_continuous(breaks = seq(0,10,0.5)) +
+final_fits = list(
+  DFF=fit_DFF,
+  DGS2=fit_DGS2,
+  DGS10=fit_DGS10,
+  MORTGAGE30US=fit_MORTGAGE30US
+)
+
+rf_live_forecast = dplyr::bind_rows(lapply(names(rf_targets),function(target_name) {
+  target_spec=rf_targets[[target_name]]
+  latest=target_spec$data %>%
+    dplyr::filter(stats::complete.cases(dplyr::select(.,-date,-value))) %>%
+    dplyr::filter(date==max(date))
+  interval_width=rf_backtest %>%
+    dplyr::filter(target==target_name) %>%
+    dplyr::summarise(value=stats::quantile(abs(error),0.80,na.rm=TRUE,type=8)) %>%
+    dplyr::pull(value)
+  estimate=as.numeric(predict(final_fits[[target_name]],latest))
+
+  data.frame(
+    target=target_name,
+    origin=latest$date,
+    forecast_date=latest$date+years(1),
+    random_forest=estimate,
+    persistence=latest[[target_spec$current]],
+    lower_80=estimate-interval_width,
+    upper_80=estimate+interval_width
+  )
+})) %>%
+  dplyr::left_join(dplyr::select(rf_metrics,target,rmse_skill),by="target") %>%
+  dplyr::mutate(preferred_estimate=ifelse(rmse_skill>0,random_forest,persistence),
+                target=factor(target,levels=c("DFF","DGS2","DGS10","MORTGAGE30US")))
+
+knitr::kable(
+  rf_live_forecast %>%
+    dplyr::mutate(dplyr::across(c(random_forest,persistence,lower_80,upper_80,rmse_skill),~round(.x,3))),
+  caption="Experimental one-year scenario. Preferred estimate uses the forest only when it beat persistence out of sample."
+)
+
+rf_live_forecast %>%
+  ggplot(.,aes(x=target,y=preferred_estimate,group=1))+
+  geom_ribbon(aes(ymin=lower_80,ymax=upper_80,group=1),alpha=0.15)+
+  geom_line(linewidth=1)+
+  geom_point(size=3)+
+  geom_point(aes(y=persistence),shape=4,size=3)+
+  scale_y_continuous(breaks=seq(-2,12,0.5))+
   theme_money_printer_go_brrr(base_size=20) +
-  labs(title="Predicted Yield Curves",
-       x=NULL,
-       y="(%)",
+  labs(title="Historical Random-Forest Scenario Based on the Current Yield Curve",
+       subtitle="One year ahead; crosses show persistence and shading shows calibrated 80% RF error intervals",
+       x=NULL,y="Yield (%)",
        caption = timestamp_caption())
 
 ```
 
-## Future FED FOMC Meeting Rate changes
+## Experimental FOMC Meeting Scenario
 
 ```{r }
+
+dff_rf_has_skill = rf_metrics %>%
+  dplyr::filter(target=="DFF") %>%
+  dplyr::pull(rmse_skill) > 0
 
 df_predict_DFF %>%
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
                 pred_DGS2=predict(fit_DGS2,.),
                 pred_DGS10=predict(fit_DGS10,.),
-                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>%
+                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.),
+                pred_DFF=ifelse(dff_rf_has_skill,pred_DFF,level_DFF)) %>%
   dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>%
@@ -1537,7 +1751,10 @@ df_predict_DFF %>%
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   geom_vline(data=fomc_dates,aes(xintercept=date_fomc),linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted FOMC Meeting Rates",
+  labs(title="Experimental FOMC Meeting Rate Scenario",
+       subtitle=ifelse(dff_rf_has_skill,
+                       "Random forest beat persistence in walk-forward testing",
+                       "Persistence shown because random forest did not beat it out of sample"),
        x=NULL,
        y="(%)",
        caption = timestamp_caption())
@@ -1602,7 +1819,10 @@ fit_DFF_previous %>%
 ```
 
 
-## Danish Short and Long
+## Legacy Danish Rate Diagnostics
+
+These Danish fits have not yet received the walk-forward validation applied to
+the US series above. Treat them as exploratory scenarios, not forecasts.
 
 ```{r }
 
@@ -1642,7 +1862,7 @@ df_predict_DK_Short %>%
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed Long and Short Interest Rate",
+  labs(title="In-Sample Danish Rate Fit — Not Forecast Validation",
        x=NULL,
        y="(%)",
        caption = timestamp_caption())
@@ -1686,7 +1906,7 @@ df_predict_DK_Short %>%
   geom_vline(xintercept = Sys.Date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed Long and Short Interest Rate",
+  labs(title="Experimental One-Year Danish Rate Scenario",
        x=NULL,
        y="(%)",
        caption = timestamp_caption())
@@ -2015,14 +2235,18 @@ df_ECB_yields %>%
        )
 ```
 
-## Predict Yield
+## Legacy ECB Yield Model
+
+This ECB model remains an experimental scenario and has not yet passed the
+walk-forward benchmark used for the US model.
 
 ```{r}
 
-num_trees=100
+set.seed(1971)
+num_trees=300
 tune_grid=data.frame(mtry=c(3))
 
-train_control = caret::trainControl(method = "repeatedcv",number = 5,repeats = 5)
+train_control = caret::trainControl(method = "none")
 
 df_DF =
   df_ECB_yields %>%
@@ -2053,7 +2277,7 @@ fit_DF = caret::train(x = df_predict_DF %>%
 fit_DF
 ```
 
-## Extrapolate
+## Experimental ECB Scenario
 
 ```{r}
 
