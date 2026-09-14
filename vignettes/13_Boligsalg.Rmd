@@ -315,7 +315,7 @@ df_boligsalg %>%
 
 ```
 
-# Tidspunkt for afslag og udbud
+## Tidspunkt for afslag og udbud
 
 ```{r}
 
@@ -333,7 +333,7 @@ df_boligsalg %>%
   
 ```
 
-# Model Afslag
+## Model Afslag
 
 
 
@@ -409,7 +409,7 @@ df_boot %>%
 ```
 
 
-# Individual Afslag
+## Individual Afslag
 
 ```{r eval=F}
 
@@ -436,7 +436,7 @@ df_boligsalg %>%
   
 ```
 
-# Metrics
+## Metrics
 
 
 ## Size
@@ -461,7 +461,7 @@ df_stamdata %>%
 
 ## Popularity
 
-### Visninger, Boligsiden
+## Visninger, Boligsiden
 
 ```{r }
 
@@ -494,7 +494,7 @@ df_web %>%
 
 ```
 
-### Visninger / Pris, Boligsiden
+## Visninger / Pris, Boligsiden
 
 
 ```{r fig.height=15}
@@ -509,7 +509,7 @@ df_web %>%
 
 ```
 
-### Visninger / Klik Ratio, Boligsiden
+## Visninger / Klik Ratio, Boligsiden
 
 
 ```{r}
@@ -528,7 +528,7 @@ df_web %>%
 
 ```
 
-### Visninger / Favorit, Boligsiden
+## Visninger / Favorit, Boligsiden
 
 
 ```{r}
@@ -548,7 +548,7 @@ df_web %>%
 ```
 
 
-### Visninger, Boliga
+## Visninger, Boliga
 
 ```{r }
 
@@ -581,7 +581,7 @@ df_web %>%
 
 ```
 
-### Visninger / Pris, Boliga
+## Visninger / Pris, Boliga
 
 
 ```{r fig.height=10}
@@ -596,7 +596,7 @@ df_web %>%
 
 ```
 
-### Visninger / Klik Ratio, Boliga
+## Visninger / Klik Ratio, Boliga
 
 
 ```{r}
@@ -615,7 +615,7 @@ df_web %>%
 
 ```
 
-### Visninger / Favorit, Boliga
+## Visninger / Favorit, Boliga
 
 
 ```{r}
@@ -639,7 +639,7 @@ df_web %>%
 
 ## Price Ratios
 
-### Purchase Price
+## Purchase Price
 
 ```{r}
 
@@ -659,7 +659,7 @@ df_stamdata %>%
 ```
 
 
-### Value
+## Value
 
 ```{r}
 
@@ -801,7 +801,7 @@ df_stamdata %>%
 
 ```
 
-### Dingeo Valuations
+## Dingeo Valuations
 
 ```{r}
 
@@ -840,7 +840,7 @@ df_valuations %>%
 
 ```
 
-### Tax
+## Tax
 
 ```{r}
 
@@ -871,7 +871,7 @@ df_stamdata %>%
 
 ```
 
-### Tax per M2
+## Tax per M2
 
 ```{r}
 
@@ -906,7 +906,7 @@ df_stamdata %>%
 
 ```
 
-### Loan - Afdragsfrit
+## Loan - Afdragsfrit
 
 ```{r}
 
@@ -929,7 +929,7 @@ df_boligsalg_current %>%
 ```
 
 
-### Total Costs
+## Total Costs
 
 ```{r}
 
@@ -977,7 +977,7 @@ df_tax %>%
 ```
 
 
-# 20% Decrease
+## 20% Decrease
 
 ```{r}
 
@@ -1049,7 +1049,7 @@ df_tax %>%
 ```
 
 
-# 2% Decrease Interest Rate
+## 2% Decrease Interest Rate
 
 ```{r}
 
@@ -1102,7 +1102,7 @@ df_tax %>%
 ```
 
 
-# 20% Decrease + 2% Decrease Interest Rate
+## 20% Decrease + 2% Decrease Interest Rate
 
 ```{r}
 
@@ -1155,7 +1155,7 @@ df_tax %>%
 ```
 
 
-# Cox Survival
+## Cox Survival
 
 ```{r}
 df_boligsalg_survival = df_boligsalg %>%
@@ -1297,7 +1297,7 @@ lines(est_3$time, est_3$surv, col = 'orange', type = 's')
 ```
 
 
-# Udbudpris over tid
+## Udbudpris over tid
 
 ```{r}
 
@@ -1324,7 +1324,7 @@ df_udbudspris_over_tid %>%
 
 ```
 
-# Median time on the market
+## Median time on the market
 
 ```{r}
 

@@ -52,14 +52,14 @@ fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
 
-# test ECB
+## test ECB
 
 ```{r ecb1}
 ecb::get_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))
 ```
 
 
-# normal
+## normal
 ```{r }
 df_yieldcurve = fredr_cached_many(c(
   "DGS1", "DGS2", "DGS3", "DGS5", "DGS7", "DGS10", "DGS20",
@@ -136,7 +136,7 @@ df_yieldcurve %>%
        caption = timestamp_caption())
 ```
 
-### Previous 12 Months
+## Previous 12 Months
 
 ```{r }
 
@@ -193,7 +193,7 @@ df_yieldcurve %>%
 
 ## Treasury Bonds Spreads
 
-### DFF to All
+## DFF to All
 
 ```{r }
 
@@ -241,7 +241,7 @@ df_yieldcurve %>%
 
 ```
 
-### 2-Year to 10-Year T-Bond
+## 2-Year to 10-Year T-Bond
 
 ```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
@@ -284,7 +284,7 @@ df_yieldcurve %>%
        caption = timestamp_caption())
 ```
 
-### 30-Year Mortgage to 30-Year T-Bond
+## 30-Year Mortgage to 30-Year T-Bond
 
 ```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
@@ -307,7 +307,7 @@ df_yieldcurve %>%
        caption = timestamp_caption())
 ```
 
-### 30-Year Mortgage to 10-Year T-Bond
+## 30-Year Mortgage to 10-Year T-Bond
 
 ```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
 
@@ -463,7 +463,7 @@ df_yield_checkboard %>%
 ```
 
 
-# Denmark Mortgage Bonds
+## Denmark Mortgage Bonds
 
 ```{r}
 fit_draw_abline = function(date1,date2,value1,value2) {
@@ -533,7 +533,7 @@ df_interest %>%
 ```
 
 
-### Previous 12 Months
+## Previous 12 Months
 
 ```{r}
 
@@ -556,7 +556,7 @@ df_interest %>%
   geom_vline(xintercept = max_date)
 ```
 
-### Spread
+## Spread
 
 ```{r}
 
@@ -581,7 +581,7 @@ df_interest %>%
 
 ```
 
-### Short w/ ECB Rate Changes
+## Short w/ ECB Rate Changes
 
 ```{r}
 
@@ -841,7 +841,7 @@ df_glicko_ratings %>%
 
 ```
 
-# Predict US Interest Rates
+## Predict US Interest Rates
 
 ```{r}
 
@@ -1877,7 +1877,7 @@ df_DFF %>%
 
 ```
 
-# ECB Yield
+## ECB Yield
 
 ```{r}
 # Deposit Rate
@@ -1993,7 +1993,7 @@ df_yield_checkboard %>%
 
 ## Spreads
 
-### 2s10s
+## 2s10s
 
 ```{r}
 

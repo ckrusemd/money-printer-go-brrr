@@ -487,7 +487,7 @@ df_UL30 = openxlsx::read.xlsx(xlsxFile = "Data/Finansdanmark_Sep_2022/2022931045
 
 ```
 
-# Analysis
+## Analysis
 
 ```{r }
 
@@ -689,7 +689,7 @@ df_interest_scaled %>%
 
 ```
 
-# Supply and Sold, month's supply, clearance
+## Supply and Sold, month's supply, clearance
 
 ```{r}
 df_supply = df_UDB010 %>% 
@@ -745,7 +745,7 @@ df_existing %>%
 ```
 
 
-### Lyngby Drop
+## Lyngby Drop
 
 ```{r}
 

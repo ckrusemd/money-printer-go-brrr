@@ -123,7 +123,7 @@ df_NASDAQCOM %>%
   geom_smooth(method="lm")
 ```
 
-### FRED Data
+## FRED Data
 
 ```{r}
 
@@ -193,7 +193,7 @@ df_series = rbindlist(lapply(series_ids,function(series_id) {
 }))
 ```
 
-### Yahoo Data
+## Yahoo Data
 
 ```{r}
 series_ids_yahoo = unique(c("AAPL",
@@ -251,7 +251,7 @@ df_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
 }))
 ```
 
-### Combinations
+## Combinations
 
 ```{r}
 df_series = bind_rows( df_series , df_yahoo )
@@ -268,7 +268,7 @@ combinations.list <- split(combinations, seq(nrow(combinations)))
 
 ```
 
-# Blow-off top detection
+## Blow-off top detection
 
 ```{r}
 
@@ -307,7 +307,7 @@ ggplot(res, aes(x = days_before, y = rqs, group = factor(.level))) +
 ```
 
 
-# Buy stuff with bitcoin
+## Buy stuff with bitcoin
 
 ```{r}
 unique(df_series$series_id)
@@ -376,7 +376,7 @@ df_series %>%
 ```
 
 
-# Cross correlations
+## Cross correlations
 
 ```{r}
 
@@ -461,7 +461,7 @@ best_corr_time = ccf_results$lag[best_corr_index]
 best_corr_value = ccf_results$acf[best_corr_index]
 ```
 
-# LM Regression
+## LM Regression
 
 ```{r eval=F}
 
@@ -565,7 +565,7 @@ df_kappa = df_kappa %>%
 
 ```
 
-# Example
+## Example
 
 ```{r eval=F}
 
@@ -668,9 +668,9 @@ tmp %>%
 ```
 
 
-# Multivariate
+## Multivariate
 
-# Current Indicator
+## Current Indicator
 
 ```{r eval=F}
 

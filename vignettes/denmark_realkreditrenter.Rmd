@@ -54,7 +54,7 @@ df_rds_yields %>%
   geom_vline(xintercept = Sys.Date(),linetype=2)
 ```
 
-# Current yield
+## Current yield
 
 ```{r}
 df_rds_yields %>% 
@@ -200,7 +200,7 @@ df_rds_yields %>%
 ```
 
 
-# Sep 28 Difference
+## Sep 28 Difference
 
 ```{r}
 # 10RDSD23S50
@@ -409,7 +409,7 @@ df_rds_yields %>%
 
 ```
 
-# Yield to Hovedstol
+## Yield to Hovedstol
 
 ```{r}
 

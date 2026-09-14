@@ -281,7 +281,7 @@ df_fp_extrapolate = data.frame(DATE=seq(ymd("2021-02-01"),ymd("2024-01-01"),by="
   geom_line(data=df_fp_extrapolate,aes(x=DATE,y=backlogTF))
 ```
 
-# Denmark Housing Supply
+## Denmark Housing Supply
 
 ```{r}
 df_udbud =
@@ -440,7 +440,7 @@ df.adjustments =
 ```
 
 
-### All time development
+## All time development
 
 ```{r fig.height=20,fig.width=10}
 
@@ -490,7 +490,7 @@ df_udbud %>%
   theme_money_printer_go_brrr(base_size=12) 
 ```
 
-### Recent developments
+## Recent developments
 
 ```{r fig.width=20,fig.height=20}
 df_BYGV80 %>% 
@@ -541,7 +541,7 @@ df_BYGV80 %>%
   theme_money_printer_go_brrr(base_size=16) 
 ```
 
-### Permits and house prices
+## Permits and house prices
 
 ```{r}
 df.house_prices %>% 
@@ -577,7 +577,7 @@ df.house_prices %>%
 
 ```
 
-### COVID 19 lows
+## COVID 19 lows
 
 ```{r}
 ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
@@ -588,7 +588,7 @@ ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
   theme_money_printer_go_brrr(base_size=12) 
 ```
 
-### Bubble lows
+## Bubble lows
 
 ```{r}
 ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
@@ -601,7 +601,7 @@ ggplot(df_udbud,aes(x=DATE,y=VALUE,color=ZIP)) +
 
 ## Construction Employment
 
-# Denmark House Prices
+## Denmark House Prices
 
 ```{r}
 df =
@@ -665,7 +665,7 @@ df_increase %>%
 
 ## COVID-19 Increases
 
-### Houses
+## Houses
 
 ```{r}
 
@@ -776,7 +776,7 @@ df_finanskrise =
 
 ```
 
-### Losses by Zip Code
+## Losses by Zip Code
 
 ```{r}
 df_finanskrise %>% 
@@ -787,7 +787,7 @@ df_finanskrise %>%
 ```
 
 
-### Peak to Low
+## Peak to Low
 
 ```{r}
 df_finanskrise %>% 
@@ -801,7 +801,7 @@ df_finanskrise %>%
 ```
 
 
-### Simulated if crash reoccurred
+## Simulated if crash reoccurred
 
 ```{r}
 
@@ -832,7 +832,7 @@ df %>%
 ```
 
 
-### Long-term-trend
+## Long-term-trend
 
 ```{r}
 
@@ -1341,7 +1341,7 @@ df_m2price %>%
 ```
 
 
-# Denmark: Building Occupation
+## Denmark: Building Occupation
 
 ```{r }
 BOL102_meta <- dst_meta(table = "BOL102", lang = "da")
@@ -1508,7 +1508,7 @@ df_m2price %>%
 ```
 
 
-# Twin Peaks
+## Twin Peaks
 
 ```{r}
 # EJ5

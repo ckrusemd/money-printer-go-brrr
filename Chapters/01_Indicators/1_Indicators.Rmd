@@ -143,7 +143,7 @@ BYG42 <- dst_get_data(table = "BYG42",
 ```
 
 
-### FinansDanmark
+## FinansDanmark
 
 ```{r}
 
@@ -166,7 +166,7 @@ df_interest = df_interest %>%
 
 ```
 
-### FRED
+## FRED
 
 ```{r}
 series_ids = unique(c(# "T10Y2Y",
@@ -232,7 +232,7 @@ df_macro_fred = rbindlist(lapply(series_ids,function(series_id) {
 }))
 ```
 
-### Yahoo
+## Yahoo
 
 ```{r}
 
@@ -267,7 +267,7 @@ df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
 
 ## Combine
 
-### All Data
+## All Data
 
 ```{r}
 
@@ -373,7 +373,7 @@ df_best_corr %>%
 
 ## Descriptive
 
-### Leading
+## Leading
 
 ```{r}
 df_best_corr %>% 
@@ -388,7 +388,7 @@ df_best_corr %>%
   datatable()
 ```
 
-### Coincident
+## Coincident
 
 ```{r}
 df_best_corr %>% 
@@ -404,7 +404,7 @@ df_best_corr %>%
 ```
 
 
-### Lagging
+## Lagging
 
 ```{r}
 df_best_corr %>% 
@@ -464,7 +464,7 @@ plot(g, vertex.label.family = "sans", vertex.label.font = 2, vertex.label.cex = 
 
 ## Individual patterns
 
-### DK Long Interest Rate
+## DK Long Interest Rate
 
 ```{r}
 
@@ -516,7 +516,7 @@ visNetwork(nodes, edges) %>%
 
 
 
-### DK Houseprices
+## DK Houseprices
 
 ```{r}
 df_best_corr %>%
@@ -566,7 +566,7 @@ filtered_cor_df %>%
 ```
 
 
-### Employment
+## Employment
 
 ```{r}
 df_best_corr %>%
@@ -607,7 +607,7 @@ visNetwork(nodes, edges) %>%
 ```
 
 
-### NASDAQ
+## NASDAQ
 
 ```{r}
 df_best_corr %>%
@@ -647,7 +647,7 @@ visNetwork(nodes, edges) %>%
 
 ```
 
-### SPY
+## SPY
 
 ```{r}
 df_best_corr %>%
@@ -689,7 +689,7 @@ visNetwork(nodes, edges) %>%
 
 
 
-# Case_Shiller Housing
+## Case_Shiller Housing
 
 ```{r}
 df_best_corr %>%

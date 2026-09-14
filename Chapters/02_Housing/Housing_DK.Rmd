@@ -419,7 +419,7 @@ df_ccf_BYGV80 = BYGV80 %>%
 ```
 
 
-### Tilladt -> Påbegyndt
+## Tilladt -> Påbegyndt
 
 ```{r}
 ccf_results = ccf(df_ccf_BYGV80$`Tilladt byggeri`,df_ccf_BYGV80$`Påbegyndt byggeri`,lag.max = 3650,plot = FALSE)
@@ -429,7 +429,7 @@ ccf_results = ccf(df_ccf_BYGV80$`Tilladt byggeri`,df_ccf_BYGV80$`Påbegyndt bygg
   ccf_results$acf[best_corr_index]
 ```
 
-### Påbegyndt -> Under opførelse
+## Påbegyndt -> Under opførelse
 
 ```{r}
 ccf_results = ccf(df_ccf_BYGV80$`Påbegyndt byggeri`,df_ccf_BYGV80$`Byggeri under opførelse`,lag.max = 3650,plot = FALSE)
@@ -439,7 +439,7 @@ ccf_results = ccf(df_ccf_BYGV80$`Påbegyndt byggeri`,df_ccf_BYGV80$`Byggeri unde
   ccf_results$acf[best_corr_index]
 ```
 
-### Under opførelse -> Fuldført Byggeri
+## Under opførelse -> Fuldført Byggeri
 
 ```{r}
 ccf_results = ccf(df_ccf_BYGV80$`Byggeri under opførelse`,df_ccf_BYGV80$`Fuldført byggeri`,lag.max = 3650,plot = FALSE)
@@ -449,7 +449,7 @@ ccf_results = ccf(df_ccf_BYGV80$`Byggeri under opførelse`,df_ccf_BYGV80$`Fuldf�
   ccf_results$acf[best_corr_index]
 ```
 
-### Tilladt -> Fuldført
+## Tilladt -> Fuldført
 
 ```{r}
 ccf_results = ccf(df_ccf_BYGV80$`Tilladt byggeri`,df_ccf_BYGV80$`Fuldført byggeri`,lag.max = 3650,plot = FALSE)
@@ -460,7 +460,7 @@ ccf_results = ccf(df_ccf_BYGV80$`Tilladt byggeri`,df_ccf_BYGV80$`Fuldført bygge
 ```
 
 
-### Recent developments
+## Recent developments
 
 ```{r fig.width=10,fig.height=10}
 BYGV80 %>% 

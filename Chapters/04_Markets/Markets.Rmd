@@ -511,7 +511,7 @@ draw_plots(data = df_adjusted %>% filter(ticker=="GC=F",currency=="USD"))
 ```{r fig.height=25,fig.width=10}
 draw_plots(data = df_adjusted %>% filter(ticker=="SI=F",currency=="USD"))
 ```
-# Bond ETFs
+## Bond ETFs
 
 Short:
 - SHV: iShares Short Treasury Bond ETF
@@ -589,7 +589,7 @@ Commodities:
 
 ```
 
-# Sector ETFs
+## Sector ETFs
 
 Long:
 
