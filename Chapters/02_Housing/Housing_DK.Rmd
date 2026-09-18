@@ -232,25 +232,30 @@ BYGV80 %>%
 
 ```{r fig.height=15,fig.width=10 }
 
-BYGV80 %>% 
-  filter(PROPERTY_TYPE == "Ejerlejlighed") %>% 
-  ggplot(.,aes(x=DATE,y=VALUE,color=STAT)) +
-  geom_point() +
-  geom_line(aes(x=DATE,y=VALUE_EMA),linetype=2,color="black") +
-  scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
-  theme(legend.position = "bottom") +
-  facet_wrap(~STAT,scales = "free",ncol=1) +
-  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
-  theme(legend.position = "bottom") +
-  labs(title="Parcelhuse") +
-  geom_hline(yintercept = 0) +
-  geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
-  geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
-  theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Denmark: Flats Construction",
-       x=NULL,
-       y="(SD)",
-       caption = timestamp_caption())
+flats_data <- BYGV80 %>%
+  filter(PROPERTY_TYPE == "Ejerlejlighed")
+
+if (nrow(flats_data) == 0) {
+  ggplot() +
+    theme_void() +
+    labs(title = "Flats construction data unavailable")
+} else {
+  flats_data %>%
+    ggplot(.,aes(x=DATE,y=VALUE,color=STAT)) +
+    geom_point() +
+    geom_line(aes(x=DATE,y=VALUE_EMA),linetype=2,color="black") +
+    scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+    theme(legend.position = "bottom") +
+    facet_wrap(~STAT,scales = "free",ncol=1) +
+    labs(title="Denmark: Flats Construction",
+         x=NULL,
+         y="(SD)",
+         caption = timestamp_caption()) +
+    geom_hline(yintercept = 0) +
+    geom_vline(xintercept = c(ymd("2005-04-01","2021-01-01"))) +
+    geom_vline(xintercept = c(ymd("2006-06-01","2022-03-31")),linetype=3) +
+    theme_money_printer_go_brrr(base_size=12)
+}
 
 ```
 
