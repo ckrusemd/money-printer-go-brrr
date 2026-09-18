@@ -85,6 +85,12 @@ gam_adjust = function(data) {
         fit_smooth, x = as.numeric(spline_data$DATE)
       )$y
     }
+    ema_n <- min(20, nrow(data))
+    value_ema <- if (ema_n > 0) {
+      tryCatch(TTR::EMA(data$VALUE, ema_n), error = function(e) data$VALUE)
+    } else {
+      numeric(0)
+    }
     
     # Find the best model
     # best_model <- results %>%
@@ -100,7 +106,7 @@ gam_adjust = function(data) {
     dplyr::mutate(VALUE_SMOOTH=value_smooth) %>%
     dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
-    dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>%
+    dplyr::mutate(VALUE_EMA=value_ema) %>%
     arrange(desc(DATE)) %>%
     dplyr::mutate(VALUE_CHG=VALUE-lead(VALUE)) %>%
     filter(!is.na(VALUE_CHG)) %>%
@@ -543,4 +549,3 @@ BYGV80 %>%
   geom_vline(xintercept = Sys.Date()) +
   geom_line(data=df_fit,aes(x=DATE,y=Fuldført.byggeri),color="red")
 ```
-
