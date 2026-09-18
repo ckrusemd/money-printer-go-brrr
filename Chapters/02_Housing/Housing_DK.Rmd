@@ -188,22 +188,25 @@ BYG42 <- dst_get_data(table = "BYG42",
 ## Construction Activity
 
 ```{r construc1,fig.width=20,fig.height=20}
-BYGV80 %>% 
-  filter(PROPERTY_TYPE=="Parcel-/rækkehuse") %>% 
-  # filter(DATE>=Sys.Date()-years(10)) %>% 
-  ggplot(.,aes(x=DATE,y=VALUE_SMOOTH,color=STAT)) +
-  geom_line() +
-  geom_point(aes(y=VALUE,color=STAT)) +
-  # geom_point() +
-  facet_wrap(~STAT,scales="free") +
-  theme(legend.position="bottom",
-        axis.text.x=element_text(angle=45,hjust=1)) +
-  scale_y_continuous(labels = scales::number_format(big.mark=" ")) +
-  # scale_x_date(date_breaks = "6 months",date_labels = "%Y %b")  +
-  scale_x_date(date_breaks = "2 years",date_labels = "%Y %b")  +
-  # geom_vline(xintercept = seq.Date(from = dmy("01-01-2000"),to = dmy("01-01-2030"),by = "1 year"),linetype=2,alpha=0.7)  +
-  # geom_vline(xintercept = seq.Date(from = dmy("01-08-2000"),to = dmy("01-08-2030"),by = "1 year"),linetype=2,alpha=0.8) +
-  theme_money_printer_go_brrr(base_size=16) 
+construction_data <- BYGV80 %>%
+  filter(PROPERTY_TYPE=="Parcel-/rækkehuse")
+
+if (nrow(construction_data) == 0) {
+  ggplot() +
+    theme_void() +
+    labs(title = "Construction activity data unavailable")
+} else {
+  construction_data %>%
+    ggplot(.,aes(x=DATE,y=VALUE_SMOOTH,color=STAT)) +
+    geom_line() +
+    geom_point(aes(y=VALUE,color=STAT)) +
+    facet_wrap(~STAT,scales="free") +
+    theme(legend.position="bottom",
+          axis.text.x=element_text(angle=45,hjust=1)) +
+    scale_y_continuous(labels = scales::number_format(big.mark=" ")) +
+    scale_x_date(date_breaks = "2 years",date_labels = "%Y %b") +
+    theme_money_printer_go_brrr(base_size=16)
+}
 ```
 
 ```{r eval=F}
