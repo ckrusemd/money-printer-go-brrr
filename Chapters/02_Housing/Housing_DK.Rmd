@@ -67,9 +67,24 @@ gam_adjust = function(data) {
     #     data.frame(span = span_value, RMSE = rmse_value)
     # }))
     
-    # The spline fit was not used downstream, and can fail when Statistics
-    # Denmark returns a group with missing, duplicated, or constant dates.
-    # Keep the transformation robust to those API responses.
+    # Statistics Denmark can return groups with missing, duplicated, or
+    # constant dates. Fit only on finite, unique observations and fall back
+    # to the original values if a spline cannot be estimated.
+    spline_rows <- is.finite(as.numeric(data$DATE)) & is.finite(data$VALUE)
+    spline_data <- data[spline_rows, , drop = FALSE]
+    fit_smooth <- NULL
+    if (nrow(spline_data) >= 4 && length(unique(spline_data$DATE)) >= 4) {
+      fit_smooth <- tryCatch(
+        smooth.spline(as.numeric(spline_data$DATE), spline_data$VALUE, cv = TRUE),
+        error = function(e) NULL
+      )
+    }
+    value_smooth <- data$VALUE
+    if (!is.null(fit_smooth)) {
+      value_smooth[spline_rows] <- predict(
+        fit_smooth, x = as.numeric(spline_data$DATE)
+      )$y
+    }
     
     # Find the best model
     # best_model <- results %>%
@@ -82,7 +97,7 @@ gam_adjust = function(data) {
     
   data %>% 
     # dplyr::mutate(VALUE_SMOOTH=predict(fit_smooth,.)) %>%
-    dplyr::mutate(VALUE_SMOOTH=fit_smooth$y) %>%
+    dplyr::mutate(VALUE_SMOOTH=value_smooth) %>%
     dplyr::mutate(VALUE_SMOOTH_SCALED=scale(VALUE_SMOOTH,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_SCALED=scale(VALUE,center=TRUE,scale=TRUE)) %>%
     dplyr::mutate(VALUE_EMA=TTR::EMA(VALUE,20)) %>%
@@ -528,5 +543,4 @@ BYGV80 %>%
   geom_vline(xintercept = Sys.Date()) +
   geom_line(data=df_fit,aes(x=DATE,y=Fuldført.byggeri),color="red")
 ```
-
 
