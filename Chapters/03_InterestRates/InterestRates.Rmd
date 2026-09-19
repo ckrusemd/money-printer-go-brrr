@@ -49,13 +49,29 @@ source(file = "money_theme.R")
 readRenviron(path = "Renviron.site")
 fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
+get_ecb_data <- function(key, attempts = 4) {
+  last_error <- NULL
+  for (attempt in seq_len(attempts)) {
+    result <- tryCatch(
+      ecb::get_data(key = key),
+      error = function(error) {
+        last_error <<- error
+        NULL
+      }
+    )
+    if (!is.null(result)) return(result)
+    if (attempt < attempts) Sys.sleep(2 ^ (attempt - 1))
+  }
+  stop(last_error)
+}
+
 ```
 
 
 ## test ECB
 
 ```{r ecb1}
-ecb::get_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))
+get_ecb_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))
 ```
 
 
@@ -2091,7 +2107,7 @@ df_DFF %>%
 
 ```{r}
 # Deposit Rate
-df_ECB_DepositRate = ecb::get_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))   %>%
+df_ECB_DepositRate = get_ecb_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))   %>%
   dplyr::mutate(obstime=ymd(obstime),
                 Yield="0M") %>%
     dplyr::select(Yield,obstime,obsvalue)
@@ -2099,7 +2115,7 @@ df_ECB_DepositRate = ecb::get_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))   %>
 # Yields
 yields = c( paste0(c(3,6,9),"M") , paste0(seq(30),"Y"))
 df_ECB_yields = do.call("rbind",lapply(yields,function(yield) {
-  ecb::get_data(key = glue("YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_{yield}"))  %>%
+  get_ecb_data(key = glue("YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_{yield}"))  %>%
   dplyr::mutate(obstime=ymd(obstime),
                 Yield=yield) %>%
     dplyr::select(Yield,obstime,obsvalue)
@@ -2297,13 +2313,13 @@ df_predict_DF %>%
 
 ```{r}
 
-df_DK10Y = ecb::get_data(key = "IRS.M.DK.L.L40.CI.0000.DKK.N.Z")  %>%
+df_DK10Y = get_ecb_data(key = "IRS.M.DK.L.L40.CI.0000.DKK.N.Z")  %>%
   dplyr::mutate(obstime=ymd(paste0(obstime,"-01")),
                 Yield="10Y",
                 dk_obsvalue=obsvalue/100) %>%
     dplyr::select(Yield,obstime,dk_obsvalue)
 
-df_DK3MO = ecb::get_data(key = "FM.M.DK.DKK.DS.MM.CIBOR3M.ASKA")  %>%
+df_DK3MO = get_ecb_data(key = "FM.M.DK.DKK.DS.MM.CIBOR3M.ASKA")  %>%
   dplyr::mutate(obstime=ymd(paste0(obstime,"-01")),
                 Yield="3M",
                 dk_obsvalue=obsvalue/100) %>%
