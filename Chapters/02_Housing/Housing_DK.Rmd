@@ -145,6 +145,7 @@ BYGV80 <- dst_get_data(table = "BYGV80",
   dplyr::rename(PROPERTY_TYPE=ANVENDELSE) %>% 
   dplyr::rename(STAT=BYGFASE) %>% 
   dplyr::rename(DATE=TID) %>% 
+  dplyr::mutate(DATE=as.Date(DATE)) %>%
   dplyr::rename(VALUE=value) %>% 
   group_by(PROPERTY_TYPE,STAT) %>% 
   dplyr::mutate(PROPERTY_TYPE=recode(PROPERTY_TYPE, 'HOUSE'='Parcel-/rækkehuse', 'FLAT'='Ejerlejlighed')) %>% 
@@ -159,6 +160,7 @@ BYG1 <- dst_get_data(table = "BYG1",
                        lang = "da") %>% 
   strip_statbank_codes(c("BRANCHE07", "SÆSON", "ART")) %>%
   dplyr::rename(DATE=TID) %>% 
+  dplyr::mutate(DATE=as.Date(DATE)) %>%
   dplyr::rename(VALUE=value) %>% 
   filter(BRANCHE07=="F Bygge og anlæg") %>% 
   filter(SÆSON=="Sæsonkorrigeret") %>% 
@@ -176,6 +178,7 @@ PRIS90 <- dst_get_data(table = "PRIS90",
                        lang = "da") %>% 
   strip_statbank_codes(c("ENHED", "BOLTYP")) %>%
   dplyr::rename(DATE=TID) %>% 
+  dplyr::mutate(DATE=as.Date(DATE)) %>%
   dplyr::rename(VALUE=value) %>% 
   filter(ENHED=="Indeks") %>% 
   do(gam_adjust(.))
@@ -190,6 +193,7 @@ BYG42 <- dst_get_data(table = "BYG42",
                        lang = "da") %>% 
   strip_statbank_codes(c("HINDEKS", "DINDEKS", "ART", "TAL")) %>%
   dplyr::rename(DATE=TID) %>% 
+  dplyr::mutate(DATE=as.Date(DATE)) %>%
   dplyr::rename(VALUE=value) %>% 
   filter(DINDEKS=="Byggeomkostningsindeks i alt") %>% 
   filter(TAL=="Indeks") %>% 
