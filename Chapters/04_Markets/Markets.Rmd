@@ -331,7 +331,7 @@ safe_indicator <- function(minimum_observations, calculation) {
   })
 }
 
-indicator_data <- indicator_data %>%
+p2b <- indicator_data %>%
   dplyr::mutate(value_rsi=safe_indicator(15, function() TTR::RSI(indicator_index)),
                 value_macd=safe_indicator(26, function() {
                   macd <- TTR::MACD(indicator_index)
