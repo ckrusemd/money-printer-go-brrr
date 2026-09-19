@@ -373,7 +373,7 @@ p2b <- indicator_data %>%
 p3 = temp_df %>% 
   filter(series_id=="NOMINAL") %>% 
   arrange(date) %>% 
-  dplyr::mutate(sma200=TTR::SMA(index,n=200)) %>% 
+  dplyr::mutate(sma200=safe_indicator(200, function() TTR::SMA(indicator_index,n=200))) %>%
   dplyr::mutate(index=index-sma200) %>% 
   filter(date>=Sys.Date()-years(1)) %>% 
   ggplot(.,aes(x=date,y=index)) +
@@ -386,7 +386,8 @@ p3 = temp_df %>%
 # RSI
 p4 = temp_df %>% 
   filter(series_id=="NOMINAL") %>% 
-  dplyr::mutate(rsi=TTR::RSI(index,n=30)) %>% 
+  arrange(date) %>%
+  dplyr::mutate(rsi=safe_indicator(31, function() TTR::RSI(indicator_index,n=30))) %>%
   filter(date>=Sys.Date()-years(1)) %>% 
   ggplot(.,aes(x=date,y=rsi)) +
   geom_line() +
