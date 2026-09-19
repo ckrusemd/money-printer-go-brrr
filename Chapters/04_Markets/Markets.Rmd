@@ -58,6 +58,7 @@ df_PRIS114 = dkstat::dst_get_data(table = "PRIS114",
                      VAREGR = "00 Nettoprisindeks i alt",
                      ENHED = "Indeks",
                      Tid = "*") %>% 
+  dplyr::mutate(TID=as.Date(TID)) %>%
   arrange(TID) %>% 
   dplyr::mutate(Index=value/100) %>% 
   tidyr::complete(TID=seq.Date(from=min(TID,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
