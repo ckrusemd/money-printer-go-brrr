@@ -120,12 +120,23 @@ gam_adjust = function(data) {
 
 ```{r dst_byg1}
 
+# dkstat requests code-and-label values when a table has duplicate labels.
+# Normalize the categorical columns so downstream filters use stable labels.
+strip_statbank_codes <- function(data, columns) {
+  data %>%
+    dplyr::mutate(dplyr::across(
+      dplyr::all_of(columns),
+      ~ sub("^[^[:space:]]+\\s+", "", .x)
+    ))
+}
+
 BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
 BYGV80 <- dst_get_data(table = "BYGV80", 
                        BYGFASE="*",
                        ANVENDELSE="*",
                        Tid="*",
                        lang = "da") %>% 
+  strip_statbank_codes(c("BYGFASE", "ANVENDELSE")) %>%
   group_by(BYGFASE,ANVENDELSE) %>% 
   arrange(BYGFASE,ANVENDELSE,TID) %>% 
   filter(ANVENDELSE %in% c("Etageboliger","Parcelhuse")) %>% 
@@ -146,6 +157,7 @@ BYG1 <- dst_get_data(table = "BYG1",
                        ART="*",
                        Tid="*",
                        lang = "da") %>% 
+  strip_statbank_codes(c("BRANCHE07", "SÆSON", "ART")) %>%
   dplyr::rename(DATE=TID) %>% 
   dplyr::rename(VALUE=value) %>% 
   filter(BRANCHE07=="F Bygge og anlæg") %>% 
@@ -162,6 +174,7 @@ PRIS90 <- dst_get_data(table = "PRIS90",
                        BOLTYP="*",
                        Tid="*",
                        lang = "da") %>% 
+  strip_statbank_codes(c("ENHED", "BOLTYP")) %>%
   dplyr::rename(DATE=TID) %>% 
   dplyr::rename(VALUE=value) %>% 
   filter(ENHED=="Indeks") %>% 
@@ -175,6 +188,7 @@ BYG42 <- dst_get_data(table = "BYG42",
                        TAL="*",
                        Tid="*",
                        lang = "da") %>% 
+  strip_statbank_codes(c("HINDEKS", "DINDEKS", "ART", "TAL")) %>%
   dplyr::rename(DATE=TID) %>% 
   dplyr::rename(VALUE=value) %>% 
   filter(DINDEKS=="Byggeomkostningsindeks i alt") %>% 
