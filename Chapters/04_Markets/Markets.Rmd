@@ -317,15 +317,32 @@ p2 = temp_df %>%
 
 
 # Indicator heatmap
-p2b = temp_df %>% 
+indicator_data = temp_df %>%
   filter(series_id=="NOMINAL") %>% 
-  arrange((date)) %>% 
-  dplyr::mutate(value_rsi=TTR::RSI(index),
-                value_macd=TTR::MACD(index)[,1]-TTR::MACD(index)[,2],
-                value_cci=TTR::CCI(index),
-                value_goldencross=TTR::SMA(index,n=50)-TTR::SMA(index,n=200)) %>% 
+  arrange((date))
+
+indicator_index <- indicator_data$index
+safe_indicator <- function(minimum_observations, calculation) {
+  if (sum(is.finite(indicator_index)) < minimum_observations) {
+    return(rep(NA_real_, length(indicator_index)))
+  }
+  tryCatch(calculation(), error = function(error) {
+    rep(NA_real_, length(indicator_index))
+  })
+}
+
+indicator_data <- indicator_data %>%
+  dplyr::mutate(value_rsi=safe_indicator(15, function() TTR::RSI(indicator_index)),
+                value_macd=safe_indicator(26, function() {
+                  macd <- TTR::MACD(indicator_index)
+                  macd[,1] - macd[,2]
+                }),
+                value_cci=safe_indicator(20, function() TTR::CCI(indicator_index)),
+                value_goldencross=safe_indicator(200, function() {
+                  TTR::SMA(indicator_index,n=50) - TTR::SMA(indicator_index,n=200)
+                })) %>%
   dplyr::mutate(value_lastdate=ifelse(index<last(index) & !date==max(date),as.Date(date),as.Date(NA))) %>% 
-  dplyr::mutate(value_lastdate=max(value_lastdate,na.rm=T)) %>% 
+  dplyr::mutate(value_lastdate=if (all(is.na(value_lastdate))) NA_real_ else max(value_lastdate,na.rm=T)) %>%
   dplyr::mutate(value_lastdate=as.numeric(date-as.Date(value_lastdate))) %>% 
   tidyr::fill(value_lastdate,.direction = "down") %>% 
   dplyr::mutate(p_rsi=pnorm(value_rsi,mean=mean(value_rsi,na.rm=T),sd=sd(value_rsi,na.rm=T)),
