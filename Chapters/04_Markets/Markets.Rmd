@@ -331,7 +331,12 @@ safe_indicator <- function(minimum_observations, calculation) {
   })
 }
 
-p2b <- indicator_data %>%
+if (sum(is.finite(indicator_index)) < 200) {
+  p2b <- ggplot() +
+    theme_void() +
+    labs(subtitle = "Indicators unavailable: insufficient price history")
+} else {
+  p2b <- indicator_data %>%
   dplyr::mutate(value_rsi=safe_indicator(15, function() TTR::RSI(indicator_index)),
                 value_macd=safe_indicator(26, function() {
                   macd <- TTR::MACD(indicator_index)
@@ -367,7 +372,8 @@ p2b <- indicator_data %>%
   theme_money_printer_go_brrr(12) +
   theme(legend.position="null",
         axis.text.y=element_blank()) +
-  labs(x=NULL,y=NULL)
+    labs(x=NULL,y=NULL)
+}
   
 # SMA
 p3 = temp_df %>% 
