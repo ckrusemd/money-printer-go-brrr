@@ -43,22 +43,37 @@ source(file = "money_theme.R")
 
 df_etfs = openxlsx::read.xlsx(xlsxFile = "Chapters/05_ETFs/etf_list.xlsx")
 
-df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker,function(ticker) {
-      temp_df = getSymbols(ticker, env = NULL) %>% 
-      as.data.frame(.) %>% 
-      dplyr::mutate(Date=row.names(.)) %>% 
-      dplyr::mutate(Date=gsub("X","",Date)) %>% 
+get_yahoo_value = function(ticker, attempts = 3) {
+  for (attempt in seq_len(attempts)) {
+    prices = tryCatch(
+      getSymbols(ticker, env = NULL),
+      error = function(error) NULL
+    )
+
+    if (!is.null(prices)) {
+      return(
+        prices %>%
+      as.data.frame(.) %>%
+      dplyr::mutate(Date=row.names(.)) %>%
+      dplyr::mutate(Date=gsub("X","",Date)) %>%
       dplyr::mutate(Date=ymd(Date)) %>% 
       dplyr::select(c(7,1)) %>% 
-      setNames(.,c("date","value")) %>% 
-      dplyr::mutate(series_id=ticker)# %>% 
-      # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
-      # tidyr::fill(value,.direction = "down")  %>% 
-      # tidyr::fill(series_id,.direction = "down") 
-      
-      row.names(temp_df) = NULL
-      return( temp_df )
-}))
+      setNames(.,c("date","value")) %>%
+      dplyr::mutate(series_id=ticker)# %>%
+      # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+      # tidyr::fill(value,.direction = "down")  %>%
+      # tidyr::fill(series_id,.direction = "down")
+      )
+    }
+
+    if (attempt < attempts) Sys.sleep(2 ^ (attempt - 1))
+  }
+
+  warning(sprintf("Skipping Yahoo Finance ticker %s after %d failed attempts", ticker, attempts))
+  NULL
+}
+
+df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker, get_yahoo_value), fill = TRUE)
 
 ```
 
@@ -257,22 +272,7 @@ series_ids_yahoo = unique(c("AAPL",
                             "^OMXC25",
                             "USDDKK=X"))
 
-df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
-      temp_df = getSymbols(ticker, env = NULL) %>% 
-      as.data.frame(.) %>% 
-      dplyr::mutate(Date=row.names(.)) %>% 
-      dplyr::mutate(Date=gsub("X","",Date)) %>% 
-      dplyr::mutate(Date=ymd(Date)) %>% 
-      dplyr::select(c(7,1)) %>% 
-      setNames(.,c("date","value")) %>% 
-      dplyr::mutate(series_id=ticker) #%>% 
-      # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
-      # tidyr::fill(value,.direction = "down")  %>% 
-      # tidyr::fill(series_id,.direction = "down") 
-      
-      row.names(temp_df) = NULL
-      return( temp_df )
-})) %>% 
+df_macro_yahoo = rbindlist(lapply(series_ids_yahoo, get_yahoo_value), fill = TRUE) %>%
   bind_rows( df_etf_yahoo )
 ```
 
