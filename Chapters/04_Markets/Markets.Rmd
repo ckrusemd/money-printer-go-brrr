@@ -229,8 +229,16 @@ series_ids_yahoo = unique(c("GC=F",
                             
                             "^OMXC25"))
 
-df_tickers_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
-      temp_df = getSymbols(ticker, env = NULL) %>% 
+get_yahoo_ticker = function(ticker, attempts = 3) {
+  for (attempt in seq_len(attempts)) {
+    temp_df = tryCatch(
+      getSymbols(ticker, env = NULL),
+      error = function(error) NULL
+    )
+
+    if (!is.null(temp_df)) {
+      return(
+        temp_df %>%
       as.data.frame(.) %>% 
       dplyr::mutate(Date=row.names(.)) %>% 
       dplyr::mutate(Date=gsub("X","",Date)) %>% 
@@ -241,10 +249,17 @@ df_tickers_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
       tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
       tidyr::fill(price,.direction = "down")  %>%
       tidyr::fill(ticker,.direction = "down")
-      
-      row.names(temp_df) = NULL
-      return( temp_df )
-})) 
+      )
+    }
+
+    if (attempt < attempts) Sys.sleep(2 ^ (attempt - 1))
+  }
+
+  warning(sprintf("Skipping Yahoo Finance ticker %s after %d failed attempts", ticker, attempts))
+  NULL
+}
+
+df_tickers_yahoo = rbindlist(lapply(series_ids_yahoo, get_yahoo_ticker), fill = TRUE)
 ```
 
 ```{r}
