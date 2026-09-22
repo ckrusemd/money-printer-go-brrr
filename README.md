@@ -2,23 +2,23 @@
 
 > Since 1971, Money Printer Has Gone BRRR. Let's Make the Most of It.
 
-A collection of macroeconomic analysis notebooks covering interest rates, housing markets, equity indices, ETFs, currencies, and crypto — published as a [bookdown site](https://ckrusemd.github.io/money-printer-go-brrr/).
+A collection of macroeconomic analysis notebooks covering interest rates, housing markets, equity indices, and ETFs — published as a [bookdown site](https://ckrusemd.github.io/money-printer-go-brrr/).
 
 ## Project Structure
 
 ```
 ├── index.Rmd                     # Bookdown entry point
-├── _bookdown.yml                 # Chapter rendering config
+├── _bookdown.yml                 # Published chapter order
 ├── money_theme.R                 # Shared ggplot2 theme
 ├── Chapters/
 │   ├── 00_ReleaseCalendar/       # Economic release calendar
 │   ├── 01_Indicators/            # Leading & lagging indicators
 │   ├── 02_Housing/               # US & Danish housing markets
 │   ├── 03_InterestRates/         # Interest rates & yield curves
-│   ├── 04_Markets/               # Equity market analysis
+│   ├── 04_Markets/               # Market snapshots and detailed chart galleries
 │   ├── 05_ETFs/                  # ETF analysis
-│   ├── 06_Currency/              # Currency pairs
-│   └── 07_Crypto/                # Cryptocurrency analysis
+│   ├── 06_Currency/              # Unpublished chapter draft
+│   └── 07_Crypto/                # Unpublished chapter draft
 ├── vignettes/                    # Standalone analysis notebooks
 ├── datacollection/               # ETL pipeline & modeling
 │   ├── 01_etl.ipynb              # Data ingestion (FRED, Yahoo, DST, etc.)
@@ -84,7 +84,8 @@ A GitHub Actions workflow renders the book in a prebuilt public GHCR
 container on every relevant push to `main` and on a daily schedule, then
 deploys it to GitHub Pages. Set the repository secret `FRED_API` for
 publication. The container workflow rebuilds only when the R lockfile or
-container definition changes.
+container definition changes. The output check verifies the home-page title,
+gallery pages, and referenced chart images before Pages upload.
 
 ## License
 

@@ -7,6 +7,7 @@ rmd_files:
   - Chapters/02_Housing/Housing_DK.Rmd
   - Chapters/03_InterestRates/InterestRates.Rmd
   - Chapters/04_Markets/Markets.Rmd
+  - Chapters/04_Markets/Market_Gallery.Rmd
+  - Chapters/04_Markets/Bond_Gallery.Rmd
+  - Chapters/04_Markets/Sector_Gallery.Rmd
   - Chapters/05_ETFs/ETFs.Rmd
-  - Chapters/06_Currency/Currency.Rmd
-  - Chapters/07_Crypto/Crypto.Rmd
