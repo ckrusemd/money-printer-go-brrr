@@ -32,9 +32,9 @@ jobs:
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    # The full Bookdown render regularly exceeds 20 minutes on ubuntu-latest.
-    # Leave enough headroom for the scheduled run to finish and upload the site.
-    timeout-minutes: 45
+    # External data retrieval and the full Bookdown render can exceed 45 minutes.
+    # Leave sufficient headroom for a complete scheduled build and Pages upload.
+    timeout-minutes: 90
     container:
       image: ${{ github.event_name == 'workflow_run' && format('ghcr.io/ckrusemd/money-printer-go-brrr-r:{0}', github.event.workflow_run.head_sha) || 'ghcr.io/ckrusemd/money-printer-go-brrr-r:latest' }}
       options: --user root
