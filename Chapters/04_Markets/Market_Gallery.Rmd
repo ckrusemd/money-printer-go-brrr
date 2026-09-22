@@ -1,0 +1,49 @@
+# Market chart gallery
+
+Full indicator panels for broad markets and commodities. Values are derived from Yahoo Finance, FRED, and Statistics Denmark data available at build time.
+
+## S&P 500 {#gallery-sp500}
+```{r fig.height=30,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^GSPC",currency=="USD"),
+           lines = list(c(ymd("2020-03-23"),ymd("2023-10-30")),
+                        c(ymd("2018-01-20"),ymd("2022-01-01")))
+           )
+```
+
+## Nasdaq {#gallery-nasdaq}
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^IXIC",currency=="USD"),
+           lines = list(c(ymd("2020-03-23"),ymd("2023-01-03"))))
+```
+
+## OMX C25 {#gallery-omxc25}
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^OMXC25",currency=="DKK"),
+           lines = list(c(ymd("2020-03-23"),ymd("2023-10-30")),
+                        c(ymd("2018-01-20"),ymd("2022-01-01"))))
+```
+
+## RUSSELL 2000
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^RUT",currency=="USD"))
+```
+
+## WILLSHIRE
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="^W5000",currency=="USD"))
+```
+
+## Bitcoin {#gallery-bitcoin}
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="BTC-USD",currency=="USD"))
+```
+
+## Gold {#gallery-gold}
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="GC=F",currency=="USD"))
+```
+
+## Silver
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SI=F",currency=="USD"))
+```

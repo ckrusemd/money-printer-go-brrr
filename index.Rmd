@@ -3,7 +3,11 @@ title: "Money Printer Go BRRR"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 site: bookdown::bookdown_site
-output: bookdown::gitbook
+output:
+  bookdown::gitbook:
+    config:
+      toc:
+        collapse: section
 documentclass: book
 bibliography: [book.bib, packages.bib]
 biblio-style: apalike
@@ -38,3 +42,15 @@ print_danish_time = function() {
 ```
 
 This report was compiled `r print_danish_time() `.
+
+This is a quick route into my market and macro research. The charts use public data from [FRED](https://fred.stlouisfed.org/), [Yahoo Finance](https://finance.yahoo.com/), [Statistics Denmark](https://www.dst.dk/), and [Finans Danmark](https://finansdanmark.dk/). Series refresh when the book is built; a provider may publish observations later than the build date, and market prices may be carried forward over non-trading days.
+
+## Start here
+
+- [Market snapshots](equity-markets-and-the-sp-500.html): six markets at a glance, with links to detailed indicator charts.
+- [Interest rates and yield curves](interest-rates-and-yield-curves.html): US and Danish rates, spreads, and model diagnostics.
+- [Leading economic indicators](leading-economic-indicators.html): macro series and their correlations.
+- [US housing](united-states-housing-market.html) and [Danish housing](danish-housing-market.html): construction and price trends.
+- [ETF analysis](etf-tracking-and-analysis.html): historical rankings and correlations.
+
+The [economic release calendar](economic-release-calendar.html) is the quickest way to check which series may have updated recently.

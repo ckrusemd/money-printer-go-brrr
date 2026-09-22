@@ -1,0 +1,91 @@
+# Sector ETF chart gallery
+
+Full indicator panels for sector ETFs, including short and leveraged funds.
+
+## Sector ETFs
+
+Long:
+
+- Technology: Technology Select Sector SPDR Fund (XLK)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLK",currency=="USD"))
+```
+- Health Care: Health Care Select Sector SPDR Fund (XLV)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLV",currency=="USD"))
+```
+- Consumer Discretionary: Consumer Discretionary Select Sector SPDR Fund (XLY)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLY",currency=="USD"))
+```
+- Consumer Staples: Consumer Staples Select Sector SPDR Fund (XLP)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLP",currency=="USD"))
+```
+- Utilities: Utilities Select Sector SPDR Fund (XLU)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLU",currency=="USD"))
+```
+- Financials: Financial Select Sector SPDR Fund (XLF)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLF",currency=="USD"))
+```
+- Industrials: Industrial Select Sector SPDR Fund (XLI)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLI",currency=="USD"))
+```
+- Materials: Materials Select Sector SPDR Fund (XLB)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLB",currency=="USD"))
+```
+- Energy: Energy Select Sector SPDR Fund (XLE)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLE",currency=="USD"))
+```
+- Real Estate: Real Estate Select Sector SPDR Fund (XLRE)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLRE",currency=="USD"))
+```
+- Communication Services: Communication Services Select Sector SPDR Fund (XLC)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="XLC",currency=="USD"))
+```
+
+Shorts:
+
+Technology Sector: ProShares UltraShort Technology - REW (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="REW",currency=="USD"))
+```
+Health Care Sector: ProShares UltraShort Health Care - RXD (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="RXD",currency=="USD"))
+```
+Consumer Discretionary Sector: ProShares UltraShort Consumer Services - SCC (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SCC",currency=="USD"))
+```
+Utilities Sector: ProShares UltraShort Utilities - SDP (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SDP",currency=="USD"))
+```
+Financials Sector: ProShares UltraShort Financials - SKF (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SKF",currency=="USD"))
+```
+Industrials Sector: ProShares UltraShort Industrials - SIJ (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SIJ",currency=="USD"))
+```
+Materials Sector: ProShares UltraShort Basic Materials - SMN (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SMN",currency=="USD"))
+```
+Energy Sector: ProShares UltraShort Oil & Gas - DUG (Note: This is 2x leveraged, and specifically targets the oil and gas industry)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="DUG",currency=="USD"))
+```
+Real Estate Sector: ProShares UltraShort Real Estate - SRS (Note: This is 2x leveraged)
+```{r fig.height=25,fig.width=10}
+draw_plots(data = df_adjusted %>% filter(ticker=="SRS",currency=="USD"))
+```
