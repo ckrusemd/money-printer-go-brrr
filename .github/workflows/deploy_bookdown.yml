@@ -10,6 +10,8 @@ on:
     paths:
       - "**.R"
       - "**.Rmd"
+      - "data/positivliste_2026.csv"
+      - "data/investment_products_2026.csv"
       - "_bookdown.yml"
       - "book.bib"
       - "packages.bib"

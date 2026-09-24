@@ -52,5 +52,6 @@ This is a quick route into my market and macro research. The charts use public d
 - [Leading economic indicators](leading-economic-indicators.html): macro series and their correlations.
 - [US housing](united-states-housing-market.html) and [Danish housing](danish-housing-market.html): construction and price trends.
 - [ETF analysis](etf-tracking-and-analysis.html): historical rankings and correlations.
+- [Danish fund taxation](etf-tracking-and-analysis.html#danish-fund-tax): 2026 ETF and investment-fund classifications for an ordinary depot and aktiesparekonto.
 
 The [economic release calendar](economic-release-calendar.html) is the quickest way to check which series may have updated recently.

@@ -70,6 +70,31 @@ jupyter notebook datacollection/01_etl.ipynb
 jupyter notebook datacollection/02_models.ipynb
 ```
 
+### Danish investment-fund tax catalogue
+
+`data/positivliste_2026.csv` is the registered-2026 extract from
+[Skattestyrelsen's workbook](https://skat.dk/erhverv/ekapital/vaerdipapirer/beviser-og-aktier-i-investeringsforeninger-og-selskaber-ifpa).
+`data/investment_products_2026.csv` contains only products with a supported
+tax category, aktiesparekonto eligibility, and a Yahoo Finance ticker with
+price history. The book reads these snapshots without calling external APIs.
+
+To refresh, download separate ETF and investment-fund exports locally and run:
+
+```bash
+python3 scripts/build_investment_catalogue.py \
+  --etfs /path/to/etfs.csv \
+  --funds /path/to/investment-funds.csv
+python3 -m unittest tests.test_investment_catalogue
+```
+
+The source exports stay outside the repository. The script retrieves the
+current linked SKAT workbook by its visible link text and `.xlsx` URL
+(equivalent XPath: `//a[contains(normalize-space(.), 'Liste over aktiebaserede investeringsselskaber') and contains(@href, '.xlsx')]`),
+plus the [SKAT securities-classification list](https://info.skat.dk/data.aspx?oid=2460620),
+then writes dated CSV snapshots. Review changed source dates, classifications,
+and excluded-product counts before committing a refresh; the 2026 rules and
+worksheet selection must be updated for a new income year.
+
 ### Knowledge Graph Dashboard
 
 ```bash
