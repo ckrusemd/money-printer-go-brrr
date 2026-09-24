@@ -21,6 +21,7 @@ vignettes/*.pdf
 # knitr / R Markdown cache & temp
 *_cache/
 /cache/
+/.cache/
 *.utf8.md
 *.knit.md
 

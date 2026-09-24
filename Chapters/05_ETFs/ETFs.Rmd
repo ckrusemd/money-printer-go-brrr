@@ -32,6 +32,50 @@ source(file = "money_theme.R")
 
 # ETF Tracking and Analysis
 
+## Danish tax classification (2026) {#danish-fund-tax}
+
+This catalogue covers ETFs and investment-fund certificates with a verified Yahoo Finance ticker and documented Danish tax treatment for 2026. The ordinary-depot columns describe a private investor with a regular taxable *aktiedepot*. **Realisationsbeskatning** taxes a gain or loss on sale; **lagerbeskatning** includes annual changes in value. Aktieindkomst and kapitalindkomst are separate income categories. Dividends and minimum distributions can be taxable before a sale. [Skattestyrelsen explains the fund categories and reporting](https://skat.dk/borger/aktier-og-andre-vaerdipapirer/skat-af-investeringsbeviser-udstedt-af-investeringsforeninger-og-investeringsselskaber).
+
+| Documented fund status | Ordinary-depot gain/loss treatment |
+|:--|:--|
+| Aktiebaseret investeringsselskab on [Skattestyrelsen's 2026 list](https://skat.dk/erhverv/ekapital/vaerdipapirer/beviser-og-aktier-i-investeringsforeninger-og-selskaber-ifpa) | Lagerbeskatning · aktieindkomst |
+| Other documented investeringsselskab | Lagerbeskatning · kapitalindkomst |
+| Aktiebaseret investeringsinstitut med minimumsbeskatning | Realisationsbeskatning · aktieindkomst |
+| Obligationsbaseret investeringsinstitut med minimumsbeskatning | Realisationsbeskatning · kapitalindkomst |
+
+On an *aktiesparekonto*, eligible holdings instead follow the account's **17% annual lager taxation**, regardless of their ordinary-depot row. The `ask_eligible` field indicates whether the fund's documented category is eligible; your provider must also support holding that specific security in the account. An ETF is not eligible merely because it appears in a search result. See [Skattestyrelsen's aktiesparekonto rules](https://skat.dk/borger/aktier-og-andre-vaerdipapirer/aktiesparekonto).
+
+The [2026 Positivliste CSV](https://github.com/ckrusemd/money-printer-go-brrr/blob/main/data/positivliste_2026.csv) is a dated copy of registered 2026 entries from Skattestyrelsen's workbook. The table below is the verified intersection with the two product lists, not every instrument on Positivlisten. The [SKAT securities-classification list](https://info.skat.dk/data.aspx?oid=2460620) provides the additional investment-fund status. A security is omitted when its tax status, account eligibility, or Yahoo symbol cannot be confirmed. These snapshots may become stale when SKAT or a fund changes its classification; confirm before trading or filing a return.
+Absence from the table—especially for an ETF outside Positivlisten—is not itself a tax classification.
+
+```{r danish-fund-tax-catalogue}
+fund_tax_catalogue <- read.csv(
+  "data/investment_products_2026.csv",
+  fileEncoding = "UTF-8",
+  colClasses = "character",
+  check.names = FALSE
+)
+
+display_tax <- fund_tax_catalogue %>%
+  dplyr::transmute(
+    Name = name,
+    Type = type,
+    ISIN = isin,
+    `Yahoo Finance` = yahoo_ticker,
+    Principle = ordinary_tax_principle,
+    Income = ordinary_income_type,
+    `Aktiesparekonto eligible` = ask_eligible,
+    `Tax basis` = tax_basis
+  )
+
+DT::datatable(
+  display_tax,
+  rownames = FALSE,
+  filter = "top",
+  options = list(pageLength = 15, scrollX = TRUE, autoWidth = TRUE)
+)
+```
+
 ```{r}
 
 df_etfs = openxlsx::read.xlsx(xlsxFile = "Chapters/05_ETFs/etf_list.xlsx")

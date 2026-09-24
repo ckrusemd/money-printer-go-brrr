@@ -4,7 +4,8 @@ expected_pages <- c(
   "equity-markets-and-the-sp-500.html",
   "market-chart-gallery.html",
   "bond-etf-chart-gallery.html",
-  "sector-etf-chart-gallery.html"
+  "sector-etf-chart-gallery.html",
+  "etf-tracking-and-analysis.html"
 )
 stopifnot(all(file.exists(file.path(book_dir, expected_pages))))
 stopifnot(!any(file.exists(file.path(book_dir, c(
@@ -15,6 +16,10 @@ stopifnot(!any(file.exists(file.path(book_dir, c(
 index <- xml2::read_html(file.path(book_dir, "index.html"))
 title <- xml2::xml_text(xml2::xml_find_first(index, "//head/title"))
 stopifnot(identical(title, "Money Printer Go BRRR"))
+
+etf_page <- xml2::read_html(file.path(book_dir, "etf-tracking-and-analysis.html"))
+stopifnot(length(xml2::xml_find_all(etf_page, "//*[@id='danish-fund-tax']")) == 1L)
+stopifnot(grepl("aktiesparekonto", xml2::xml_text(etf_page), ignore.case = TRUE))
 
 page_paths <- list.files(book_dir, pattern = "\\.html$", full.names = TRUE)
 for (page_path in page_paths) {
