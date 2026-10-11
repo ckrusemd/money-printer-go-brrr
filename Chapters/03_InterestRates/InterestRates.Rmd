@@ -44,19 +44,7 @@ if (file.exists("Renviron.site")) readRenviron(path = "Renviron.site")
 if (.book_runtime$mode != "replay") fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 
 get_ecb_data <- function(key, attempts = 4) {
-  last_error <- NULL
-  for (attempt in seq_len(attempts)) {
-    result <- tryCatch(
-      ecb::get_data(key = key),
-      error = function(error) {
-        last_error <<- error
-        NULL
-      }
-    )
-    if (!is.null(result)) return(result)
-    if (attempt < attempts) Sys.sleep(2 ^ (attempt - 1))
-  }
-  stop(last_error)
+  book_ecb_data(key = key, attempts = attempts)
 }
 
 ```

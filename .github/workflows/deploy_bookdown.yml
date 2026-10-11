@@ -11,6 +11,10 @@ on:
         description: "Replay baseline/optimized benchmark only; never deploy"
         type: boolean
         default: false
+      publication_tag:
+        description: "Tag in the fixed publication GHCR repository; validation/benchmark only"
+        type: string
+        default: "latest"
       baseline_ref:
         description: "Historical commit to adapt for replay; required for benchmark"
         type: string
@@ -44,7 +48,35 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.benchmark }}
 
 jobs:
+  publication-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      image: ${{ steps.resolve.outputs.image }}
+    steps:
+      - name: Resolve publication image without accepting another repository
+        id: resolve
+        env:
+          ALLOW_PUBLICATION_TAG: ${{ github.event_name == 'workflow_dispatch' && (inputs.benchmark || !inputs.publish) }}
+          PUBLICATION_TAG: ${{ inputs.publication_tag || 'latest' }}
+          DEFAULT_PUBLICATION_TAG: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'latest' }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+
+          tag = (os.environ["PUBLICATION_TAG"] if os.environ["ALLOW_PUBLICATION_TAG"] == "true"
+                 else os.environ["DEFAULT_PUBLICATION_TAG"])
+          if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", tag):
+              raise SystemExit("Invalid publication tag: supply a Docker tag, not a repository, digest, or URL")
+          image = "ghcr.io/ckrusemd/money-printer-go-brrr-r:" + tag
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("image=" + image + "\n")
+          print("Publication image: " + image)
+          PY
+
   build:
+    needs: publication-image
     if: >-
       !inputs.benchmark &&
       (github.event_name != 'workflow_dispatch' || !inputs.publish ||
@@ -59,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     container:
-      image: ${{ github.event_name == 'workflow_run' && format('ghcr.io/ckrusemd/money-printer-go-brrr-r:{0}', github.event.workflow_run.head_sha) || 'ghcr.io/ckrusemd/money-printer-go-brrr-r:latest' }}
+      image: ${{ needs.publication-image.outputs.image }}
       options: --user root
     env:
       FRED_API: ${{ secrets.FRED_API }}
@@ -177,6 +209,7 @@ jobs:
           retention-days: 1
 
   benchmark:
+    needs: publication-image
     if: github.event_name == 'workflow_dispatch' && inputs.benchmark
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -206,12 +239,14 @@ jobs:
           github-token: ${{ github.token }}
       - name: Compare fixed-input full-book renders without network
         shell: bash
+        env:
+          PUBLICATION_IMAGE: ${{ needs.publication-image.outputs.image }}
         run: |
           set -euo pipefail
-          docker pull ghcr.io/ckrusemd/money-printer-go-brrr-r:latest
+          docker pull "$PUBLICATION_IMAGE"
           docker run --rm --network none --entrypoint Rscript \
             -v "$GITHUB_WORKSPACE:/project" -w /project \
-            ghcr.io/ckrusemd/money-printer-go-brrr-r:latest --vanilla \
+            "$PUBLICATION_IMAGE" --vanilla \
             scripts/benchmark_book.R /project/.cache/benchmark-baseline /project \
             /project/.cache/benchmark-inputs /project/.cache/book-benchmark
       - name: Retain full benchmark evidence

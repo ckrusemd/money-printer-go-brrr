@@ -27,6 +27,34 @@ book_numeric_equal <- function(left, right, tolerance = 1e-8) {
   FALSE
 }
 
+book_install_correlation_capture <- function(config) {
+  source(config$correlation_helper, local = TRUE)
+  # Runtime/theme sourcing can reinstall book_timing; use an independent hook.
+  knitr::knit_hooks$set(book_correlation_capture = function(before, options, envir) {
+    assigned <- grepl("(?m)^\\s*df_ccfs\\s*(=|<-)",
+                      paste(options$code, collapse = "\n"), perl = TRUE)
+    if (!before && identical(config$version, "baseline") && assigned) {
+      if (!exists("book_correlation_namespace", envir, inherits = FALSE)) {
+        stop("Missing chapter correlation namespace")
+      }
+      book_capture_correlation(get("book_correlation_namespace", envir),
+                               get("df_all", envir), get("df_ccfs", envir),
+                               get("df_etfs", envir)$Ticker)
+    }
+    invisible(NULL)
+  })
+  knitr::opts_chunk$set(book_correlation_capture = TRUE)
+  invisible(NULL)
+}
+
+book_correlation_namespace_setup <- function(text, namespace) {
+  if (any(grepl("^book_correlation_namespace\\s*(=|<-)", text))) return(text)
+  first <- which(grepl("^```\\{r", text))[1L]
+  if (is.na(first)) stop("No setup chunk for baseline correlation namespace")
+  append(text, paste0("book_correlation_namespace <- ", encodeString(namespace, quote = '"')),
+         after = first)
+}
+
 book_benchmark_render <- function(config_path) {
   config <- readRDS(config_path)
   setwd(config$root)
@@ -38,6 +66,9 @@ book_benchmark_render <- function(config_path) {
   # Install the shared hook before rendering either version. BOOK_RESULTS_DIR
   # stores complete correlation and model outputs, not samples or summaries.
   source("scripts/book_runtime.R")
+  if (!is.null(config$correlation_helper)) {
+    book_install_correlation_capture(config)
+  }
   # Isolate helper/config variables from the environment used by the book.
   book_environment <- new.env(parent = globalenv())
   bookdown::render_book("index.Rmd", output_dir = "_book", envir = book_environment,
@@ -51,7 +82,15 @@ book_benchmark_render <- function(config_path) {
                         check_chart_alt = !identical(config$version, "baseline"))
   if (!length(list.files(config$numeric, "\\.rds$"))) stop("No numeric chunk captures produced")
   required <- c("df_ccfs", "rf_backtest", "rf_metrics", "rf_regime_metrics",
-                "rf_live_forecast", "dff_rf_has_skill")
+                "rf_live_forecast", "dff_rf_has_skill",
+                "model_predictions_DFF", "model_predictions_DGS2",
+                "model_predictions_DGS10", "model_predictions_MORTGAGE30US",
+                "model_predictions_DK_Short", "model_predictions_DK_Long",
+                "model_predictions_CPIAUCSL", "model_predictions_CSUSHPINSA",
+                "model_predictions_M2SL", "model_predictions_UMCSENT",
+                "model_predictions_USREC", "model_predictions_DF",
+                "model_predictions_DGS2_on_DFF", "model_predictions_DGS10_on_DFF",
+                "model_predictions_MORTGAGE30US_on_DFF", "model_predictions_DK_Long_on_DK_Short")
   present <- sub("-[0-9]+\\.rds$", "", list.files(config$numeric, "\\.rds$"))
   if (!all(required %in% present)) stop("Missing full analysis outputs: ",
                                        paste(setdiff(required, present), collapse = ", "))
@@ -139,6 +178,9 @@ benchmark_book <- function(baseline, optimized, snapshots,
   saveRDS(snapshot_hash, file.path(artifacts, "snapshot-hashes.rds"))
   writeLines(as_of, file.path(artifacts, "as-of.txt"))
   validator <- file.path(roots[["optimized"]], "scripts/check_bookdown_output.R")
+  correlation_helper <- file.path(roots[["optimized"]], "scripts/analysis/correlations.R")
+  if (!file.exists(correlation_helper)) stop("Missing independent correlation audit helper")
+  source(correlation_helper, local = TRUE)
   harness <- normalizePath("scripts/benchmark_book.R", mustWork = TRUE)
   runner <- file.path(artifacts, "render-child.R")
   writeLines(c("args <- commandArgs(trailingOnly = TRUE)",
@@ -155,6 +197,15 @@ benchmark_book <- function(baseline, optimized, snapshots,
       dir.create(dirname(target), recursive = TRUE, showWarnings = FALSE)
       if (!file.copy(files[[i]], target)) stop("Cannot copy benchmark input: ", files[[i]])
     }
+    if (version == "baseline") {
+      chapters <- c("Chapters/01_Indicators/1_Indicators.Rmd" = "indicators-correlations",
+                    "Chapters/05_ETFs/ETFs.Rmd" = "etf-correlations")
+      for (chapter in names(chapters)) {
+        path <- file.path(work[[version]], chapter)
+        text <- readLines(path, warn = FALSE)
+        writeLines(book_correlation_namespace_setup(text, chapters[[chapter]]), path)
+      }
+    }
   }
   results <- data.frame(version = character(), run = integer(), warmup = logical(),
                         elapsed_seconds = double(), max_rss_kb = double(), exit_status = integer())
@@ -166,7 +217,8 @@ benchmark_book <- function(baseline, optimized, snapshots,
     config <- list(root = work[[version]], version = version, snapshots = snapshots, as_of = as_of,
                    derived = file.path(work[[version]], ".cache/book-derived"),
                    metrics = file.path(output, "book-metrics.csv"),
-                   numeric = file.path(output, "numeric"), validator = validator)
+                   numeric = file.path(output, "numeric"), validator = validator,
+                   correlation_helper = correlation_helper)
     config_path <- file.path(output, "config.rds")
     saveRDS(config, config_path)
     log <- file.path(output, "render.log")
@@ -196,15 +248,16 @@ benchmark_book <- function(baseline, optimized, snapshots,
   }
   if (!identical(snapshot_hash, tools::md5sum(snapshot_files))) stop("Provider snapshots changed during benchmark")
   differences <- correlation_differences <- character()
+  correlation_audits <- NULL
+  correlation_parity_runs <- 0L
   reference <- file.path(artifacts, "baseline-1/numeric")
   for (version in names(roots)) for (run in 0:3) {
     differences <- c(differences, book_compare_numeric(reference,
                         file.path(artifacts, paste0(version, "-", run), "numeric")))
   }
   for (version in names(roots)) for (run in 0:3) {
-    # Correlations must be reproducible within each version. Historical ETF
-    # duplicates are the approved bug fix, so cross-version differences are
-    # retained in a separate report and do not excuse any model changes.
+    # Reproducibility alone does not excuse cross-version regressions. The full
+    # independent namespace audit below must prove the exact ETF correction.
     own <- file.path(artifacts, paste0(version, "-1"), "numeric")
     differences <- c(differences, book_compare_numeric(own,
                         file.path(artifacts, paste0(version, "-", run), "numeric"), correlations = TRUE))
@@ -212,6 +265,24 @@ benchmark_book <- function(baseline, optimized, snapshots,
       correlation_differences <- c(correlation_differences, book_compare_numeric(reference,
                             file.path(artifacts, paste0(version, "-", run), "numeric"), correlations = TRUE))
     }
+    directory <- file.path(artifacts, paste0(version, "-", run), "numeric")
+    # Exact full input/output parity propagates the independent audit to all
+    # repeated runs, without recomputing the expensive oracle eight times.
+    parity <- tryCatch(book_compare_correlation_captures(own, directory), error = identity)
+    if (inherits(parity, "error")) {
+      differences <- c(differences, paste(version, run, conditionMessage(parity)))
+    } else {
+      correlation_parity_runs <- correlation_parity_runs + 1L
+    }
+  }
+  audited <- tryCatch(book_audit_correlation_captures(reference,
+                        file.path(artifacts, "optimized-1/numeric")), error = identity)
+  if (inherits(audited, "error")) {
+    differences <- c(differences, conditionMessage(audited))
+  } else {
+    correlation_audits <- audited
+    utils::write.csv(correlation_audits,
+                     file.path(artifacts, "correlation-audit.csv"), row.names = FALSE)
   }
   writeLines(if (length(differences)) unique(differences) else "All full numeric captures match (tolerance 1e-8).",
              file.path(artifacts, "numeric-comparison.txt"))
@@ -227,6 +298,7 @@ benchmark_book <- function(baseline, optimized, snapshots,
                         baseline_median_max_rss_kb = rss_medians[["baseline"]],
                         optimized_median_max_rss_kb = rss_medians[["optimized"]],
                         model_results_equal = !length(differences),
+                        correlations_audited = !is.null(correlation_audits) && correlation_parity_runs == 8L,
                         historical_correlation_differences = length(unique(correlation_differences)),
                         runtime_target_met = is.finite(reduction) && reduction >= 0.30,
                         rss_target_met = rss_met,

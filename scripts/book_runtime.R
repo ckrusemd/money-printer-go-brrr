@@ -52,7 +52,7 @@ book_save_rds <- function(value, path) {
 
 book_latest_observation <- function(value) {
   dates <- if (is.data.frame(value)) {
-    field <- intersect(c("date", "Date", "TID", "timestamp"), names(value))
+    field <- intersect(c("date", "Date", "TID", "timestamp", "obstime"), names(value))
     if (length(field)) as.character(value[[field[1L]]]) else character()
   } else if (inherits(value, "xts")) {
     as.character(zoo::index(value))
@@ -193,10 +193,19 @@ book_fred_metadata <- function(endpoint, ...) {
   })
 }
 
+book_ecb_data <- function(key, filter = NULL, ..., attempts = 4L) {
+  parameters <- c(list(key = as.character(key), filter = filter), list(...))
+  book_fetch("ECB observations", parameters, function() {
+    httr::with_config(httr::timeout(30), do.call(ecb::get_data, parameters))
+  }, attempts = attempts)
+}
+
 book_yahoo <- function(ticker, ..., env = NULL) {
   if (!is.null(env)) stop("book_yahoo returns prices directly; env must be NULL")
   parameters <- c(list(Symbols = ticker, env = NULL, src = "yahoo"), list(...))
-  book_fetch("Yahoo Finance", parameters, function() do.call(quantmod::getSymbols, parameters))
+  book_fetch("Yahoo Finance", parameters, function() {
+    quantmod::getSymbols(Symbols = ticker, env = NULL, src = "yahoo", ...)
+  })
 }
 
 book_dst <- function(...) {
@@ -340,16 +349,62 @@ book_capture_results <- function(envir) {
   if (!nzchar(path)) return(invisible(NULL))
   variables <- c("df_ccfs", "rf_backtest", "rf_metrics", "rf_regime_metrics",
                  "rf_live_forecast", "dff_rf_has_skill")
-  for (variable in variables) {
-    if (!exists(variable, envir, inherits = FALSE)) next
-    value <- get(variable, envir, inherits = FALSE)
+  capture <- function(variable, value) {
     key <- book_hash(value)
-    if (identical(.book_runtime$result_hashes[[variable]], key)) next
+    if (identical(.book_runtime$result_hashes[[variable]], key)) return(invisible(NULL))
     count <- .book_runtime$result_counts[[variable]]
     count <- if (is.null(count)) 1L else count + 1L
+    book_save_rds(value, file.path(path, sprintf("%s-%03d.rds", variable, count)))
     .book_runtime$result_counts[[variable]] <- count
     .book_runtime$result_hashes[[variable]] <- key
-    book_save_rds(value, file.path(path, sprintf("%s-%03d.rds", variable, count)))
+  }
+  for (variable in variables) {
+    if (exists(variable, envir, inherits = FALSE)) {
+      capture(variable, get(variable, envir, inherits = FALSE))
+    }
+  }
+
+  # Discover the historical and optimized chapter's identical model/input
+  # names, without serializing caret environments or changing chapter code.
+  targets <- sub("^fit_", "", ls(envir, pattern = "^fit_"))
+  targets <- targets[vapply(paste0("df_predict_", targets), exists, logical(1),
+                            envir = envir, inherits = FALSE)]
+  rng_kind <- RNGkind()
+  had_seed <- exists(".Random.seed", .GlobalEnv, inherits = FALSE)
+  seed <- if (had_seed) get(".Random.seed", .GlobalEnv) else NULL
+  on.exit({
+    if (!identical(RNGkind(), rng_kind)) do.call(RNGkind, as.list(rng_kind))
+    if (had_seed) assign(".Random.seed", seed, .GlobalEnv)
+    else if (exists(".Random.seed", .GlobalEnv, inherits = FALSE)) rm(".Random.seed", envir = .GlobalEnv)
+  }, add = TRUE)
+  for (target in targets) {
+    fit <- get(paste0("fit_", target), envir, inherits = FALSE)
+    # US and Danish plots also predict other targets on a common input table.
+    # Preserve those full domains as well as each target's own feature table.
+    domains <- target
+    if (target %in% c("DGS2", "DGS10", "MORTGAGE30US")) domains <- c(domains, "DFF")
+    if (target == "DK_Long") domains <- c(domains, "DK_Short")
+    for (domain in domains) {
+      input <- paste0("df_predict_", domain)
+      if (!exists(input, envir, inherits = FALSE)) next
+      data <- get(input, envir, inherits = FALSE)
+      if (!is.data.frame(data) || !nrow(data)) stop("Empty model prediction input: ", input)
+      variable <- paste0("model_predictions_", target,
+                         if (domain != target) paste0("_on_", domain) else "")
+      # Keep copy-on-write references rather than serialize large forests at
+      # every chunk boundary or repeat predictions. These objects already live
+      # in the chapter environment; identical() is fast for unchanged references.
+      inputs <- list(fit = fit, data = data)
+      if (identical(.book_runtime$result_inputs[[variable]], inputs)) next
+      value <- as.data.frame(data)
+      prediction <- stats::predict(fit, data)
+      if (!is.numeric(prediction) || length(prediction) != nrow(data)) {
+        stop("Incomplete model predictions: ", variable)
+      }
+      value[[paste0("pred_", target)]] <- as.numeric(prediction)
+      capture(variable, value)
+      .book_runtime$result_inputs[[variable]] <- inputs
+    }
   }
   invisible(NULL)
 }

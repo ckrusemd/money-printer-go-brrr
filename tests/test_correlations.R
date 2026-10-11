@@ -85,6 +85,125 @@ chapter_expressions <- function(path) {
   as.list(parse(text = code))
 }
 
+run_correlation_audit_tests <- function(scope) {
+  t <- 1:96
+  clean <- rbind(make_series("ETF", t, sin(t / 7) + t / 80),
+                 make_series("MACRO", t, cos(t / 11) - t / 100),
+                 make_series("OTHER", t, sin(t / 13) + cos(t / 9)))
+  raw <- rbind(clean, clean[clean$series_id == "ETF", ])
+  root <- tempfile("correlation-audit-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE), add = TRUE)
+  directories <- file.path(root, c("baseline", "optimized"))
+  records <- list()
+  for (namespace in c("indicators-correlations", "etf-correlations")) {
+    old <- canonical(legacy_join(raw))
+    new <- scope$book_correlations_aligned(clean)
+    if (namespace == "etf-correlations") {
+      old$best_corr_time <- old$best_corr_time_365
+      old$best_corr_value <- old$best_corr_value_365
+      new$best_corr_time <- new$best_corr_time_365
+      new$best_corr_value <- new$best_corr_value_365
+    }
+    baseline <- list(schema = 1L, namespace = namespace, observations = raw,
+                      etf_ids = "ETF", output = old)
+    optimized <- list(schema = 1L, namespace = namespace, observations = clean,
+                       etf_ids = "ETF", output = new)
+    audit <- scope$book_audit_correlation_record(baseline, optimized)
+    stopifnot(audit$pairs == 6L, audit$removed_exact_etf_rows == 96L,
+              audit$max_coefficient_error <= 1e-8)
+    cosmetic <- optimized
+    cosmetic$observations <- clean[c(193:288, 97:192, 1:96), ]
+    scope$book_audit_correlation_record(baseline, cosmetic)
+    for (mutation in c("coefficient", "pair", "lag", "observation")) {
+      bad <- optimized
+      if (mutation == "coefficient") bad$output$best_corr_value_30[1L] <- bad$output$best_corr_value_30[1L] + 1e-4
+      if (mutation == "pair") bad$output <- bad$output[-1L, ]
+      if (mutation == "lag") bad$output$best_corr_time_365[1L] <- bad$output$best_corr_time_365[1L] + 1
+      if (mutation == "observation") bad$observations$value[1L] <- bad$observations$value[1L] + 1
+      assert_error(scope$book_audit_correlation_record(baseline, bad),
+                   "inputs changed|optimized complete pairs")
+    }
+    bad <- baseline
+    bad$output$best_corr_value_30[1L] <- bad$output$best_corr_value_30[1L] + 1e-4
+    assert_error(scope$book_audit_correlation_record(bad, optimized), "baseline capture differs")
+    bad <- baseline
+    bad$observations <- rbind(raw, clean[clean$series_id == "ETF", ])
+    assert_error(scope$book_audit_correlation_record(bad, optimized), "unapproved duplicate")
+    bad$observations <- rbind(raw, clean[clean$series_id == "MACRO", ])
+    assert_error(scope$book_audit_correlation_record(bad, optimized), "unapproved duplicate")
+    bad$observations <- rbind(clean, clean[1L, ])
+    assert_error(scope$book_audit_correlation_record(bad, optimized), "partial ETF")
+    bad <- baseline
+    bad$observations$ancillary <- 1
+    bad$observations$ancillary[c(3L, 44L, 291L, 332L)] <- NA_real_
+    bad$output <- scope$book_correlation_original(bad$observations, namespace, retain_undefined = FALSE)
+    assert_error(scope$book_audit_correlation_record(bad, optimized), "optimized complete pairs")
+
+    count <- length(records) + 1L
+    for (i in seq_along(directories)) {
+      record <- if (i == 1L) baseline else optimized
+      scope$book_capture_correlation(namespace, record$observations, record$output,
+                                     record$etf_ids, directory = directories[i])
+      saveRDS(record$output, file.path(directories[i], sprintf("df_ccfs-%03d.rds", count)))
+    }
+    records[[namespace]] <- list(baseline = baseline, optimized = optimized)
+  }
+  audit <- scope$book_audit_correlation_captures(directories[1L], directories[2L])
+  stopifnot(nrow(audit) == 2L, all(audit$max_coefficient_error <= 1e-8))
+  scope$book_compare_correlation_captures(directories[2L], directories[2L])
+  extra <- file.path(directories[2L], "df_ccfs-003.rds")
+  saveRDS(data.frame(unrelated = 99), extra)
+  assert_error(scope$book_audit_correlation_captures(directories[1L], directories[2L]), "Unaudited df_ccfs")
+  unlink(extra)
+  record_path <- file.path(directories[2L], "correlations", "indicators-correlations.rds")
+  bad <- readRDS(record_path)
+  bad$observations$value[1L] <- bad$observations$value[1L] + 1
+  saveRDS(bad, record_path)
+  assert_error(scope$book_compare_correlation_captures(directories[1L], directories[2L]), "captures changed")
+  assert_error(scope$book_audit_correlation_captures(directories[1L], directories[2L]), "inputs changed")
+  saveRDS(records[[1L]]$optimized, record_path)
+  cat("PASS: both namespace audits reject coefficient/lag/pair/input mutations, non-ETF/partial/triple duplicates, ancillary NA filtering changes and unrelated anonymous captures\n")
+  if (!requireNamespace("knitr", quietly = TRUE)) {
+    cat("SKIP: legacy knitr capture integration (knitr unavailable locally)\n")
+    return(invisible(TRUE))
+  }
+
+  # Real knitr execution of a historical chapter with no correlation helper.
+  # Namespace-only adaptation and a separate hook survive runtime re-sourcing.
+  harness <- new.env(parent = globalenv())
+  sys.source("scripts/benchmark_book.R", envir = harness)
+  options_before <- knitr::opts_chunk$get()
+  hooks_before <- knitr::knit_hooks$get()
+  on.exit({ knitr::opts_chunk$restore(options_before); knitr::knit_hooks$restore(hooks_before) }, add = TRUE)
+  variables <- c("BOOK_RESULTS_DIR", "BOOK_METRICS_FILE", "BOOK_DERIVED_DIR", "BOOK_SNAPSHOT_DIR", "BOOK_SNAPSHOT_MODE")
+  previous <- setNames(Sys.getenv(variables, unset = NA_character_), variables)
+  on.exit({
+    Sys.unsetenv(variables[is.na(previous)])
+    if (any(!is.na(previous))) do.call(Sys.setenv, as.list(previous[!is.na(previous)]))
+  }, add = TRUE)
+  legacy_directory <- file.path(root, "legacy-knitr")
+  Sys.setenv(BOOK_RESULTS_DIR = legacy_directory, BOOK_METRICS_FILE = file.path(root, "metrics.csv"),
+             BOOK_DERIVED_DIR = file.path(root, "derived"), BOOK_SNAPSHOT_DIR = file.path(root, "inputs"),
+             BOOK_SNAPSHOT_MODE = "live")
+  harness$book_install_correlation_capture(list(version = "baseline",
+    correlation_helper = normalizePath("scripts/analysis/correlations.R")))
+  environment <- new.env(parent = globalenv())
+  environment$observations <- raw
+  environment$original_output <- records[[1L]]$baseline$output
+  text <- c("```{r setup}",
+    paste0("source(", encodeString(normalizePath("scripts/book_runtime.R"), quote = '"'), ", local=TRUE)"),
+    "```", "```{r correlation}", "df_all <- observations", 'df_etfs <- data.frame(Ticker="ETF")',
+    "df_ccfs <- original_output", "```")
+  text <- harness$book_correlation_namespace_setup(text, "indicators-correlations")
+  knitr::knit(text = text, envir = environment, quiet = TRUE)
+  captured <- readRDS(file.path(legacy_directory, "correlations", "indicators-correlations.rds"))
+  stopifnot(identical(captured$observations, raw),
+            identical(captured$output, records[[1L]]$baseline$output),
+            !exists("book_capture_correlation", environment, inherits = FALSE))
+  cat("PASS: historical helper-free chapter captures full df_all/results after CCF via namespace adapter, surviving runtime hook reinstallation\n")
+}
+
 run_correlations_tests <- function() {
   scope <- correlation_scope
   horizons <- c(30L, 365L, 1825L)
@@ -231,6 +350,7 @@ run_correlations_tests <- function() {
   single <- scope$book_correlations_aligned(prepared[prepared$series_id == "daily", ])
   stopifnot(nrow(empty) == 0L, nrow(single) == 0L,
             identical(names(empty), names(actual)))
+  run_correlation_audit_tests(scope)
   cat(sprintf("PASS: numeric fixtures, directed pairs, ties, reverse, sparse/NA/constant/short cases; maximum CCF difference %.3g\n", max_error))
 
   # Inspect the integration contract without depending on the runtime file.

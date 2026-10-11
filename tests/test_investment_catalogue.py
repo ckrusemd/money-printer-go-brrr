@@ -8,7 +8,8 @@ import json
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import call, patch
+from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
 
@@ -28,6 +29,11 @@ CHART = {"chart": {"error": None, "result": [{"timestamp": [NOW - 86400, NOW]}]}
 
 def json_bytes(value):
     return json.dumps(value).encode("utf-8")
+
+
+def count_yahoo_calls(calls):
+    """Count mocked Yahoo API requests by their parsed, exact hostname."""
+    return sum(urlsplit(request.args[0]).hostname == "query1.finance.yahoo.com" for request in calls)
 
 
 def versioned_cache(values=None, age=0):
@@ -400,6 +406,22 @@ class InvestmentCatalogueTests(unittest.TestCase):
             self.assertTrue(all(entry["fetched_at"] == NOW for entry in cache["entries"].values()))
             self.assertEqual({path.name for path in (root / "published").iterdir()}, {path.name for path in previous})
 
+    def test_yahoo_call_count_uses_exact_hostname(self):
+        for url, expected in (
+            ("https://query1.finance.yahoo.com/v1/finance/search?q=example", 1),
+            ("https://QUERY1.FINANCE.YAHOO.COM:443/v8/finance/chart/example", 1),
+            ("https://evil.test/query1.finance.yahoo.com", 0),
+            ("https://evil.test/?next=https://query1.finance.yahoo.com/", 0),
+            ("https://query1.finance.yahoo.com@evil.test/", 0),
+            ("https://query1.finance.yahoo.com.evil.test/", 0),
+            ("https://not-query1.finance.yahoo.com/", 0),
+            ("https://finance.yahoo.com/quote/example", 0),
+            ("query1.finance.yahoo.com", 0),
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(count_yahoo_calls([call(url)]), expected)
+        self.assertEqual(count_yahoo_calls([]), 0)
+
     def test_cli_cache_expiry_and_refresh_flags_control_real_lookup_path(self):
         for flags, age, expected_yahoo_calls in (
             ([], 86400, 0), (["--cache-max-age-days", "1"], 86400, 4),
@@ -411,7 +433,7 @@ class InvestmentCatalogueTests(unittest.TestCase):
                     self.assertEqual(catalogue.main(argv), 0)
                 with patch.object(catalogue, "fetch", side_effect=self.fixture_fetch) as fetch, patch.object(catalogue.time, "time", return_value=NOW + age):
                     self.assertEqual(catalogue.main(argv + flags), 0)
-                self.assertEqual(sum("finance.yahoo.com" in call.args[0] for call in fetch.call_args_list), expected_yahoo_calls)
+                self.assertEqual(count_yahoo_calls(fetch.call_args_list), expected_yahoo_calls)
                 # Essential official workbooks are retrieved even with a warm cache.
                 self.assertEqual(sum(call.args[0] in {catalogue.SKAT_PAGE, "https://example.test/positive.xlsx", catalogue.VP_WORKBOOK} for call in fetch.call_args_list), 3)
                 self.assert_files_unchanged(originals)

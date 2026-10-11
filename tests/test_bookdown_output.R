@@ -168,14 +168,25 @@ local({
     dir.create(file.path(tiny, "scripts"))
     stopifnot(file.copy("scripts/book_runtime.R", file.path(tiny, "scripts/book_runtime.R")))
     writeLines(c("rmd_files:", "  - index.Rmd", "delete_merged_file: true"), file.path(tiny, "_bookdown.yml"))
-    writeLines(c("---", 'title: "Money Printer Go BRRR"', "output: bookdown::gitbook", "---",
+    prediction_targets <- c("DFF", "DGS2", "DGS10", "MORTGAGE30US", "DK_Short", "DK_Long",
+                            "CPIAUCSL", "CSUSHPINSA", "M2SL", "UMCSENT", "USREC", "DF")
+    prediction_domains <- c(prediction_targets, "DGS2_on_DFF", "DGS10_on_DFF",
+                            "MORTGAGE30US_on_DFF", "DK_Long_on_DK_Short")
+    tiny_source <- c("---", 'title: "Money Printer Go BRRR"', "output: bookdown::gitbook", "---",
                  "# Money Printer Go BRRR", "```{r include=FALSE}",
                  'df_ccfs <- data.frame(x1="a", x2="b", best_corr_value_30=0.5)',
                  'rf_backtest <- data.frame(target="DFF", prediction=c(1, 2, 3))',
                  'rf_metrics <- rf_regime_metrics <- rf_live_forecast <- rf_backtest',
-                 'dff_rf_has_skill <- FALSE', "```", 'Frozen date: `r book_date()`.',
-                 "# Another fixture", "No provider requests."),
-               file.path(tiny, "index.Rmd"))
+                 'dff_rf_has_skill <- FALSE',
+                 paste0("fixture_targets <- ", paste(deparse(prediction_targets), collapse=" ")),
+                 'fixture_input <- data.frame(feature=c(1, 2, 3), response=c(2, 4, 6))',
+                 'fixture_model <- stats::lm(response ~ feature, data=fixture_input)',
+                 'for (target in fixture_targets) {',
+                 '  assign(paste0("fit_", target), fixture_model)',
+                 '  assign(paste0("df_predict_", target), fixture_input)',
+                 '}', "```", 'Frozen date: `r book_date()`.',
+                 "# Another fixture", "No provider requests.")
+    writeLines(tiny_source, file.path(tiny, "index.Rmd"))
     manifest_inputs <- file.path(root, "manifest-inputs")
     dir.create(manifest_inputs)
     saveRDS(list(schema_version=1L, as_of=as.Date("2026-10-11"), requests=list(), failures=list()),
@@ -205,10 +216,36 @@ local({
       }
       stop("Tiny offline benchmark render failed")
     }
-    stopifnot(length(list.files(config$numeric, "\\.rds$")) == 6L,
+    expected_captures <- paste0(c("df_ccfs", "rf_backtest", "rf_metrics", "rf_regime_metrics",
+                                 "rf_live_forecast", "dff_rf_has_skill",
+                                 paste0("model_predictions_", prediction_domains)), "-001.rds")
+    stopifnot(length(prediction_domains) == 16L,
+              identical(sort(list.files(config$numeric, "\\.rds$")), sort(expected_captures)),
               identical(readRDS(file.path(config$numeric, "rf_backtest-001.rds")),
                         data.frame(target="DFF", prediction=c(1, 2, 3))),
               identical(readRDS(file.path(config$numeric, "dff_rf_has_skill-001.rds")), FALSE))
+    for (domain in prediction_domains) {
+      expected <- data.frame(feature=c(1, 2, 3), response=c(2, 4, 6))
+      expected[[paste0("pred_", sub("_on_.*$", "", domain))]] <- c(2, 4, 6)
+      captured <- readRDS(file.path(config$numeric, paste0("model_predictions_", domain, "-001.rds")))
+      stopifnot(book_numeric_equal(captured, expected))
+    }
+
+    # A fresh result directory must fail the unchanged production coverage gate
+    # when one input domain is absent; the first render cannot mask the omission.
+    missing_source <- append(tiny_source, "rm(df_predict_DF)",
+                             after=which(tiny_source == "```")[[1L]] - 1L)
+    writeLines(missing_source, file.path(tiny, "index.Rmd"))
+    config$numeric <- file.path(root, "tiny-numeric-missing-domain")
+    saveRDS(config, config_path)
+    missing_log <- file.path(root, "tiny-missing-domain.log")
+    missing_status <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                               c("--vanilla", shQuote(runner)),
+                                               stdout=missing_log, stderr=missing_log))
+    stopifnot(missing_status != 0L,
+              any(grepl("Missing full analysis outputs: model_predictions_DF",
+                        readLines(missing_log, warn=FALSE), fixed=TRUE)),
+              !file.exists(file.path(config$numeric, "model_predictions_DF-001.rds")))
   }
 })
 cat("Book output and syntax fixtures passed\n")

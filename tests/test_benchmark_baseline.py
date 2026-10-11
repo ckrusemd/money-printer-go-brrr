@@ -23,6 +23,17 @@ class BaselineAdapterTests(unittest.TestCase):
         self.assertIn('book_load_packages(fredr,\n  dplyr)', new)
         self.assertIn('fit <- randomForest(x, ntree = 300)', new)
 
+    def test_ecb_requests_preserve_arguments_and_existing_retry_loop(self):
+        old = ('for (attempt in seq_len(attempts)) {\n'
+               '  ecb::get_data(key = key, filter = list(startPeriod="2020"), httr::timeout(12))\n'
+               '}\nfit <- caret::train(x, ntree = 300)\n')
+        new = adapt_source(old)
+        self.assertIn('for (attempt in seq_len(attempts)) {', new)
+        self.assertIn('book_ecb_data(attempts = 1L, key = key, filter = list(startPeriod="2020"), httr::timeout(12))', new)
+        self.assertNotIn('ecb::get_data(', new)
+        self.assertIn('fit <- caret::train(x, ntree = 300)', new)
+        self.assertEqual(adapt_source(new), new)
+
 
 if __name__ == "__main__":
     unittest.main()

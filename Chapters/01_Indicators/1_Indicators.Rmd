@@ -30,6 +30,7 @@ book_load_packages(fredr,
                ggrepel)
 source(file = "money_theme.R")
 source(file = "scripts/analysis/correlations.R")
+book_correlation_namespace = "indicators-correlations"
 ```
 
 # Leading Economic Indicators
@@ -297,6 +298,7 @@ Cross correlation measures association, not causation. A leading lag does not es
 
 ```{r, fig.alt = "Cross correlations: chart of the series described in this section"}
 df_ccfs = book_correlations(df_all, namespace = "indicators-correlations")
+book_capture_correlation(book_correlation_namespace, df_all, df_ccfs, df_etfs$Ticker)
 ```
 
 ```{r, fig.alt = "Cross correlations: chart of the series described in this section"}

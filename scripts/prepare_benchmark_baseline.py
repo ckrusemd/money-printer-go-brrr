@@ -28,6 +28,9 @@ def adapt_source(text):
     text = text.replace("fredr::fredr_series(", 'book_fred_metadata("fredr_series", ')
     text = re.sub(r"(?:dkstat::)?\bdst_get_data\(", "book_dst(", text)
     text = re.sub(r"(?:dkstat::)?\bdst_meta\(", "book_dst_metadata(", text)
+    # The historical chapter owns the retry loop; each adapted provider call
+    # makes one attempt and snapshots the original ECB parsed table.
+    text = re.sub(r"\becb::get_data\(", "book_ecb_data(attempts = 1L, ", text)
     text = text.replace("getSymbols(", "book_yahoo(")
     text = text.replace("openxlsx::read.xlsx(xlsxFile = xlsx_url", "book_workbook(url = xlsx_url")
     # Leave YAML's display date intact; all analytical windows are frozen.

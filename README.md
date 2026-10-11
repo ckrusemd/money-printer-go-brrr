@@ -78,6 +78,7 @@ once, before loading chapters. `money_theme.R` loads it only if `book_fred`
 is missing, so repeated theme loads preserve the render's source cache.
 
 - `book_fred(series_id, ...)` forwards observation requests to FRED.
+- `book_ecb_data(key, ...)` records the original ECB parsed observations.
 - `book_yahoo(ticker, ...)` returns an xts price history like
   `quantmod::getSymbols(ticker, env = NULL)`; it does not assign symbols.
 - `book_dst(...)` forwards requests to Statistics Denmark.
@@ -126,6 +127,9 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 # Check shared R syntax
 Rscript --vanilla -e "invisible(parse(file = 'money_theme.R')); invisible(parse(file = 'scripts/book_runtime.R'))"
 
+# Reject unavailable or undeclared publication packages before fetching data
+Rscript --vanilla scripts/check_publication_dependencies.R
+
 # After a complete book render, check page titles, galleries, and chart images
 Rscript --vanilla scripts/check_bookdown_output.R
 ```
@@ -143,6 +147,21 @@ Gallery alternative text identifies panel order, units, and unavailable data.
 When editing charts, preserve the statistical settings, chart coverage, existing
 page URLs, and explicit anchor IDs, and keep descriptions accurate. Paired
 notebooks must be synchronized by the worker responsible for that handoff.
+
+For the full-book acceptance benchmark, download `book-provider-snapshots`
+from a successful validation run and prepare an isolated historical checkout:
+
+```bash
+python3 scripts/prepare_benchmark_baseline.py --ref BASELINE_SHA --output .cache/benchmark-baseline
+Rscript --vanilla scripts/benchmark_book.R .cache/benchmark-baseline . .cache/benchmark-inputs .cache/book-benchmark
+```
+
+Run this in the locked publication container with `--network none`. It primes
+both versions, interleaves three measured renders each, and checks complete
+model results at a tolerance of `1e-8`. Acceptance requires at least 30% lower
+median warm runtime and no increase in median peak RSS. Historical ETF
+duplicate-correlation differences are reported separately from model parity.
+Use new, empty baseline and artifact directories; existing evidence is preserved.
 
 ### Data Pipeline
 
@@ -222,6 +241,15 @@ deploys it to GitHub Pages. Set the repository secret `FRED_API` for
 publication. The container workflow rebuilds only when the R lockfile or
 container definition changes. The output check verifies the home-page title,
 gallery pages, and referenced chart images before Pages upload.
+
+For candidate-image validation, dispatch the book workflow with `publish=false`
+and `publication_tag=candidate-<commit-sha>`; only tags in
+`ghcr.io/ckrusemd/money-printer-go-brrr-r` are accepted. Use the same tag with
+`benchmark=true` and a successful validation `snapshot_run_id` to run the
+fixed-input comparison on CI rather than a memory-constrained local machine.
+The input defaults to `latest` and is ignored for publishing: normal builds use
+`latest`, while successful default-branch container-triggered builds use their
+exact commit tag. Candidate selection does not push an image or deploy Pages.
 
 ## License
 
