@@ -1,35 +1,4 @@
-## Cache identical remote observations for the duration of one render.
-## The cache is intentionally process-local so daily builds still fetch fresh data.
-.fredr_render_cache <- new.env(parent = emptyenv())
-
-fredr_cached <- function(series_id, ...) {
-  key <- paste(c(series_id, list(...)), collapse = "|")
-  if (!exists(key, envir = .fredr_render_cache, inherits = FALSE)) {
-    assign(key, fredr::fredr(series_id = series_id, ...), envir = .fredr_render_cache)
-  }
-  get(key, envir = .fredr_render_cache, inherits = FALSE)
-}
-
-fredr_cached_many <- function(series_ids, ...) {
-  dplyr::bind_rows(lapply(series_ids, fredr_cached, ...))
-}
-
-## Resolve the current mortgage-rate workbook without depending on page layout.
-## Finans Danmark changes the surrounding markup, but the published file link
-## remains the only XLSX anchor on the source page.
-finansdanmark_xlsx_url <- function(url) {
-  hrefs <- rvest::html_attr(
-    rvest::html_elements(xml2::read_html(url), "a[href$='.xlsx']"),
-    "href"
-  )
-  href <- hrefs[!is.na(hrefs) & nzchar(hrefs)][1]
-
-  if (length(href) == 0 || is.na(href) || !nzchar(href)) {
-    stop("Finans Danmark did not publish an XLSX link at ", url)
-  }
-
-  xml2::url_absolute(href, url)
-}
+if (!exists("book_fred", mode = "function")) source("scripts/book_runtime.R")
 
 theme_money_printer_go_brrr <- function(base_size) {
 
@@ -157,12 +126,10 @@ theme_money_printer_go_brrr <- function(base_size) {
   )
 }
 
-print_danish_time = function() {
-  time = lubridate::with_tz(Sys.time(), "CET")
-
-  paste0( strftime(time,tz="CET",format="%A %b")," ",scales::ordinal_format()(lubridate::day(time))," ",strftime(time,tz="CET",format="%Y %H:%M")," ",lubridate::tz(time))
+print_danish_time = function(time = Sys.time()) {
+  format(time, tz = "Europe/Copenhagen", format = "%A %b %d %Y %H:%M %Z")
 }
 
 timestamp_caption = function() {
-  return(paste0("Figure generated ",print_danish_time()," (github.com/ckrusemd/i-like-the-stock)"))
+  return(paste0("Figure generated ",print_danish_time()," (github.com/ckrusemd/money-printer-go-brrr)"))
 }
