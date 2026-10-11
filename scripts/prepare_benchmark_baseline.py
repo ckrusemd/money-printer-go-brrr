@@ -16,6 +16,12 @@ import tarfile
 
 def adapt_source(text):
     text = re.sub(r"if \(!require\(pacman\)\) \{ install.packages\(\"pacman\"\) \}", "", text)
+    # This exact historical guard is obsolete after replacing p_load below.
+    # Do not remove unrelated dependency checks or alter analysis statements.
+    text = text.replace(
+        'if (!requireNamespace("pacman", quietly = TRUE)) {\n'
+        '  stop("The locked publication environment is missing pacman.")\n'
+        '}\n', '')
     text = text.replace("pacman::p_load(", "book_load_packages(")
     # Legacy loaders installed this unused animation package during rendering.
     # None of the published, evaluated analyses use it; keep both versions on

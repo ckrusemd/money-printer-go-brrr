@@ -3,6 +3,20 @@ from scripts.prepare_benchmark_baseline import adapt_source
 
 
 class BaselineAdapterTests(unittest.TestCase):
+    def test_obsolete_pacman_guard_is_removed_without_changing_analysis(self):
+        guard = ('if (!requireNamespace("pacman", quietly = TRUE)) {\n'
+                 '  stop("The locked publication environment is missing pacman.")\n'
+                 '}\n')
+        analysis = 'set.seed(1971)\nfit <- caret::train(x, ntree = 300)\n'
+        old = guard + 'pacman::p_load(fredr, dplyr)\n' + analysis
+        new = adapt_source(old)
+        self.assertEqual(new, 'book_load_packages(fredr, dplyr)\n' + analysis)
+        self.assertEqual(adapt_source(new), new)
+        unrelated = guard.replace('missing pacman.', 'a different dependency check.')
+        self.assertEqual(adapt_source(unrelated), unrelated)
+        self.assertEqual(adapt_source(guard.replace('pacman', 'digest')),
+                         guard.replace('pacman', 'digest'))
+
     def test_second_mortgage_workbook_read_uses_same_date_normalization(self):
         source = 'df_DK$date = as.Date(paste(df_DK$År, df_DK$Uge, 1, sep="-"), "%Y-%U-%u")\n'
         self.assertEqual(adapt_source(source),

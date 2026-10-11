@@ -159,7 +159,10 @@ Rscript --vanilla scripts/benchmark_book.R .cache/benchmark-baseline . .cache/be
 Run this in the locked publication container with `--network none`. It primes
 both versions, interleaves three measured renders each, and checks complete
 model results at a tolerance of `1e-8`. Acceptance requires at least 30% lower
-median warm runtime and no increase in median peak RSS. Historical ETF
+median warm runtime and no increase in either median or maximum warm-run peak
+RSS, with every measured warm RSS value finite and positive. The summary reports
+both warm medians/maxima and warmup peaks separately; warmup peaks are diagnostic,
+not part of the warm-run acceptance gates. Historical ETF
 duplicate-correlation differences are reported separately from model parity.
 Use new, empty baseline and artifact directories; existing evidence is preserved.
 

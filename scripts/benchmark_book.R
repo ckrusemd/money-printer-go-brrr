@@ -27,6 +27,33 @@ book_numeric_equal <- function(left, right, tolerance = 1e-8) {
   FALSE
 }
 
+book_benchmark_rss <- function(results) {
+  warm <- results[!results$warmup, , drop = FALSE]
+  statistic <- function(version, warmup, fun) {
+    values <- results$max_rss_kb[results$version == version & results$warmup == warmup]
+    if (!length(values)) return(NA_real_)
+    fun(values)
+  }
+  baseline_median <- statistic("baseline", FALSE, median)
+  optimized_median <- statistic("optimized", FALSE, median)
+  baseline_peak <- statistic("baseline", FALSE, max)
+  optimized_peak <- statistic("optimized", FALSE, max)
+  valid <- all(c("baseline", "optimized") %in% warm$version) &&
+    all(is.finite(warm$max_rss_kb) & warm$max_rss_kb > 0)
+  median_met <- valid && isTRUE(optimized_median <= baseline_median)
+  peak_met <- valid && isTRUE(optimized_peak <= baseline_peak)
+  data.frame(baseline_median_max_rss_kb = baseline_median,
+             optimized_median_max_rss_kb = optimized_median,
+             baseline_warm_peak_rss_kb = baseline_peak,
+             optimized_warm_peak_rss_kb = optimized_peak,
+             baseline_warmup_peak_rss_kb = statistic("baseline", TRUE, max),
+             optimized_warmup_peak_rss_kb = statistic("optimized", TRUE, max),
+             rss_measurements_valid = valid,
+             rss_median_target_met = median_met,
+             rss_peak_target_met = peak_met,
+             rss_target_met = median_met && peak_met)
+}
+
 book_install_correlation_capture <- function(config) {
   source(config$correlation_helper, local = TRUE)
   # Runtime/theme sourcing can reinstall book_timing; use an independent hook.
@@ -289,24 +316,22 @@ benchmark_book <- function(baseline, optimized, snapshots,
   writeLines(if (length(correlation_differences)) unique(correlation_differences) else "Correlations match.",
              file.path(artifacts, "historical-correlation-differences.txt"))
   medians <- tapply(results$elapsed_seconds[!results$warmup], results$version[!results$warmup], median)
-  rss_medians <- tapply(results$max_rss_kb[!results$warmup], results$version[!results$warmup], median)
+  rss_summary <- book_benchmark_rss(results)
   reduction <- 1 - medians[["optimized"]] / medians[["baseline"]]
-  rss_met <- all(is.finite(results$max_rss_kb[!results$warmup])) &&
-    rss_medians[["optimized"]] <= rss_medians[["baseline"]]
-  summary <- data.frame(baseline_median_seconds = medians[["baseline"]],
-                        optimized_median_seconds = medians[["optimized"]], reduction = reduction,
-                        baseline_median_max_rss_kb = rss_medians[["baseline"]],
-                        optimized_median_max_rss_kb = rss_medians[["optimized"]],
+  rss_met <- isTRUE(rss_summary$rss_target_met)
+  summary <- cbind(data.frame(baseline_median_seconds = medians[["baseline"]],
+                             optimized_median_seconds = medians[["optimized"]], reduction = reduction),
+                   rss_summary,
+                   data.frame(
                         model_results_equal = !length(differences),
                         correlations_audited = !is.null(correlation_audits) && correlation_parity_runs == 8L,
                         historical_correlation_differences = length(unique(correlation_differences)),
                         runtime_target_met = is.finite(reduction) && reduction >= 0.30,
-                        rss_target_met = rss_met,
-                        target_met = !length(differences) && is.finite(reduction) && reduction >= 0.30 && rss_met)
+                        target_met = !length(differences) && is.finite(reduction) && reduction >= 0.30 && rss_met))
   utils::write.csv(summary, file.path(artifacts, "summary.csv"), row.names = FALSE)
   if (length(differences)) stop("Numeric analysis differs; see numeric-comparison.txt")
   if (!is.finite(reduction) || reduction < 0.30) stop("Warm runtime reduction below 30%; see summary.csv")
-  if (!rss_met) stop("Peak RSS must be finite and optimized median must not exceed baseline; see summary.csv")
+  if (!rss_met) stop("Warm peak RSS must be finite and positive; optimized median and maximum must not exceed baseline; see summary.csv")
   invisible(summary)
 }
 
