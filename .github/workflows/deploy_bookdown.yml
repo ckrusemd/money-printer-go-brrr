@@ -53,7 +53,20 @@ jobs:
     timeout-minutes: 2
     outputs:
       image: ${{ steps.resolve.outputs.image }}
+      render_allowed: ${{ github.event_name != 'push' && 'true' || steps.push_guard.outputs.render_allowed || 'false' }}
     steps:
+      - name: Check out push commit for bounded image-input comparison
+        if: github.event_name == 'push'
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Defer main-push rendering when container inputs changed
+        id: push_guard
+        if: github.event_name == 'push'
+        timeout-minutes: 1
+        run: python3 scripts/publication_push_guard.py
       - name: Resolve publication image without accepting another repository
         id: resolve
         env:
@@ -78,6 +91,7 @@ jobs:
   build:
     needs: publication-image
     if: >-
+      needs.publication-image.outputs.render_allowed == 'true' &&
       !inputs.benchmark &&
       (github.event_name != 'workflow_dispatch' || !inputs.publish ||
        github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) &&

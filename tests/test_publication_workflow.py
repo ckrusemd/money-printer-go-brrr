@@ -68,6 +68,23 @@ class PublicationImageTests(unittest.TestCase):
         self.assertIn("--network none", benchmark)
         self.assertIn("github.event.workflow_run.head_sha == github.sha", build)
         self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository", build)
+        self.assertIn("github.event.workflow_run.repository.full_name == github.repository", build)
+        self.assertIn("github.event.workflow_run.head_branch == github.event.repository.default_branch", build)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", build)
+        self.assertIn("github.event.workflow_run.event != 'pull_request'", build)
+
+    def test_push_preflight_gates_before_container_start_and_leaves_other_events_alone(self):
+        preflight = self.workflow.split("  publication-image:\n", 1)[1].split("\n  build:\n", 1)[0]
+        build = self.workflow.split("\n  build:\n", 1)[1].split("\n  benchmark:\n", 1)[0]
+        self.assertIn("timeout-minutes: 2", preflight)
+        self.assertIn("render_allowed: ${{ github.event_name != 'push' && 'true' || steps.push_guard.outputs.render_allowed || 'false' }}", preflight)
+        self.assertEqual(preflight.count("if: github.event_name == 'push'"), 2)
+        self.assertEqual(preflight.count("timeout-minutes: 1"), 2)
+        self.assertIn("ref: ${{ github.sha }}", preflight)
+        self.assertIn("fetch-depth: 1", preflight)
+        self.assertIn("run: python3 scripts/publication_push_guard.py", preflight)
+        self.assertIn("needs.publication-image.outputs.render_allowed == 'true' &&", build)
+        self.assertLess(build.index("outputs.render_allowed"), build.index("    container:"))
 
     def test_failed_snapshots_are_diagnostic_only(self):
         def step(name):

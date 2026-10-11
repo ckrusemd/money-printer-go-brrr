@@ -254,6 +254,14 @@ publication. The container workflow rebuilds only when the R lockfile or
 container definition changes. The output check verifies the home-page title,
 gallery pages, and referenced chart images before Pages upload.
 
+When a main push also changes a container-build input, a bounded preflight
+successfully defers rendering to the successful same-SHA container callback
+instead of pulling old `latest`. It compares the entire push range; an unusable
+comparison also defers conservatively. Content-only pushes and non-push events
+are unchanged. If main advances during the container build, the stale callback
+is rejected: dispatch **Build R publication container** on current main to
+recover. There is no automatic waiting, retry loop, or dependency fallback.
+
 For candidate-image validation, dispatch the book workflow with `publish=false`
 and `publication_tag=candidate-<commit-sha>`; only tags in
 `ghcr.io/ckrusemd/money-printer-go-brrr-r` are accepted. Use the same tag with
