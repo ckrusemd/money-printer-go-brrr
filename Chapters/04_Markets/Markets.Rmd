@@ -13,7 +13,6 @@ book_load_packages(fredr,
                caret,
                partykit,
                pROC,
-               gganimate,
                devtools,
                gridExtra,
                httr,
@@ -145,7 +144,7 @@ series_ids_yahoo = unique(c("GC=F",
                             "SI=F",
                             "BTC-USD",
                             "ETH-USD",
-                            # "^RUT",
+                            "^RUT",
                             "^W5000",
                             "^IXIC",
                             "^GSPC",
@@ -242,7 +241,8 @@ market_chart_description <- function(label, currency) {
     "past-year prices; latest indicator heatmap with numerical labels; ",
     "price minus its 200-observation simple moving average; ",
     "30-observation relative strength index with reference lines at 20 and 70; ",
-    "currency and crude oil, silver, and gold comparisons where available; ",
+    "currency and crude oil, silver, and gold comparisons where available, ",
+    "with unavailable FX comparison data labeled in its panel; ",
     "nominal and inflation-adjusted series rebased to January 2015; ",
     "and the difference between those rebased series. ",
     "Dates run left to right. Non-trading days carry prices forward. ",
@@ -418,6 +418,14 @@ p6 = temp_df %>%
   theme_money_printer_go_brrr(12) +
   scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
   labs(x=NULL,y=NULL,subtitle="DKK")
+
+if (!any(is.finite(temp_df$index[temp_df$series_id == "USDDKK=X"]))) {
+  p6 <- ggplot() +
+    theme_void() +
+    annotate("text", x = 0, y = 0,
+             label = "FX comparison data unavailable for this chart", size = 3.5) +
+    labs(subtitle = "DKK")
+}
 
 # Oil
 p7 = temp_df %>%

@@ -41,6 +41,7 @@ jobs:
             --entrypoint /bin/bash -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
             ghcr.io/ckrusemd/money-printer-go-brrr-r:latest -euo pipefail -c '
               Rscript --vanilla scripts/check_sources.R
+              Rscript --vanilla scripts/check_publication_dependencies.R
               tests=(tests/test_*.R)
               test -f "${tests[0]}"
               for fixture in "${tests[@]}"; do

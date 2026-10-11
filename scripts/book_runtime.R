@@ -77,8 +77,8 @@ book_redact_parameters <- function(parameters) {
     name <- names(parameters)[i]
     if (!is.null(name) && !is.na(name) &&
         grepl("api.?key|token|secret|password|authorization|credential", name, ignore.case = TRUE)) {
-      result[[i]] <- "[redacted]"
-    } else result[[i]] <- book_redact_parameters(result[[i]])
+      result[i] <- list("[redacted]")
+    } else result[i] <- list(book_redact_parameters(result[[i]]))
   }
   result
 }

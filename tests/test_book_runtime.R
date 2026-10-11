@@ -1,4 +1,6 @@
 source("scripts/book_runtime.R")
+stopifnot(identical(book_redact_parameters(list(Symbols = "FIXTURE", env = NULL, src = "yahoo")),
+                    list(Symbols = "FIXTURE", env = NULL, src = "yahoo")))
 scratch <- tempfile("book-tests-")
 dir.create(scratch)
 .book_runtime$snapshots <- file.path(scratch, "inputs")
