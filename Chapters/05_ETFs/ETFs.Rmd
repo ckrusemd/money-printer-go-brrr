@@ -1,12 +1,12 @@
-```{r  include=FALSE}
+```{r  include=FALSE, fig.alt = "Market and macro data: chart of the series described in this section"}
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 options(scipen=999)
 ```
 
-```{r}
+```{r, fig.alt = "Market and macro data: chart of the series described in this section"}
 
-if (!require(pacman)) { install.packages("pacman") }
-pacman::p_load(fredr,
+if (!exists("book_load_packages", mode = "function")) source("scripts/book_runtime.R")
+book_load_packages(fredr,
                dplyr,
                tidyr,
                lubridate,
@@ -28,6 +28,7 @@ pacman::p_load(fredr,
                rvest,
                ggrepel)
 source(file = "money_theme.R")
+source(file = "scripts/analysis/correlations.R")
 ```
 
 # ETF Tracking and Analysis
@@ -48,7 +49,7 @@ On an *aktiesparekonto*, eligible holdings instead follow the account's **17% an
 The [2026 Positivliste CSV](https://github.com/ckrusemd/money-printer-go-brrr/blob/main/data/positivliste_2026.csv) is a dated copy of registered 2026 entries from Skattestyrelsen's workbook. The table below is the verified intersection with the two product lists, not every instrument on Positivlisten. The [SKAT securities-classification list](https://info.skat.dk/data.aspx?oid=2460620) provides the additional investment-fund status. A security is omitted when its tax status, account eligibility, or Yahoo symbol cannot be confirmed. These snapshots may become stale when SKAT or a fund changes its classification; confirm before trading or filing a return.
 Absence from the table—especially for an ETF outside Positivlisten—is not itself a tax classification.
 
-```{r danish-fund-tax-catalogue}
+```{r danish-fund-tax-catalogue, fig.alt = "Danish tax classification (2026): chart of the series described in this section"}
 fund_tax_catalogue <- read.csv(
   "data/investment_products_2026.csv",
   fileEncoding = "UTF-8",
@@ -76,14 +77,14 @@ DT::datatable(
 )
 ```
 
-```{r}
+```{r, fig.alt = "Danish tax classification (2026): chart of the series described in this section"}
 
 df_etfs = openxlsx::read.xlsx(xlsxFile = "Chapters/05_ETFs/etf_list.xlsx")
 
 get_yahoo_value = function(ticker, attempts = 3) {
   for (attempt in seq_len(attempts)) {
     prices = tryCatch(
-      getSymbols(ticker, env = NULL),
+      book_yahoo(ticker),
       error = function(error) NULL
     )
 
@@ -93,11 +94,11 @@ get_yahoo_value = function(ticker, attempts = 3) {
       as.data.frame(.) %>%
       dplyr::mutate(Date=row.names(.)) %>%
       dplyr::mutate(Date=gsub("X","",Date)) %>%
-      dplyr::mutate(Date=ymd(Date)) %>% 
-      dplyr::select(c(7,1)) %>% 
+      dplyr::mutate(Date=ymd(Date)) %>%
+      dplyr::select(c(7,1)) %>%
       setNames(.,c("date","value")) %>%
       dplyr::mutate(series_id=ticker)# %>%
-      # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+      # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
       # tidyr::fill(value,.direction = "down")  %>%
       # tidyr::fill(series_id,.direction = "down")
       )
@@ -112,23 +113,27 @@ get_yahoo_value = function(ticker, attempts = 3) {
 
 df_etf_yahoo = rbindlist(lapply(df_etfs$Ticker, get_yahoo_value), fill = TRUE)
 
+if (!nrow(df_etf_yahoo) || all(is.na(df_etf_yahoo$value))) {
+  stop("No current ETF price observations are available", call. = FALSE)
+}
+
 ```
 
 ## Historically cheap
 
-```{r}
-df_etf_yahoo %>% 
-  group_by(series_id) %>% 
-  filter(date>=Sys.Date()-years(5)) %>% 
-  dplyr::mutate(p_norm=pnorm(q = value,mean = mean(value),sd = sd(value))) %>% 
-  filter(date==max(date)) %>% 
-  ungroup() %>% 
-  arrange(p_norm) %>% 
-  dplyr::mutate(p_norm_label=scales::percent(p_norm,accuracy = 0.1)) %>% 
-  dplyr::select(series_id,p_norm_label) %>% 
-  inner_join(df_etfs,by=c("series_id"="Ticker")) %>% 
-  dplyr::select(series_id,p_norm_label,Name,Category,Subcategory,Yahoo.Finance.Link,Description) %>% 
-  datatable() # %>% 
+```{r, fig.alt = "Historically cheap: chart of the series described in this section"}
+df_etf_yahoo %>%
+  group_by(series_id) %>%
+  filter(date>=book_date()-years(5)) %>%
+  dplyr::mutate(p_norm=pnorm(q = value,mean = mean(value),sd = sd(value))) %>%
+  filter(date==max(date)) %>%
+  ungroup() %>%
+  arrange(p_norm) %>%
+  dplyr::mutate(p_norm_label=scales::percent(p_norm,accuracy = 0.1)) %>%
+  dplyr::select(series_id,p_norm_label) %>%
+  inner_join(df_etfs,by=c("series_id"="Ticker")) %>%
+  dplyr::select(series_id,p_norm_label,Name,Category,Subcategory,Yahoo.Finance.Link,Description) %>%
+  datatable() # %>%
   # ggplot(.,aes(x=Name,y=p_norm)) +
   # geom_col() +
   # facet_wrap(~Category)
@@ -137,94 +142,94 @@ df_etf_yahoo %>%
 ## Data sources and preparation {#data-1}
 
 
-```{r }
-# BYGV80_meta <- dst_meta(table = "BYGV80", lang = "da")
-BYGV80 <- dst_get_data(table = "BYGV80", 
+```{r , fig.alt = "Data sources and preparation: chart of the series described in this section"}
+# BYGV80_meta <- book_dst_metadata(table = "BYGV80", lang = "da")
+BYGV80 <- book_dst(table = "BYGV80",
                        BYGFASE="*",
                        ANVENDELSE="*",
                        Tid="*",
-                       lang = "da") %>% 
-  group_by(BYGFASE,ANVENDELSE) %>% 
-  arrange(BYGFASE,ANVENDELSE,TID) %>% 
-  filter(ANVENDELSE %in% c("Parcelhuse")) %>% 
-  ungroup() %>% 
+                       lang = "da") %>%
+  group_by(BYGFASE,ANVENDELSE) %>%
+  arrange(BYGFASE,ANVENDELSE,TID) %>%
+  filter(ANVENDELSE %in% c("Parcelhuse")) %>%
+  ungroup() %>%
   dplyr::select(BYGFASE,
                 TID,
-                value) %>% 
+                value) %>%
   dplyr::rename(series_id=BYGFASE,
                 date=TID)
-  
 
-# BYG1_meta <- dst_meta(table = "BYG1", lang = "da")
-BYG1 <- dst_get_data(table = "BYG1", 
+
+# BYG1_meta <- book_dst_metadata(table = "BYG1", lang = "da")
+BYG1 <- book_dst(table = "BYG1",
                        BRANCHE07="*",
                        SÆSON="*",
                        ART="*",
                        Tid="*",
-                       lang = "da") %>% 
-  filter(SÆSON=="Sæsonkorrigeret") %>% 
-  dplyr::mutate(filler="BYG1") %>% 
-  unite(series_id,filler,BRANCHE07,ART,sep = "_") %>% 
+                       lang = "da") %>%
+  filter(SÆSON=="Sæsonkorrigeret") %>%
+  dplyr::mutate(filler="BYG1") %>%
+  unite(series_id,filler,BRANCHE07,ART,sep = "_") %>%
   dplyr::select(series_id,
                 TID,
-                value) %>% 
+                value) %>%
   dplyr::rename(date=TID)
 
-# PRIS90_meta <- dst_meta(table = "PRIS90", lang = "da")
-PRIS90 <- dst_get_data(table = "PRIS90", 
+# PRIS90_meta <- book_dst_metadata(table = "PRIS90", lang = "da")
+PRIS90 <- book_dst(table = "PRIS90",
                        ENHED="*",
                        BOLTYP="*",
                        Tid="*",
-                       lang = "da") %>% 
-  dplyr::rename(date=TID) %>% 
-  filter(ENHED=="Indeks")  %>% 
-  unite(BOLTYP,BOLTYP,ENHED) %>% 
+                       lang = "da") %>%
+  dplyr::rename(date=TID) %>%
+  filter(ENHED=="Indeks")  %>%
+  unite(BOLTYP,BOLTYP,ENHED) %>%
   dplyr::rename(series_id=BOLTYP)
 
-# BYG42_meta <- dst_meta(table = "BYG42", lang = "da")
-BYG42 <- dst_get_data(table = "BYG42", 
+# BYG42_meta <- book_dst_metadata(table = "BYG42", lang = "da")
+BYG42 <- book_dst(table = "BYG42",
                        HINDEKS="*",
                        DINDEKS="*",
                        ART="*",
                        TAL="*",
                        Tid="*",
-                       lang = "da") %>% 
-  dplyr::rename(date=TID) %>% 
-  filter(DINDEKS=="Byggeomkostningsindeks i alt") %>% 
-  filter(TAL=="Indeks") %>% 
-  filter(ART %in% c("Materialer","Arbejdsomkostninger")) %>% 
-  dplyr::mutate(filler="BYG42") %>% 
-  unite(series_id,filler,HINDEKS,DINDEKS,ART,sep="_")%>% 
+                       lang = "da") %>%
+  dplyr::rename(date=TID) %>%
+  filter(DINDEKS=="Byggeomkostningsindeks i alt") %>%
+  filter(TAL=="Indeks") %>%
+  filter(ART %in% c("Materialer","Arbejdsomkostninger")) %>%
+  dplyr::mutate(filler="BYG42") %>%
+  unite(series_id,filler,HINDEKS,DINDEKS,ART,sep="_")%>%
   dplyr::select(series_id,
                 date,
-                value) 
+                value)
 
 ```
 
 
 ## FinansDanmark
 
-```{r}
+```{r, fig.alt = "FinansDanmark: chart of the series described in this section"}
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
 xlsx_url = finansdanmark_xlsx_url(source_url)
 
-df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
+df_interest = book_workbook(url = xlsx_url,startRow = 1)
 df_interest$År[1] = 1997
 df_interest = df_interest %>% fill(År,.direction = "down")
 df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
-df_interest = df_interest %>% 
-  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
-  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>% 
-  gather(series_id,value,CurveLongShort,Lang.rente,Kort.rente) %>% 
-  dplyr::rename(date=Date) %>% 
+df_interest = df_interest %>%
+  dplyr::select(Date,Kort.rente,Lang.rente) %>%
+  dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>%
+  gather(series_id,value,CurveLongShort,Lang.rente,Kort.rente) %>%
+  dplyr::rename(date=Date) %>%
   dplyr::select(date,value,series_id)
 
 ```
 
 ## FRED
 
-```{r}
+```{r, fig.alt = "FRED: chart of the series described in this section"}
 series_ids = unique(c("CBBTCUSD",
                "NASDAQCOM",
                "T10Y2Y",
@@ -282,18 +287,18 @@ series_ids = unique(c("CBBTCUSD",
                "MSPUS"))
 
 df_macro_fred = rbindlist(lapply(series_ids,function(series_id) {
-  fredr::fredr_series_observations(series_id = series_id) %>% 
-  dplyr::select(date,value) %>% 
-    dplyr::mutate(series_id=series_id) #%>% 
-    # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
-    # tidyr::fill(value,.direction = "down")  %>% 
-    # tidyr::fill(series_id,.direction = "down") 
+  book_fred(series_id = series_id) %>%
+  dplyr::select(date,value) %>%
+    dplyr::mutate(series_id=series_id) #%>%
+    # tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
+    # tidyr::fill(value,.direction = "down")  %>%
+    # tidyr::fill(series_id,.direction = "down")
 }))
 ```
 
 ## Yahoo
 
-```{r}
+```{r, fig.alt = "Yahoo: chart of the series described in this section"}
 
 series_ids_yahoo = unique(c("AAPL",
                             "JNJ",
@@ -315,17 +320,17 @@ df_macro_yahoo = rbindlist(lapply(series_ids_yahoo, get_yahoo_value), fill = TRU
 
 ## Assemble ETF series {#combine-2}
 
-## All Data
+## Validate observations and remove identical repeats
 
-```{r}
+```{r, fig.alt = "Validate observations and remove identical repeats: chart of the series described in this section"}
 
-df_all = df_macro_yahoo %>% 
-  bind_rows( df_macro_fred ) %>% 
-  bind_rows( df_etf_yahoo ) %>% 
-  bind_rows(df_interest) %>% 
-  bind_rows(BYG42) %>% 
+df_all = df_macro_yahoo %>%
+  bind_rows( df_macro_fred ) %>%
+  bind_rows(df_interest) %>%
+  bind_rows(BYG42) %>%
   bind_rows(PRIS90) %>%
   bind_rows(BYGV80)
+df_all = book_prepare_correlations(df_all)
 all_ids = unique(df_all$series_id)
 
 rm(df_macro_yahoo)
@@ -334,59 +339,26 @@ rm(df_etf_yahoo)
 gc()
 ```
 
-## Generate ETF comparisons {#combine-3}
+## Align every directed ETF comparison {#combine-3}
 
-```{r}
-df_combinations = expand.grid(x1=all_ids,
-                              x2=all_ids) %>% 
-  filter(!x1==x2)
+```{r, fig.alt = "Align every directed ETF comparison: chart of the series described in this section"}
+# Alignment matches shared dates and omits pairs of missing values, without
+# adding dates, filling observations, changing prices, or resampling series.
 ```
 
 ## Cross correlations
 
-```{r}
+Cross correlation measures association, not causation. A leading lag does not establish a causal effect or a reliable forecast. The 30, 365 and 1,825 horizons count aligned observations, which are not necessarily calendar days for mixed-frequency sources. Comparisons with insufficient overlap or constant values remain in the results with undefined (`NA`) correlations.
 
-df_combinations_split = split(df_combinations,df_combinations$x1)
-```
-
-
-```{r}
-calc_ccf = function(data) {
-  ## 30 days
-  ccf_results = ccf(data$value.x,data$value.y,lag.max = 30,plot = FALSE)
-  best_corr_index_30 = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
-  best_corr_time_30 = ccf_results$lag[best_corr_index_30]
-  best_corr_value_30 = ccf_results$acf[best_corr_index_30]
-  ## 365 days
-  ccf_results = ccf(data$value.x,data$value.y,lag.max = 365,plot = FALSE)
-  best_corr_index_365 = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
-  best_corr_time_365 = ccf_results$lag[best_corr_index_365]
-  best_corr_value_365 = ccf_results$acf[best_corr_index_365]
-  ## 1825 days
-  ccf_results = ccf(data$value.x,data$value.y,lag.max = 1825,plot = FALSE)
-  best_corr_index_1825 = which(abs(ccf_results$acf)==max(abs(ccf_results$acf)))
-  best_corr_time_1825 = ccf_results$lag[best_corr_index_1825]
-  best_corr_value_1825 = ccf_results$acf[best_corr_index_1825]
-  
-  data.frame(best_corr_time_30,best_corr_value_30,
-             best_corr_time_365,best_corr_value_365,
-             best_corr_time_1825,best_corr_value_1825)
-}
-df_ccfs = do.call("rbind",lapply(df_combinations_split,function(split_) { split_ %>%
-  inner_join(df_all,by=c("x1"="series_id")) %>%
-  inner_join(df_all,by=c("x2"="series_id","date"="date")) %>%
-  dplyr::select(-date) %>% 
-  na.omit() %>% 
-  group_by(x1,x2) %>%
-  do(calc_ccf(.))
-})) %>%
+```{r, fig.alt = "Cross correlations: chart of the series described in this section"}
+df_ccfs = book_correlations(df_all, namespace = "etf-correlations") %>%
   dplyr::mutate(best_corr_time = best_corr_time_365,
                 best_corr_value = best_corr_value_365)
 ```
 
 
-```{r}
-df_ccfs %>% 
+```{r, fig.alt = "Cross correlations: chart of the series described in this section"}
+df_ccfs %>%
   ggplot(.,aes(x=best_corr_time,y=best_corr_value)) +
   geom_point() +
   geom_vline(xintercept = 0,linetype=2) +
@@ -399,23 +371,23 @@ df_ccfs %>%
 
 ## Most dominating current indicators
 
-```{r}
+```{r, fig.alt = "Most dominating current indicators: chart of the series described in this section"}
 
 df_threshold_indicators = do.call("rbind",lapply(seq(0,1,by=0.01),function(threshold)  {
-  df_ccfs %>% 
-    filter(abs(best_corr_value)>=threshold) %>% 
-    group_by(x1) %>% 
-    dplyr::summarize(count=n()) %>% 
-    ungroup() %>% 
+  df_ccfs %>%
+    filter(abs(best_corr_value)>=threshold) %>%
+    group_by(x1) %>%
+    dplyr::summarize(count=n()) %>%
+    ungroup() %>%
     dplyr::mutate(threshold=threshold)
 }))
 
-df_threshold_indicators %>% 
-  filter(threshold>0.95) %>% 
+df_threshold_indicators %>%
+  filter(threshold>0.95) %>%
   arrange(desc(count))
 
-df_threshold_indicators %>% 
-  filter(threshold>0.95) %>% 
+df_threshold_indicators %>%
+  filter(threshold>0.95) %>%
   ggplot(.,aes(x=threshold,y=count,color=x1)) +
   geom_line() +
   theme(legend.position="null")
@@ -423,42 +395,42 @@ df_threshold_indicators %>%
 
 ## Export
 
-```{r}
+```{r, fig.alt = "Export: chart of the series described in this section"}
 
-df_etfs %>% 
-  inner_join(df_ccfs,by=c("Ticker"="x1")) %>% 
-  filter(abs(best_corr_value)>0.8) %>% 
-  filter(x2 %in% series_ids) %>% 
+df_etfs %>%
+  inner_join(df_ccfs,by=c("Ticker"="x1")) %>%
+  filter(abs(best_corr_value)>0.8) %>%
+  filter(x2 %in% series_ids) %>%
   dplyr::select(Ticker,
                 Name,
                 Category,
                 Subcategory,
                 x2,
-                best_corr_value) %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
-  arrange(Ticker,desc(best_corr_value)) %>% 
+                best_corr_value) %>%
+  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>%
+  arrange(Ticker,desc(best_corr_value)) %>%
   datatable()
 
 # openxlsx::write.xlsx(df_export,file = "etf_correlations.xlsx")
 ```
 
-## Main graph
+## Association graph
 
-```{r}
+```{r, fig.alt = "Association graph: chart of the series described in this section"}
 # Load required libraries
 library(igraph)
 
-# Create a data frame representing the causal structure
-causal_structure = df_ccfs %>% 
-  filter(abs(best_corr_value)>0.9) %>% 
+# Create a data frame representing strong associations
+association_structure = df_ccfs %>%
+  filter(abs(best_corr_value)>0.9) %>%
   dplyr::rename(from=x1,
-                to=x2) %>% 
+                to=x2) %>%
   dplyr::mutate(sign=ifelse(best_corr_value>0,"positive","negative"),
-                strength=scales::rescale(abs(best_corr_value),to = c(0,1),from = c(0,1))) %>% 
+                strength=scales::rescale(abs(best_corr_value),to = c(0,1),from = c(0,1))) %>%
   dplyr::select(from,to,sign,strength)
 
 # Convert the data frame to edge_directions
-edge_directions <- as.vector(t(causal_structure[, c("from", "to")]))
+edge_directions <- as.vector(t(association_structure[, c("from", "to")]))
 
 # Create a graph object with edge_directions
 g <- graph(edge_directions, directed = TRUE)
@@ -466,8 +438,8 @@ g <- graph(edge_directions, directed = TRUE)
 # Create a named vector of colors for positive and negative relationships
 edge_colors <- c("positive" = "blue", "negative" = "red")
 
-# Map the colors and thickness to the edges based on the 'sign' and 'strength' columns in causal_structure
-E(g)$color <- edge_colors[causal_structure$sign]
+# Map the colors and thickness using the observed sign and strength
+E(g)$color <- edge_colors[association_structure$sign]
 
 # Normalize the strength values and map them to edge.width
 normalize_strength <- function(strength, min_width, max_width) {
@@ -476,15 +448,15 @@ normalize_strength <- function(strength, min_width, max_width) {
   return(arrow_width)
 }
 
-normalized_strength <- normalize_strength(causal_structure$strength, min_width = 0.5, max_width = 2)
+normalized_strength <- normalize_strength(association_structure$strength, min_width = 0.5, max_width = 2)
 E(g)$width <- normalized_strength
 
-# Plot the causal graph with colored and thickness-scaled arrows
+# Plot the association graph with colored and thickness-scaled arrows
 plot(g, vertex.label.family = "sans", vertex.label.font = 2, vertex.label.cex = 0.6, edge.arrow.size = 0.2)
 
 ```
 
-```{r}
+```{r, fig.alt = "Association graph: chart of the series described in this section"}
 # Load required libraries
 library(visNetwork)
 library(dplyr)
@@ -494,8 +466,8 @@ corr_extra = data.frame(x1=all_ids,
                         best_corr_value=1)
 
 filtered_cor_df <- df_ccfs %>%
-  ungroup() %>% 
-  filter(x1 %in% c("Lang.rente","Kort.rente")) %>% 
+  ungroup() %>%
+  filter(x1 %in% c("Lang.rente","Kort.rente")) %>%
   filter(abs(best_corr_value) > 0.7)
 
 # Create a nodes data frame
@@ -518,38 +490,38 @@ visNetwork(nodes, edges) %>%
 
 ## Bitcoin
 
-```{r}
+```{r, fig.alt = "Bitcoin: chart of the series described in this section"}
 
-df_ccfs %>% 
-  filter(x1=="CBBTCUSD") %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
+df_ccfs %>%
+  filter(x1=="CBBTCUSD") %>%
+  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>%
   datatable()
 
 ```
 
 ## Short housing
 
-```{r}
-df_ccfs %>% 
-  filter(x1=="CSUSHPINSA") %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
+```{r, fig.alt = "Short housing: chart of the series described in this section"}
+df_ccfs %>%
+  filter(x1=="CSUSHPINSA") %>%
+  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>%
   datatable()
 ```
 
 ## Short DFF
 
-```{r}
-df_ccfs %>% 
-  filter(x1=="DFF") %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
+```{r, fig.alt = "Short DFF: chart of the series described in this section"}
+df_ccfs %>%
+  filter(x1=="DFF") %>%
+  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>%
   datatable()
 ```
 ## Short Treasury
 
-```{r}
-df_ccfs %>% 
-  filter(x1=="DGS30") %>% 
-  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>% 
+```{r, fig.alt = "Short Treasury: chart of the series described in this section"}
+df_ccfs %>%
+  filter(x1=="DGS30") %>%
+  dplyr::mutate(best_corr_value=scales::number(best_corr_value,accuracy=0.01)) %>%
   datatable()
 ```
 

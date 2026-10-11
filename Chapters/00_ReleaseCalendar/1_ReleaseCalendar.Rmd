@@ -1,12 +1,12 @@
-```{r  include=FALSE}
+```{r  include=FALSE, fig.alt = "Market and macro data: chart of the series described in this section"}
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 options(scipen=999)
 ```
 
-```{r}
+```{r, fig.alt = "Market and macro data: chart of the series described in this section"}
 
-if (!require(pacman)) { install.packages("pacman") }
-pacman::p_load(fredr,
+if (!exists("book_load_packages", mode = "function")) source("scripts/book_runtime.R")
+book_load_packages(fredr,
                dplyr,
                tidyr,
                lubridate,
@@ -36,14 +36,14 @@ source(file = "money_theme.R")
 
 # Economic Release Calendar
 
-```{r }
-readRenviron(path = "Renviron.site")
-fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
+```{r , fig.alt = "Economic Release Calendar: chart of the series described in this section"}
+if (file.exists("Renviron.site")) readRenviron(path = "Renviron.site")
+if (.book_runtime$mode != "replay") fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
-```{r}
+```{r, fig.alt = "Economic Release Calendar: chart of the series described in this section"}
 df_series = do.call("rbind",lapply(c(0,1000*seq(10)),function(offset_) {
-fredr::fredr_tags_series("nsa",order_by = "popularity",sort_order = "desc",offset = offset_)
+book_fred_metadata("fredr_tags_series", "nsa",order_by = "popularity",sort_order = "desc",offset = offset_)
 })) %>%
   filter(frequency_short %in% c("M","W","Q")) %>%
   dplyr::select(id,title,frequency_short,last_updated,popularity)
@@ -52,7 +52,7 @@ fredr::fredr_tags_series("nsa",order_by = "popularity",sort_order = "desc",offse
 ## Function
 
 
-```{r}
+```{r, fig.alt = "Function: chart of the series described in this section"}
 draw_plots = function(data) {
 
 # All time plot
@@ -68,12 +68,12 @@ p1 = data %>%
 
 # Last year
 p2 = data %>%
-  filter(date>=Sys.Date()-years(1)) %>%
+  filter(date>=book_date()-years(1)) %>%
   ggplot(.,aes(x=date,y=value)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
   scale_x_date(date_labels = "%b",date_breaks = "1 month") +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   labs(x=NULL,y=NULL)
 
 # SMA
@@ -81,7 +81,7 @@ p3 = data %>%
   arrange(date) %>%
   dplyr::mutate(sma200=TTR::SMA(value,n=200)) %>%
   dplyr::mutate(value=value-sma200) %>%
-  filter(date>=Sys.Date()-years(1)) %>%
+  filter(date>=book_date()-years(1)) %>%
   ggplot(.,aes(x=date,y=value)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -93,7 +93,7 @@ p3 = data %>%
 p4 = data %>%
   arrange(date) %>%
   dplyr::mutate(rsi=TTR::RSI(value,n=30)) %>%
-  filter(date>=Sys.Date()-years(1)) %>%
+  filter(date>=book_date()-years(1)) %>%
   ggplot(.,aes(x=date,y=rsi)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -109,27 +109,27 @@ print(p5)
 
 ## All
 
-```{r}
+```{r, fig.alt = "All: chart of the series described in this section"}
 df_series %>%
   head(100) %>%
   DT::datatable()
 ```
 
 
-```{r}
+```{r, fig.alt = "All: chart of the series described in this section"}
 top_x = df_series %>%
   head(25) %>%
   pull(id)
 ```
 
 
-```{r}
+```{r, fig.alt = "All: chart of the series described in this section"}
 df_data = rbindlist(lapply(top_x,function(series_id) {
 
-  series_info = fredr::fredr_series(series_id) %>%
+  series_info = book_fred_metadata("fredr_series", series_id) %>%
     dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
   fredr_cached(series_id = series_id) %>%
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
     tidyr::fill(value,.direction = "down") %>%
     tidyr::fill(series_id,.direction = "down") %>%
       dplyr::select(-realtime_start,-realtime_end) %>%
@@ -138,7 +138,7 @@ df_data = rbindlist(lapply(top_x,function(series_id) {
 }),fill=TRUE)
 ```
 
-```{r fig.height=20,fig.width=10}
+```{r fig.height=20,fig.width=10, fig.alt = "All: chart of the series described in this section"}
 for (series in unique(df_data$series_id)) {
   draw_plots(data = df_data %>% filter(series_id==series))
 }
@@ -146,27 +146,27 @@ for (series in unique(df_data$series_id)) {
 
 ## Last week
 
-```{r}
+```{r, fig.alt = "Last week: chart of the series described in this section"}
 df_series %>%
-  filter(last_updated>=Sys.Date()-days(7)) %>%
+  filter(last_updated>=book_date()-days(7)) %>%
   DT::datatable()
 ```
 
-```{r}
+```{r, fig.alt = "Last week: chart of the series described in this section"}
 top_x = df_series %>%
-  filter(last_updated>=Sys.Date()-days(7)) %>%
+  filter(last_updated>=book_date()-days(7)) %>%
   head(25) %>%
   pull(id)
 ```
 
 
-```{r}
+```{r, fig.alt = "Last week: chart of the series described in this section"}
 df_data = rbindlist(lapply(top_x,function(series_id) {
 
-  series_info = fredr::fredr_series(series_id) %>%
+  series_info = book_fred_metadata("fredr_series", series_id) %>%
     dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
   fredr_cached(series_id = series_id) %>%
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
     tidyr::fill(value,.direction = "down") %>%
     tidyr::fill(series_id,.direction = "down") %>%
       dplyr::select(-realtime_start,-realtime_end) %>%
@@ -175,7 +175,7 @@ df_data = rbindlist(lapply(top_x,function(series_id) {
 }),fill=TRUE)
 ```
 
-```{r fig.height=20,fig.width=10}
+```{r fig.height=20,fig.width=10, fig.alt = "Last week: chart of the series described in this section"}
 
 for (series in unique(df_data$series_id)) {
   draw_plots(data = df_data %>% filter(series_id==series))
@@ -186,15 +186,15 @@ for (series in unique(df_data$series_id)) {
 
 ## Unemployment
 
-```{r}
+```{r, fig.alt = "Unemployment: chart of the series described in this section"}
 
 top_x = c("ICSA","UNRATE","CCSA","PAYEMS","CIVPART","HOHWMN02USM065S","CES0500000017","ADPWNUSNERSA","M08343USM232SNBR","LES1252881600Q")
 df_data = rbindlist(lapply(top_x,function(series_id) {
 
-  series_info = fredr::fredr_series(series_id) %>%
+  series_info = book_fred_metadata("fredr_series", series_id) %>%
     dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
   fredr_cached(series_id = series_id) %>%
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
     tidyr::fill(value,.direction = "down") %>%
     tidyr::fill(series_id,.direction = "down") %>%
       dplyr::select(-realtime_start,-realtime_end) %>%
@@ -205,7 +205,7 @@ df_data = rbindlist(lapply(top_x,function(series_id) {
 
 
 
-```{r fig.height=20,fig.width=10}
+```{r fig.height=20,fig.width=10, fig.alt = "Unemployment: chart of the series described in this section"}
 
 for (series in unique(df_data$series_id)) {
   draw_plots(data = df_data %>% filter(series_id==series))
@@ -216,15 +216,15 @@ for (series in unique(df_data$series_id)) {
 ## U6 vs UNRATE
 
 
-```{r}
+```{r, fig.alt = "U6 vs UNRATE: chart of the series described in this section"}
 
 unrates = c("UNRATE","U6RATE")
 df_u6 = rbindlist(lapply(unrates,function(series_id) {
 
-  series_info = fredr::fredr_series(series_id) %>%
+  series_info = book_fred_metadata("fredr_series", series_id) %>%
     dplyr::select(id,title,frequency,units_short,seasonal_adjustment_short,popularity)
   fredr_cached(series_id = series_id) %>%
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
     tidyr::fill(value,.direction = "down") %>%
     tidyr::fill(series_id,.direction = "down") %>%
       dplyr::select(-realtime_start,-realtime_end) %>%

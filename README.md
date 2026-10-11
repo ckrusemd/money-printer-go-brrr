@@ -10,6 +10,11 @@ A collection of macroeconomic analysis notebooks covering interest rates, housin
 ├── index.Rmd                     # Bookdown entry point
 ├── _bookdown.yml                 # Published chapter order
 ├── money_theme.R                 # Shared ggplot2 theme
+├── scripts/
+│   ├── book_runtime.R            # Shared source retrieval, derived cache, timing
+│   ├── book-style.css            # Accessible links and responsive book layout
+│   └── check_bookdown_output.R   # Rendered page and chart-image checks
+├── tests/                        # Runtime fixtures and investment catalogue tests
 ├── Chapters/
 │   ├── 00_ReleaseCalendar/       # Economic release calendar
 │   ├── 01_Indicators/            # Leading & lagging indicators
@@ -50,15 +55,94 @@ A collection of macroeconomic analysis notebooks covering interest rates, housin
 git clone https://github.com/ckrusemd/money-printer-go-brrr.git
 cd money-printer-go-brrr
 
-# Set up FRED API key locally (do not commit this file)
-echo "FRED_API=your_key_here" > .Renviron
+# Supply FRED credentials in the process environment (do not commit credentials)
+export FRED_API=your_key_here
 
 # Restore R dependencies
 Rscript -e "renv::restore()"
 
 # Build the book
-Rscript -e "bookdown::render_book('index.Rmd', output_format = 'bookdown::gitbook')"
+Rscript --vanilla -e "bookdown::render_book('index.Rmd', output_format = 'bookdown::gitbook')"
 ```
+
+Dependency restoration is an explicit setup step. Rendering uses the installed,
+locked dependencies and must not restore the environment or install packages
+from inside a chapter.
+`Rscript --vanilla` does not automatically read `.Renviron`; export `FRED_API`
+before rendering, as above.
+
+### Book runtime and freshness
+
+The first hidden setup chunk in `index.Rmd` sources `scripts/book_runtime.R`
+once, before loading chapters. `money_theme.R` loads it only if `book_fred`
+is missing, so repeated theme loads preserve the render's source cache.
+
+- `book_fred(series_id, ...)` forwards observation requests to FRED.
+- `book_yahoo(ticker, ...)` returns an xts price history like
+  `quantmod::getSymbols(ticker, env = NULL)`; it does not assign symbols.
+- `book_dst(...)` forwards requests to Statistics Denmark.
+- `book_load_packages(...)` loads installed dependencies and fails if one is
+  missing; it never installs packages.
+- `book_date()` gives the build's fixed analysis date, optionally set with
+  `BOOK_AS_OF=YYYY-MM-DD`.
+- `book_cache_derived(namespace, inputs, compute, packages = character(), code = NULL)`
+  calls the zero-argument `compute` function on a miss. Keys include input
+  content, computation code, declared package versions, R version, and RNG
+  state. On a hit it restores the RNG state that followed the original
+  computation. Include every external input in `inputs` and helper definitions
+  in `code` when they affect a result.
+
+`BOOK_SNAPSHOT_MODE` defaults to `live`: retrieve current essential data and
+deduplicate identical requests within the render. `record` also saves source
+responses and a manifest; `replay` reads those snapshots for reproducible,
+offline validation and fails on missing requests. Replay is for validation,
+not scheduled publication. Live retrieval failures must not fall back to
+old snapshots. Derived cache hits reuse calculations only after their input
+content matches.
+
+`BOOK_SNAPSHOT_DIR`, `BOOK_DERIVED_DIR`, and `BOOK_METRICS_FILE` default to
+`.cache/book-inputs`, `.cache/book-derived`, and `.cache/book-metrics.csv`.
+Keep benchmark runs isolated and use the same recorded inputs and `BOOK_AS_OF`
+for cold/warm comparisons. The optimization target is at least a 30% reduction
+in warm full-book runtime while preserving methods and chart coverage;
+measure it from completed renders rather than cache-hit counts alone.
+
+The homepage distinguishes compilation time in `Europe/Copenhagen` from
+observation dates, release lags, revisions, and carried-forward market prices.
+Its [data-status appendix](https://ckrusemd.github.io/money-printer-go-brrr/data-status.html)
+lists provider retrieval times, latest observation dates, and failed optional
+requests for the edition. The manifest records request parameters without secrets.
+The Danish tax tables below are dated source snapshots.
+
+### Validation
+
+```bash
+# Offline runtime fixtures: retrieval failures, cache keys, and RNG behavior
+Rscript --vanilla tests/test_book_runtime.R
+
+# Python fixture suite (no external data needed)
+python3 -m unittest discover -s tests -p 'test_*.py'
+
+# Check shared R syntax
+Rscript --vanilla -e "invisible(parse(file = 'money_theme.R')); invisible(parse(file = 'scripts/book_runtime.R'))"
+
+# After a complete book render, check page titles, galleries, and chart images
+Rscript --vanilla scripts/check_bookdown_output.R
+```
+
+Run R checks in the publication container if local locked packages are unavailable:
+
+```bash
+sudo -n docker run --rm \
+  -v "$PWD:/project" -w /project \
+  ghcr.io/ckrusemd/money-printer-go-brrr-r:latest \
+  Rscript --vanilla tests/test_book_runtime.R
+```
+
+Gallery alternative text identifies panel order, units, and unavailable data.
+When editing charts, preserve the statistical settings, chart coverage, existing
+page URLs, and explicit anchor IDs, and keep descriptions accurate. Paired
+notebooks must be synchronized by the worker responsible for that handoff.
 
 ### Data Pipeline
 
@@ -84,7 +168,7 @@ To refresh, download separate ETF and investment-fund exports locally and run:
 python3 scripts/build_investment_catalogue.py \
   --etfs /path/to/etfs.csv \
   --funds /path/to/investment-funds.csv
-python3 -m unittest tests.test_investment_catalogue
+python3 -m unittest discover -s tests -p 'test_investment_catalogue.py'
 ```
 
 The source exports stay outside the repository. The script retrieves the
@@ -98,10 +182,37 @@ worksheet selection must be updated for a new income year.
 ### Knowledge Graph Dashboard
 
 ```bash
-cd knowledgegraph/app
-pip install -r requirements.txt
-python dashboard.py    # Runs on http://localhost:8051
+python -m pip install -r knowledgegraph/app/requirements.txt
+python knowledgegraph/app/run_app.py    # http://localhost:8051
+# Direct launch also works:
+python knowledgegraph/app/dashboard.py
 ```
+
+Both entry points work from any working directory when invoked by their absolute
+path. The default database is `knowledgegraph/app/knowledge_graph.db`, resolved
+relative to the dashboard module. Set `KNOWLEDGE_GRAPH_DB_PATH` to use another
+existing DuckDB file; relative overrides also resolve from `knowledgegraph/app`.
+Connections are read-only, and starting the dashboard never creates or refreshes
+the database. Missing data displays a diagnostic message; an absent optional
+stock-relationships table leaves the other tabs available.
+
+The port defaults to **8051** (`KNOWLEDGE_GRAPH_PORT` overrides it). Debug mode is
+off by default; explicitly set `KNOWLEDGE_GRAPH_DEBUG=true` for development.
+Network layouts are deterministic (spring seed 42) and use a bounded 16-entry
+cache keyed by nodes, weighted edges, and layout, so changing node size reuses
+positions. The heatmap preserves measured zeros, fills missing reverse pairs
+only, leaves unavailable correlations blank, and uses aligned axes for the
+self-correlation diagonal; conflicting observed directions remain as recorded.
+These display fixes do not alter the database schema or stored values.
+
+Run dashboard regression tests with disposable fixture databases:
+
+```bash
+python -m unittest discover -s tests -p test_dashboard.py -v
+```
+
+Configuration tests run with the standard library. Database/rendering tests skip
+with an explicit reason if dashboard dependencies are unavailable.
 
 ## CI/CD
 

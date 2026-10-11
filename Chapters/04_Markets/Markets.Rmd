@@ -5,8 +5,8 @@ options(scipen=999)
 
 ```{r}
 
-if (!require(pacman)) { install.packages("pacman") }
-pacman::p_load(fredr,
+if (!exists("book_load_packages", mode = "function")) source("scripts/book_runtime.R")
+book_load_packages(fredr,
                dplyr,
                tidyr,
                lubridate,
@@ -37,55 +37,53 @@ library(dkstat)
 ```
 
 ```{r }
-readRenviron(path = "Renviron.site")
-fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
+if (file.exists("Renviron.site")) readRenviron(path = "Renviron.site")
+if (.book_runtime$mode != "replay") fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
 ```
 
 # Equity Markets and the S&P 500
 
-Price index DK
+Start with the six price snapshots below, then follow each link to its detailed indicator panel. The [market gallery](market-chart-gallery.html) covers broad indices and commodities; the [bond ETF gallery](bond-etf-chart-gallery.html) and [sector ETF gallery](sector-etf-chart-gallery.html) group fund histories by exposure.
+
+Prices are quoted in the currency shown on each chart. The galleries compare nominal prices with inflation, currencies, and commodities, and include moving averages and momentum indicators. Their heatmap scores locate an indicator within its historical distribution; they are not probabilities of a future gain. Non-trading days carry the most recent observation forward, so a plotted daily point need not represent a trade that day.
 
 ```{r}
 # Indexed to 2015
-df_PRIS114 = dkstat::dst_get_data(table = "PRIS114",
+df_PRIS114 = book_dst(table = "PRIS114",
                      VAREGR = "00 Nettoprisindeks i alt",
                      ENHED = "Indeks",
-                     Tid = "*") %>% 
+                     Tid = "*") %>%
   dplyr::mutate(TID=as.Date(TID)) %>%
-  arrange(TID) %>% 
-  dplyr::mutate(Index=value/100) %>% 
-  tidyr::complete(TID=seq.Date(from=min(TID,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
-  tidyr::fill(TID,.direction = "down")  %>% 
-  tidyr::fill(value,.direction = "down")   %>% 
-  tidyr::fill(VAREGR,.direction = "down")   %>% 
-  tidyr::fill(ENHED,.direction = "down")    %>% 
-  tidyr::fill(Index,.direction = "down") %>% 
-  dplyr::select(TID,value) %>% 
-  dplyr::rename(date=TID) %>% 
+  arrange(TID) %>%
+  dplyr::mutate(Index=value/100) %>%
+  tidyr::complete(TID=seq.Date(from=min(TID,na.rm=T),to=book_date(),by="1 day")) %>%
+  tidyr::fill(TID,.direction = "down")  %>%
+  tidyr::fill(value,.direction = "down")   %>%
+  tidyr::fill(VAREGR,.direction = "down")   %>%
+  tidyr::fill(ENHED,.direction = "down")    %>%
+  tidyr::fill(Index,.direction = "down") %>%
+  dplyr::select(TID,value) %>%
+  dplyr::rename(date=TID) %>%
   dplyr::mutate(series_id="PRICE_INDEX",
                 currency="DKK")
 
 ```
 
-Price index US
-
 ```{r}
-df_CPIAUCNS = fredr::fredr("CPIAUCNS") %>% 
+df_CPIAUCNS = book_fred("CPIAUCNS") %>%
     dplyr::select(series_id,
                   date,
-                  value) %>% 
-    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>% 
-    tidyr::fill(value,.direction = "down") %>% 
-    tidyr::fill(series_id,.direction = "down") %>% 
-  dplyr::mutate(index=ifelse(date==ymd("2015-01-01"),value,NA)) %>% 
-  tidyr::fill(index,.direction = "downup") %>% 
+                  value) %>%
+    tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
+    tidyr::fill(value,.direction = "down") %>%
+    tidyr::fill(series_id,.direction = "down") %>%
+  dplyr::mutate(index=ifelse(date==ymd("2015-01-01"),value,NA)) %>%
+  tidyr::fill(index,.direction = "downup") %>%
   dplyr::mutate(value=100*value/index,
                 series_id="PRICE_INDEX",
-                currency="USD") %>% 
+                currency="USD") %>%
   dplyr::select(-index)
 ```
-
-Index 1 (To keep nominal prices)
 
 ```{r}
 df_nominal = expand.grid(currency=c("USD","DKK"),
@@ -94,8 +92,6 @@ df_nominal = expand.grid(currency=c("USD","DKK"),
                          date=seq.Date(min(df_CPIAUCNS$date),max(df_CPIAUCNS$date),by="1 day"))
 ```
 
-
-Gold price, Silver Price, Oil Price, Bitcoin, USD
 
 ```{r}
 
@@ -107,69 +103,42 @@ series_ids_yahoo = unique(c("CL=F",
                             "USDDKK=X"))
 
 df_macro_yahoo = rbindlist(lapply(series_ids_yahoo,function(ticker) {
-      temp_df = getSymbols(ticker, env = NULL) %>% 
-      as.data.frame(.) %>% 
-      dplyr::mutate(Date=row.names(.)) %>% 
-      dplyr::mutate(Date=gsub("X","",Date)) %>% 
-      dplyr::mutate(Date=ymd(Date)) %>% 
-      dplyr::select(c(7,1)) %>% 
-      setNames(.,c("date","value")) %>% 
-      dplyr::mutate(series_id=ticker) %>% 
-      tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+      temp_df = book_yahoo(ticker, env = NULL) %>%
+      as.data.frame(.) %>%
+      dplyr::mutate(Date=row.names(.)) %>%
+      dplyr::mutate(Date=gsub("X","",Date)) %>%
+      dplyr::mutate(Date=ymd(Date)) %>%
+      dplyr::select(c(7,1)) %>%
+      setNames(.,c("date","value")) %>%
+      dplyr::mutate(series_id=ticker) %>%
+      tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
       tidyr::fill(value,.direction = "down")  %>%
       tidyr::fill(series_id,.direction = "down")
-      
+
       row.names(temp_df) = NULL
       return( temp_df )
 }))
 
 # USD
-df_macro_yahoo_usd = df_macro_yahoo %>% 
-  filter(!series_id=="USDDKK=X") %>% 
+df_macro_yahoo_usd = df_macro_yahoo %>%
+  filter(!series_id=="USDDKK=X") %>%
   dplyr::mutate(currency="USD")
 
 # DKK
-df_macro_yahoo_dkk = df_macro_yahoo %>% 
-  inner_join( df_macro_yahoo %>% filter(series_id=="USDDKK=X") %>% dplyr::select(date,value) %>% dplyr::rename(usd=value)) %>% 
-  filter(!series_id=="DKKUSD=X") %>% 
+df_macro_yahoo_dkk = df_macro_yahoo %>%
+  inner_join( df_macro_yahoo %>% filter(series_id=="USDDKK=X") %>% dplyr::select(date,value) %>% dplyr::rename(usd=value)) %>%
+  filter(!series_id=="DKKUSD=X") %>%
   dplyr::mutate(value=value*usd,
-                currency="DKK") %>% 
+                currency="DKK") %>%
   dplyr::select(-usd)
 
-df_macros = df_macro_yahoo_usd %>% 
-  bind_rows( df_macro_yahoo_dkk ) %>% 
-  bind_rows(df_CPIAUCNS) %>% 
-  bind_rows(df_PRIS114) %>% 
+df_macros = df_macro_yahoo_usd %>%
+  bind_rows( df_macro_yahoo_dkk ) %>%
+  bind_rows(df_CPIAUCNS) %>%
+  bind_rows(df_PRIS114) %>%
   bind_rows(df_nominal)
 
 ```
-
-Tickers
-
-
-Short:
-- SHV: iShares Short Treasury Bond ETF
-- TBF: ProShares Short 20+ Yr Treasury
-- TTT: UltraPro Short 20+ Year Treasury
-- TBX: Short 7-10 Year Treasury
-- PST: UltraShort 7-10 Year Treasury
-- TBT: UltraShort 20+ Year Treasury
-
-Long:
-- MBB: iShares MBS ETF
-- GOVT: iShares U.S. Treasury Bond ETF
-- SGOV: iShares 0-3 Month Treasury Bond ETF
-- SHY: iShares 1-3 Year Treasury Bond ETF
-- IEI: iShares 3-7 Year Treasury Bond ETF
-- IEF: iShares 7-10 Year Treasury Bond ETF
-- UST: Ultra 7-10 Year Treasury
-- TLH: iShares 10-20 Year Treasury Bond ETF
-- TLT: iShares 20+ Year Treasury Bond ETF
-- UBT: Ultra 20+ Year Treasury
-
-Commodities:
-- IAU: iShares Gold Trust
-- SLV: iShares Silver Trust
 
 ```{r}
 series_ids_yahoo = unique(c("GC=F",
@@ -180,14 +149,14 @@ series_ids_yahoo = unique(c("GC=F",
                             "^W5000",
                             "^IXIC",
                             "^GSPC",
-                            
+
                             "SHV",
                             "TBF",
                             "TTT",
                             "TBX",
                             "PST",
                             "TBT",
-                            
+
                             "XLK",
                             "XLV",
                             "XLY",
@@ -199,7 +168,7 @@ series_ids_yahoo = unique(c("GC=F",
                             "XLE",
                             "XLRE",
                             "XLC",
-                            
+
                             "REW",
                             "RXD",
                             "SCC",
@@ -209,7 +178,7 @@ series_ids_yahoo = unique(c("GC=F",
                             "SMN",
                             "DUG",
                             "SRS",
-                            
+
                             "MBB",
                             "GOVT",
                             "SGOV",
@@ -220,27 +189,27 @@ series_ids_yahoo = unique(c("GC=F",
                             "UBT",
                             "TLH",
                             "TLT",
-                            
+
                             "^OMXC25"))
 
 get_yahoo_ticker = function(ticker, attempts = 3) {
   for (attempt in seq_len(attempts)) {
     temp_df = tryCatch(
-      getSymbols(ticker, env = NULL),
+      book_yahoo(ticker, env = NULL),
       error = function(error) NULL
     )
 
     if (!is.null(temp_df)) {
       return(
         temp_df %>%
-      as.data.frame(.) %>% 
-      dplyr::mutate(Date=row.names(.)) %>% 
-      dplyr::mutate(Date=gsub("X","",Date)) %>% 
-      dplyr::mutate(Date=ymd(Date)) %>% 
-      dplyr::select(c(7,1)) %>% 
-      setNames(.,c("date","price")) %>% 
-      dplyr::mutate(ticker=ticker) %>% 
-      tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=Sys.Date(),by="1 day")) %>%
+      as.data.frame(.) %>%
+      dplyr::mutate(Date=row.names(.)) %>%
+      dplyr::mutate(Date=gsub("X","",Date)) %>%
+      dplyr::mutate(Date=ymd(Date)) %>%
+      dplyr::select(c(7,1)) %>%
+      setNames(.,c("date","price")) %>%
+      dplyr::mutate(ticker=ticker) %>%
+      tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=book_date(),by="1 day")) %>%
       tidyr::fill(price,.direction = "down")  %>%
       tidyr::fill(ticker,.direction = "down")
       )
@@ -258,16 +227,29 @@ df_tickers_yahoo = rbindlist(lapply(series_ids_yahoo, get_yahoo_ticker), fill = 
 
 ```{r}
 
-df_adjusted = df_tickers_yahoo %>% 
-  inner_join( df_macros ) %>% 
-  dplyr::mutate(index=price/value) %>% 
+df_adjusted = df_tickers_yahoo %>%
+  inner_join( df_macros ) %>%
+  dplyr::mutate(index=price/value) %>%
   dplyr::select(-price,-value)
 
 ```
 
-Plot function
-
 ```{r}
+market_chart_description <- function(label, currency) {
+  paste0(
+    label, " indicator panels, quoted in ", currency, ". ",
+    "Top to bottom: full price history with support lines where specified; ",
+    "past-year prices; latest indicator heatmap with numerical labels; ",
+    "price minus its 200-observation simple moving average; ",
+    "30-observation relative strength index with reference lines at 20 and 70; ",
+    "currency and crude oil, silver, and gold comparisons where available; ",
+    "nominal and inflation-adjusted series rebased to January 2015; ",
+    "and the difference between those rebased series. ",
+    "Dates run left to right. Non-trading days carry prices forward. ",
+    "Missing price histories or insufficient indicator histories are marked unavailable."
+  )
+}
+
 draw_plots = function(data,lines=NA) {
   if (nrow(data) == 0 || !any(is.finite(data$index))) {
     return(
@@ -277,34 +259,34 @@ draw_plots = function(data,lines=NA) {
              subtitle = "No usable price history was returned for this ticker")
     )
   }
-  
+
   ticker_ = unique(data$ticker)
   temp_df = data %>% filter(ticker==ticker_)
-  
+
   # Lines
-  df_lines = temp_df %>% 
-    filter(series_id=="NOMINAL") 
-  
+  df_lines = temp_df %>%
+    filter(series_id=="NOMINAL")
+
   if (unique(!is.na(lines))) {
   df_lines = rbindlist(lapply(seq(length(lines)),function(line) {
-    
-    df_lines %>% 
+
+    df_lines %>%
       dplyr::mutate(series_id="SUPPORT",
                     predicted=predict(
-        df_lines %>% 
-          filter(date %in% lines[[line]]) %>% 
+        df_lines %>%
+          filter(date %in% lines[[line]]) %>%
           lm(index~date,data=.),
-        .)) %>% 
+        .)) %>%
       dplyr::mutate(category=paste0("line",line))
-    
+
   }))
   } else {
   df_lines = data.frame()
   }
-  
+
 # All time plot
-p1 = temp_df %>% 
-  filter(series_id=="NOMINAL") %>% 
+p1 = temp_df %>%
+  filter(series_id=="NOMINAL") %>%
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -313,20 +295,20 @@ p1 = temp_df %>%
   scale_y_continuous(limits = c(0,NA)) +
   labs(x=NULL,y=NULL,title=glue("{ticker_}"),subtitle="All Time")
 if (nrow(df_lines)>0) {
-  p1 = p1 + 
+  p1 = p1 +
     geom_line(data=df_lines,aes(x=date,y=predicted,color=category,group=category),linetype=2)
 }
 
 # Last year
-p2 = temp_df %>% 
-  filter(series_id=="NOMINAL") %>%  
-  filter(date>=Sys.Date()-years(1)) %>% 
+p2 = temp_df %>%
+  filter(series_id=="NOMINAL") %>%
+  filter(date>=book_date()-years(1)) %>%
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
   theme(legend.position = "bottom") +
-  scale_x_date(date_labels = "%b",date_breaks = "1 month",limits = c(Sys.Date()-years(1),NA)) +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  scale_x_date(date_labels = "%b",date_breaks = "1 month",limits = c(book_date()-years(1),NA)) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   labs(x=NULL,y=NULL,subtitle="Last Year")
 
 
@@ -335,7 +317,7 @@ p2 = temp_df %>%
 
 # Indicator heatmap
 indicator_data = temp_df %>%
-  filter(series_id=="NOMINAL") %>% 
+  filter(series_id=="NOMINAL") %>%
   arrange((date))
 
 indicator_index <- indicator_data$index
@@ -363,24 +345,24 @@ if (sum(is.finite(indicator_index)) < 200) {
                 value_goldencross=safe_indicator(200, function() {
                   TTR::SMA(indicator_index,n=50) - TTR::SMA(indicator_index,n=200)
                 })) %>%
-  dplyr::mutate(value_lastdate=ifelse(index<last(index) & !date==max(date),as.Date(date),as.Date(NA))) %>% 
+  dplyr::mutate(value_lastdate=ifelse(index<last(index) & !date==max(date),as.Date(date),as.Date(NA))) %>%
   dplyr::mutate(value_lastdate=if (all(is.na(value_lastdate))) NA_real_ else max(value_lastdate,na.rm=T)) %>%
-  dplyr::mutate(value_lastdate=as.numeric(date-as.Date(value_lastdate))) %>% 
-  tidyr::fill(value_lastdate,.direction = "down") %>% 
+  dplyr::mutate(value_lastdate=as.numeric(date-as.Date(value_lastdate))) %>%
+  tidyr::fill(value_lastdate,.direction = "down") %>%
   dplyr::mutate(p_rsi=pnorm(value_rsi,mean=mean(value_rsi,na.rm=T),sd=sd(value_rsi,na.rm=T)),
                 p_macd=pnorm(value_macd,mean=mean(value_macd,na.rm=T),sd=sd(value_macd,na.rm=T)),
                 p_cci=pnorm(value_cci,mean=mean(value_cci,na.rm=T),sd=sd(value_cci,na.rm=T)),
                 p_goldencross=pnorm(value_goldencross,mean=mean(value_goldencross,na.rm=T),sd=sd(value_goldencross,na.rm=T)),
-                p_pnorm=pnorm(index,mean=mean(tail(index,3*365),na.rm=T),sd=sd(tail(index,3*365),na.rm=T)), 
-                p_lastdate=0.5) %>% 
-  filter(date==max(date)) %>% 
-  dplyr::select(-currency,-index) %>% 
-  gather(stat,val,value_rsi:p_lastdate) %>% 
-  separate(stat,into=c("type","metric")) %>% 
-  spread(type,val) %>% 
+                p_pnorm=pnorm(index,mean=mean(tail(index,3*365),na.rm=T),sd=sd(tail(index,3*365),na.rm=T)),
+                p_lastdate=0.5) %>%
+  filter(date==max(date)) %>%
+  dplyr::select(-currency,-index) %>%
+  gather(stat,val,value_rsi:p_lastdate) %>%
+  separate(stat,into=c("type","metric")) %>%
+  spread(type,val) %>%
   ggplot(aes(x=metric,y=ticker,fill=p)) +
   geom_tile() +
-  geom_text(aes(label=paste0(scales::number(value,0.01)," (",scales::percent(p,0.1),")")),color="white") + 
+  geom_text(aes(label=paste0(scales::number(value,0.01)," (",scales::percent(p,0.1),")")),color="white") +
   scale_fill_gradientn(colours=hcl.colors(10, palette = "ag_GrnYl"),
                        na.value = "transparent",
                        breaks=c(0,0.5,1),
@@ -391,14 +373,14 @@ if (sum(is.finite(indicator_index)) < 200) {
         axis.text.y=element_blank()) +
     labs(x=NULL,y=NULL)
 }
-  
+
 # SMA
-p3 = temp_df %>% 
-  filter(series_id=="NOMINAL") %>% 
-  arrange(date) %>% 
+p3 = temp_df %>%
+  filter(series_id=="NOMINAL") %>%
+  arrange(date) %>%
   dplyr::mutate(sma200=safe_indicator(200, function() TTR::SMA(indicator_index,n=200))) %>%
-  dplyr::mutate(index=index-sma200) %>% 
-  filter(date>=Sys.Date()-years(1)) %>% 
+  dplyr::mutate(index=index-sma200) %>%
+  filter(date>=book_date()-years(1)) %>%
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -407,11 +389,11 @@ p3 = temp_df %>%
   labs(x=NULL,y=NULL,subtitle="SMA 200")
 
 # RSI
-p4 = temp_df %>% 
-  filter(series_id=="NOMINAL") %>% 
+p4 = temp_df %>%
+  filter(series_id=="NOMINAL") %>%
   arrange(date) %>%
   dplyr::mutate(rsi=safe_indicator(31, function() TTR::RSI(indicator_index,n=30))) %>%
-  filter(date>=Sys.Date()-years(1)) %>% 
+  filter(date>=book_date()-years(1)) %>%
   ggplot(.,aes(x=date,y=rsi)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -420,8 +402,8 @@ p4 = temp_df %>%
   labs(x=NULL,y=NULL,subtitle="RSI")
 
 # Real terms (US)
-p5 = temp_df %>% 
-  filter(series_id=="PRICE_INDEX") %>% 
+p5 = temp_df %>%
+  filter(series_id=="PRICE_INDEX") %>%
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -429,8 +411,8 @@ p5 = temp_df %>%
   labs(x=NULL,y=NULL,subtitle="Real Terms (US)")
 
 # US Dollars
-p6 = temp_df %>% 
-  filter(series_id=="USDDKK=X") %>% 
+p6 = temp_df %>%
+  filter(series_id=="USDDKK=X") %>%
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -438,8 +420,8 @@ p6 = temp_df %>%
   labs(x=NULL,y=NULL,subtitle="DKK")
 
 # Oil
-p7 = temp_df %>% 
-  filter(series_id=="CL=F") %>% 
+p7 = temp_df %>%
+  filter(series_id=="CL=F") %>%
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -448,8 +430,8 @@ p7 = temp_df %>%
   labs(x=NULL,y=NULL,subtitle="Crude Oil")
 
 # Silver
-p8 = temp_df %>% 
-  filter(series_id=="SI=F") %>% 
+p8 = temp_df %>%
+  filter(series_id=="SI=F") %>%
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -457,8 +439,8 @@ p8 = temp_df %>%
   labs(x=NULL,y=NULL,subtitle="Silver")
 
 # Gold
-p9 = temp_df %>% 
-  filter(series_id=="GC=F") %>% 
+p9 = temp_df %>%
+  filter(series_id=="GC=F") %>%
   ggplot(.,aes(x=date,y=index)) +
   geom_line() +
   theme_money_printer_go_brrr(12) +
@@ -466,14 +448,14 @@ p9 = temp_df %>%
   labs(x=NULL,y=NULL,subtitle="Gold")
 
   # Index
-  p10 = temp_df  %>% 
-    filter(series_id %in% c("PRICE_INDEX","NOMINAL")) %>% 
-    group_by(series_id) %>% 
-    dplyr::mutate(nominal_2015=ifelse(date==ymd("2015-01-01"),index,NA)) %>% 
-    tidyr::fill(nominal_2015,.direction = "downup") %>% 
-    ungroup() %>% 
-    dplyr::mutate(index=100*index/nominal_2015) %>% 
-    dplyr::select(-nominal_2015) %>% 
+  p10 = temp_df  %>%
+    filter(series_id %in% c("PRICE_INDEX","NOMINAL")) %>%
+    group_by(series_id) %>%
+    dplyr::mutate(nominal_2015=ifelse(date==ymd("2015-01-01"),index,NA)) %>%
+    tidyr::fill(nominal_2015,.direction = "downup") %>%
+    ungroup() %>%
+    dplyr::mutate(index=100*index/nominal_2015) %>%
+    dplyr::select(-nominal_2015) %>%
     ggplot(aes(x=date,y=index,color=series_id,group=series_id)) +
     geom_line() +
     theme_money_printer_go_brrr(12) +
@@ -481,18 +463,18 @@ p9 = temp_df %>%
     labs(x=NULL,y=NULL,subtitle="Indexed 2015")
 
   # Above/below price index
-  p11 = temp_df  %>% 
-    filter(series_id %in% c("PRICE_INDEX","NOMINAL")) %>% 
-    group_by(series_id) %>% 
-    dplyr::mutate(nominal_2015=ifelse(date==ymd("2015-01-01"),index,NA)) %>% 
-    tidyr::fill(nominal_2015,.direction = "downup") %>% 
-    ungroup() %>% 
-    dplyr::mutate(index=100*index/nominal_2015) %>% 
-    dplyr::select(-nominal_2015) %>% 
-    dplyr::mutate(priceindex=ifelse(series_id=="PRICE_INDEX",index,NA)) %>% 
-    tidyr::fill(priceindex,.direction = "downup") %>% 
-    dplyr::mutate(index=index-priceindex) %>% 
-    filter(!series_id=="PRICE_INDEX") %>% 
+  p11 = temp_df  %>%
+    filter(series_id %in% c("PRICE_INDEX","NOMINAL")) %>%
+    group_by(series_id) %>%
+    dplyr::mutate(nominal_2015=ifelse(date==ymd("2015-01-01"),index,NA)) %>%
+    tidyr::fill(nominal_2015,.direction = "downup") %>%
+    ungroup() %>%
+    dplyr::mutate(index=100*index/nominal_2015) %>%
+    dplyr::select(-nominal_2015) %>%
+    dplyr::mutate(priceindex=ifelse(series_id=="PRICE_INDEX",index,NA)) %>%
+    tidyr::fill(priceindex,.direction = "downup") %>%
+    dplyr::mutate(index=index-priceindex) %>%
+    filter(!series_id=="PRICE_INDEX") %>%
     ggplot(aes(x=date,y=index,color=series_id,group=series_id)) +
     geom_line() +
     theme_money_printer_go_brrr(12) +
@@ -508,14 +490,14 @@ print(p_all)
 }
 ```
 
-The snapshots below show the past year of adjusted closing prices from Yahoo Finance. Non-trading days are carried forward. Open the [market](market-chart-gallery.html), [bond ETF](bond-etf-chart-gallery.html), or [sector ETF](sector-etf-chart-gallery.html) gallery for the full indicator panels.
+The snapshots below show the past year of opening prices from Yahoo Finance. Non-trading days are carried forward. Open the [market](market-chart-gallery.html), [bond ETF](bond-etf-chart-gallery.html), or [sector ETF](sector-etf-chart-gallery.html) gallery for the full indicator panels.
 
 ```{r}
 draw_market_snapshot <- function(symbol_, currency_, label_) {
   prices <- df_tickers_yahoo %>%
     dplyr::filter(.data$ticker == .env$symbol_,
                   is.finite(.data$price),
-                  .data$date >= Sys.Date() - lubridate::years(1)) %>%
+                  .data$date >= book_date() - lubridate::years(1)) %>%
     dplyr::arrange(.data$date)
 
   if (nrow(prices) == 0) {
@@ -532,7 +514,7 @@ draw_market_snapshot <- function(symbol_, currency_, label_) {
     theme_money_printer_go_brrr(11) +
     scale_x_date(date_labels = "%b %Y", date_breaks = "3 months") +
     labs(title = label_,
-         subtitle = "Adjusted close · past 12 months",
+         subtitle = "Opening price · past 12 months",
          x = NULL, y = currency_,
          caption = "Source: Yahoo Finance · non-trading days carried forward")
 }
@@ -540,7 +522,7 @@ draw_market_snapshot <- function(symbol_, currency_, label_) {
 
 ## S&P 500
 
-```{r fig.width=10,fig.height=3.5}
+```{r fig.width=10,fig.height=3.5,fig.alt="S&P 500 opening-price history in USD over the past 12 months. Dates run left to right; non-trading days carry the previous price forward. Missing history is marked unavailable."}
 draw_market_snapshot("^GSPC", "USD", "S&P 500")
 ```
 
@@ -548,7 +530,7 @@ draw_market_snapshot("^GSPC", "USD", "S&P 500")
 
 ## Nasdaq
 
-```{r fig.width=10,fig.height=3.5}
+```{r fig.width=10,fig.height=3.5,fig.alt="Nasdaq Composite opening-price history in USD over the past 12 months. Dates run left to right; non-trading days carry the previous price forward. Missing history is marked unavailable."}
 draw_market_snapshot("^IXIC", "USD", "Nasdaq Composite")
 ```
 
@@ -556,7 +538,7 @@ draw_market_snapshot("^IXIC", "USD", "Nasdaq Composite")
 
 ## OMX C25
 
-```{r fig.width=10,fig.height=3.5}
+```{r fig.width=10,fig.height=3.5,fig.alt="OMX C25 opening-price history in DKK over the past 12 months. Dates run left to right; non-trading days carry the previous price forward. Missing history is marked unavailable."}
 draw_market_snapshot("^OMXC25", "DKK", "OMX C25")
 ```
 
@@ -564,7 +546,7 @@ draw_market_snapshot("^OMXC25", "DKK", "OMX C25")
 
 ## Bitcoin
 
-```{r fig.width=10,fig.height=3.5}
+```{r fig.width=10,fig.height=3.5,fig.alt="Bitcoin opening-price history in USD over the past 12 months. Dates run left to right. Missing history is marked unavailable."}
 draw_market_snapshot("BTC-USD", "USD", "Bitcoin")
 ```
 
@@ -572,7 +554,7 @@ draw_market_snapshot("BTC-USD", "USD", "Bitcoin")
 
 ## Gold
 
-```{r fig.width=10,fig.height=3.5}
+```{r fig.width=10,fig.height=3.5,fig.alt="Gold futures opening-price history in USD over the past 12 months. Dates run left to right; non-trading days carry the previous price forward. Missing history is marked unavailable."}
 draw_market_snapshot("GC=F", "USD", "Gold futures")
 ```
 
@@ -580,7 +562,7 @@ draw_market_snapshot("GC=F", "USD", "Gold futures")
 
 ## Long Treasury bonds
 
-```{r fig.width=10,fig.height=3.5}
+```{r fig.width=10,fig.height=3.5,fig.alt="TLT long Treasury bond ETF opening-price history in USD over the past 12 months. Dates run left to right; non-trading days carry the previous price forward. Missing history is marked unavailable."}
 draw_market_snapshot("TLT", "USD", "TLT · long Treasury bond ETF")
 ```
 

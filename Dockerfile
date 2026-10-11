@@ -7,12 +7,15 @@ ARG PANDOC_SHA256=ab0ac0aa1c3f9b23243d14e43023e06cbce51a52420aba17d27bd0d9c28f73
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RENV_CONFIG_REPOS_OVERRIDE=https://packagemanager.posit.co/cran/2026-09-08 \
-    RENV_PATHS_CACHE=/renv/cache
+    RENV_PATHS_CACHE=/renv/cache \
+    R_LIBS_USER=/opt/publication-library
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
         ca-certificates \
         curl \
+        time \
+        python3 \
         libcurl4-openssl-dev \
         libgdal-dev \
         libgeos-dev \
@@ -44,10 +47,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /project
-COPY renv.lock renv.lock
+COPY renv/publication.lock renv/publication.lock
 COPY renv/settings.json renv/settings.json
 COPY renv/activate.R renv/activate.R
 
-RUN Rscript --vanilla -e 'install.packages("renv", repos = "https://cloud.r-project.org"); renv::restore(lockfile = "renv.lock", prompt = FALSE)'
+# Keep the library outside /project: Actions checkout replaces that directory.
+# Bootstrap the same renv version as the lock, rather than the latest release.
+RUN mkdir -p /opt/publication-library \
+    && Rscript --vanilla -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/renv/renv_1.1.5.tar.gz", repos = NULL, type = "source", lib = Sys.getenv("R_LIBS_USER")); renv::restore(lockfile = "renv/publication.lock", library = Sys.getenv("R_LIBS_USER"), prompt = FALSE)' \
+    && Rscript --vanilla -e 'lock <- renv::lockfile_read("renv/publication.lock"); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version)); stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("xml2", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE))'
 
 CMD ["Rscript", "--vanilla"]

@@ -6,26 +6,22 @@ Features correlation analysis, network visualization, and interactive exploratio
 """
 
 import dash
-from dash import dcc, html, Input, Output, callback, dash_table
+from dash import dcc, html, Input, Output, dash_table
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import duckdb
-from pathlib import Path
+from functools import lru_cache
 import networkx as nx
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-import warnings
-warnings.filterwarnings('ignore')
+
+if __package__:
+    from .dashboard_config import DB_PATH, PORT, DEBUG, resolve_db_path
+else:
+    from dashboard_config import DB_PATH, PORT, DEBUG, resolve_db_path
 
 # Configuration
-DB_PATH = Path('./knowledge_graph.db')
 APP_TITLE = "Economic Indicators Knowledge Graph Explorer"
-
-# Initialize Dash app
-app = dash.Dash(__name__, title=APP_TITLE)
-app._favicon = ("https://plotly.com/favicon.ico")
 
 # Custom CSS styling
 external_stylesheets = [
@@ -47,15 +43,16 @@ COLORS = {
 }
 
 # Database connection helper
-def get_db_connection():
-    """Get DuckDB connection to the knowledge graph database."""
-    if not DB_PATH.exists():
-        raise FileNotFoundError(f"Database not found at {DB_PATH}. Please run create_database.ipynb first.")
-    return duckdb.connect(str(DB_PATH))
+def get_db_connection(db_path=None):
+    """Open an existing knowledge graph database for read-only queries."""
+    path = resolve_db_path(DB_PATH if db_path is None else db_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Database not found at {path}. Please run create_database.ipynb first.")
+    return duckdb.connect(str(path), read_only=True)
 
-def load_data():
+def load_data(db_path=None):
     """Load all necessary data for the dashboard."""
-    conn = get_db_connection()
+    conn = get_db_connection(db_path)
 
     data = {}
 
@@ -65,7 +62,15 @@ def load_data():
         data['edges'] = conn.execute("SELECT * FROM edges").df()
         data['correlations'] = conn.execute("SELECT * FROM correlations").df()
         data['leadership'] = conn.execute("SELECT * FROM leadership").df()
-        data['stock_relationships'] = conn.execute("SELECT * FROM stock_relationships").df()
+        # The creation notebook omits this table when stock data is unavailable.
+        has_stocks = conn.execute(
+            "SELECT COUNT(*) FROM information_schema.tables "
+            "WHERE table_name = 'stock_relationships'"
+        ).fetchone()[0]
+        data['stock_relationships'] = (
+            conn.execute("SELECT * FROM stock_relationships").df()
+            if has_stocks else pd.DataFrame()
+        )
 
         # Load views
         data['node_type_stats'] = conn.execute("SELECT * FROM node_type_stats").df()
@@ -85,11 +90,13 @@ def load_data():
     return data
 
 # Load data at startup
+DATA_LOAD_ERROR = None
 try:
     DATA = load_data()
     print("Dashboard data loaded successfully!")
 except Exception as e:
     print(f"Failed to load data: {e}")
+    DATA_LOAD_ERROR = str(e)
     DATA = {}
 
 # Helper functions for visualizations
@@ -111,31 +118,28 @@ def create_correlation_heatmap(correlations_df, top_n=20):
         (correlations_df['x2'].isin(top_indicators))
     ]
 
-    # Create correlation matrix
+    # Keep missing pairs distinct from measured zeros, with matching axes.
     corr_matrix = filtered_corr.pivot_table(
         index='x1',
         columns='x2',
-        values='zero_lag_corr',
-        fill_value=0
+        values='zero_lag_corr'
+    ).reindex(index=top_indicators, columns=top_indicators)
+    corr_matrix = corr_matrix.combine_first(corr_matrix.T).reindex(
+        index=top_indicators, columns=top_indicators
     )
 
-    # Make symmetric
-    for i in corr_matrix.index:
-        for j in corr_matrix.columns:
-            if corr_matrix.loc[i, j] == 0 and j in corr_matrix.index and i in corr_matrix.columns:
-                corr_matrix.loc[i, j] = corr_matrix.loc[j, i]
-
     # Set diagonal to 1
-    np.fill_diagonal(corr_matrix.values, 1)
+    values = corr_matrix.to_numpy(copy=True)
+    np.fill_diagonal(values, 1)
 
     # Create heatmap
     fig = go.Figure(data=go.Heatmap(
-        z=corr_matrix.values,
+        z=values,
         x=corr_matrix.columns,
         y=corr_matrix.index,
         colorscale='RdBu',
         zmid=0,
-        text=np.round(corr_matrix.values, 2),
+        text=np.round(values, 2),
         texttemplate="%{text}",
         textfont={"size": 10},
         hoverongaps=False,
@@ -152,6 +156,39 @@ def create_correlation_heatmap(correlations_df, top_n=20):
 
     return fig
 
+@lru_cache(maxsize=16)
+def _cached_network_layout(node_ids, weighted_edges, layout):
+    """Cache immutable coordinates by canonical topology, weights and layout."""
+    graph = nx.Graph()
+    graph.add_nodes_from(node_ids)
+    graph.add_weighted_edges_from(weighted_edges)
+    if not graph:
+        return ()
+    if layout == 'spring':
+        positions = nx.spring_layout(graph, k=1, iterations=50, seed=42)
+    elif layout == 'circular':
+        positions = nx.circular_layout(graph)
+    elif layout == 'kamada_kawai':
+        positions = nx.kamada_kawai_layout(graph)
+    else:
+        positions = nx.spring_layout(graph, seed=42)
+    return tuple((node, (float(xy[0]), float(xy[1])))
+                 for node, xy in positions.items())
+
+
+def _network_positions(graph, layout):
+    """Canonicalize input order so equivalent graphs reuse deterministic layouts."""
+    node_ids = tuple(sorted(graph.nodes, key=lambda node: (type(node).__name__, repr(node))))
+    order = {node: index for index, node in enumerate(node_ids)}
+    weighted_edges = []
+    for source, target, attributes in graph.edges(data=True):
+        if order[source] > order[target]:
+            source, target = target, source
+        weighted_edges.append((source, target, float(attributes['weight'])))
+    weighted_edges.sort(key=lambda edge: (order[edge[0]], order[edge[1]]))
+    return dict(_cached_network_layout(node_ids, tuple(weighted_edges), layout))
+
+
 def create_network_graph(nodes_df, edges_df, layout='spring', node_size_col='degree'):
     """Create an interactive network graph."""
 
@@ -159,14 +196,14 @@ def create_network_graph(nodes_df, edges_df, layout='spring', node_size_col='deg
     G = nx.Graph()
 
     # Add nodes
-    for _, node in nodes_df.iterrows():
+    for node in nodes_df.to_dict('records'):
         G.add_node(
             node['id'],
             **{col: node[col] for col in nodes_df.columns if col != 'id'}
         )
 
     # Add edges
-    for _, edge in edges_df.iterrows():
+    for edge in edges_df.to_dict('records'):
         if edge['from_node'] in G.nodes and edge['to_node'] in G.nodes:
             G.add_edge(
                 edge['from_node'],
@@ -174,37 +211,17 @@ def create_network_graph(nodes_df, edges_df, layout='spring', node_size_col='deg
                 weight=edge['weight']
             )
 
-    # Calculate layout
-    if layout == 'spring':
-        pos = nx.spring_layout(G, k=1, iterations=50)
-    elif layout == 'circular':
-        pos = nx.circular_layout(G)
-    elif layout == 'kamada_kawai':
-        pos = nx.kamada_kawai_layout(G)
-    else:
-        pos = nx.spring_layout(G)
+    pos = _network_positions(G, layout)
 
     # Extract edge coordinates
     edge_x = []
     edge_y = []
-    edge_info = []
 
     for edge in G.edges():
         x0, y0 = pos[edge[0]]
         x1, y1 = pos[edge[1]]
         edge_x.extend([x0, x1, None])
         edge_y.extend([y0, y1, None])
-
-        # Find edge data
-        edge_data = edges_df[
-            ((edges_df['from_node'] == edge[0]) & (edges_df['to_node'] == edge[1])) |
-            ((edges_df['from_node'] == edge[1]) & (edges_df['to_node'] == edge[0]))
-        ]
-
-        if not edge_data.empty:
-            edge_info.append(edge_data.iloc[0]['title'])
-        else:
-            edge_info.append(f"{edge[0]} - {edge[1]}")
 
     # Create edge trace
     edge_trace = go.Scatter(
@@ -227,7 +244,7 @@ def create_network_graph(nodes_df, edges_df, layout='spring', node_size_col='deg
         node_x.append(x)
         node_y.append(y)
 
-        node_data = nodes_df[nodes_df['id'] == node].iloc[0]
+        node_data = G.nodes[node]
         node_text.append(node)
         node_info.append(node_data['title'] if 'title' in node_data else node)
         node_colors.append(node_data['color'] if 'color' in node_data else COLORS['primary'])
@@ -258,8 +275,10 @@ def create_network_graph(nodes_df, edges_df, layout='spring', node_size_col='deg
     # Create figure
     fig = go.Figure(data=[edge_trace, node_trace],
                    layout=go.Layout(
-                        title=f'Knowledge Graph Network ({len(G.nodes)} nodes, {len(G.edges)} edges)',
-                        titlefont_size=16,
+                        title=dict(
+                            text=f'Knowledge Graph Network ({len(G.nodes)} nodes, {len(G.edges)} edges)',
+                            font=dict(size=16)
+                        ),
                         showlegend=False,
                         hovermode='closest',
                         margin=dict(b=20,l=5,r=5,t=40),
@@ -362,7 +381,8 @@ def render_tab_content(active_tab):
     if not DATA:
         return html.Div([
             html.H3("⚠️ Data Not Available"),
-            html.P("Please run the create_database.ipynb notebook first to generate the database.")
+            html.P(f"Database: {DB_PATH}"),
+            html.P(DATA_LOAD_ERROR or "Please run the create_database.ipynb notebook first to generate the database.")
         ], style={'textAlign': 'center', 'padding': '50px'})
 
     if active_tab == "overview":
@@ -731,8 +751,10 @@ def create_tables_tab():
 def update_network_graph(layout, size_col, type_filter):
     """Update network graph based on controls."""
 
-    nodes_df = DATA['nodes'].copy()
-    edges_df = DATA['edges'].copy()
+    if not DATA:
+        return go.Figure()
+    nodes_df = DATA['nodes']
+    edges_df = DATA['edges']
 
     # Filter by node type if specified
     if type_filter and type_filter != 'all' and not isinstance(type_filter, list):
@@ -760,6 +782,8 @@ def update_network_graph(layout, size_col, type_filter):
 def update_correlation_analysis(x_axis, y_axis, threshold):
     """Update correlation scatter and table."""
 
+    if not DATA:
+        return go.Figure(), []
     correlations = DATA['correlations']
     filtered_corr = correlations[correlations['strength'] >= threshold]
 
@@ -784,6 +808,8 @@ def update_correlation_analysis(x_axis, y_axis, threshold):
 def render_table_content(active_table):
     """Render data table content."""
 
+    if not DATA:
+        return html.Div("Data Not Available")
     if active_table == "nodes-table":
         return dash_table.DataTable(
             data=DATA['nodes'].round(3).to_dict('records'),
@@ -917,8 +943,7 @@ app.index_string = '''
 if __name__ == '__main__':
     print(f"\n🚀 Starting Knowledge Graph Dashboard...")
     print(f"📊 Database: {DB_PATH}")
-    print(f"🌐 Opening dashboard at: http://127.0.0.1:8050")
+    print(f"🌐 Opening dashboard at: http://127.0.0.1:{PORT}")
     print(f"💡 Use Ctrl+C to stop the server\n")
 
-    # app.run_server(debug=True, host='0.0.0.0', port=8050)
-    app.run(debug=True, host='0.0.0.0', port=8051)
+    app.run(debug=DEBUG, host='0.0.0.0', port=PORT)

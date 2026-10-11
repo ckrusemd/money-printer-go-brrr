@@ -122,7 +122,7 @@ def create_jupyter_notebook(cells):
                 nb_cell = {
                     "cell_type": "markdown",
                     "metadata": {},
-                    "source": content
+                    "source": [line + "\n" for line in content]
                 }
                 notebook["cells"].append(nb_cell)
 
@@ -144,7 +144,7 @@ def create_jupyter_notebook(cells):
                     "execution_count": None,
                     "metadata": {},
                     "outputs": [],
-                    "source": content
+                    "source": [line + "\n" for line in content]
                 }
                 notebook["cells"].append(nb_cell)
 
