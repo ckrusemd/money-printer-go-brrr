@@ -220,13 +220,14 @@ class PublishedReaderOutputTests(unittest.TestCase):
 
 
 class MarketReaderFixtures(unittest.TestCase):
-    def test_fx_placeholder_preserves_other_panels_and_russell_is_optional(self):
+    def test_market_presentation_preserves_numeric_methods_and_optional_sources(self):
         # READER_R_COMMAND can run this fixture in the existing publication
         # container. The default uses local R and skips missing locked packages.
         command = shlex.split(os.environ.get("READER_R_COMMAND", "Rscript --vanilla -"))
         if not command or not shutil.which(command[0]):
             self.skipTest("R fixture runner unavailable")
         script = r'''
+run_market_fixture <- function() {
 packages <- c("ggplot2", "dplyr", "tidyr", "lubridate", "data.table",
               "glue", "gridExtra", "xts", "TTR", "scales")
 missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]
@@ -234,6 +235,12 @@ if (length(missing)) {
   cat("Missing locked reader fixture packages:", paste(missing, collapse = ", "), "\n")
   quit(status = 42L)
 }
+fixture_device <- tempfile("reader-fixture-", fileext = ".pdf")
+grDevices::pdf(fixture_device)
+on.exit({
+  grDevices::dev.off()
+  unlink(fixture_device)
+}, add = TRUE)
 suppressPackageStartupMessages(for (package in packages) library(package, character.only = TRUE))
 source("money_theme.R")
 book_date <- function() as.Date("2016-12-31")
@@ -302,9 +309,113 @@ for (value in c(NA_real_, Inf)) {
   stopifnot(identical(ggplot_build(plot)$data[[1]]$label,
                       "FX comparison data unavailable for this chart"))
 }
+
+# Independent references retain the original indicator settings, Gaussian
+# distribution scores, exact January 1 baseline, and price-trend calculation.
+check_numeric_methods <- function(input, plots) {
+  nominal <- arrange(filter(input, series_id == "NOMINAL"), date)
+  index <- nominal$index
+  values <- list(rsi = TTR::RSI(index),
+                 cci = TTR::CCI(index),
+                 goldencross = TTR::SMA(index, n = 50) - TTR::SMA(index, n = 200))
+  macd <- TTR::MACD(index)
+  values$macd <- macd[, 1] - macd[, 2]
+  heatmap <- plots[[3]]$data
+  for (metric in names(values)) {
+    value <- as.numeric(values[[metric]])
+    row <- heatmap[heatmap$metric == metric, ]
+    stopifnot(isTRUE(all.equal(row$value, tail(value, 1))),
+              isTRUE(all.equal(row$p, tail(pnorm(value, mean(value, na.rm = TRUE),
+                                                 sd(value, na.rm = TRUE)), 1))))
+  }
+  percentile <- heatmap[heatmap$metric == "pnorm", ]
+  expected_p <- pnorm(tail(index, 1), mean(tail(index, 3 * 365), na.rm = TRUE),
+                      sd(tail(index, 3 * 365), na.rm = TRUE))
+  stopifnot(is.na(percentile$value), isTRUE(all.equal(percentile$p, expected_p)))
+  last_lower <- max(nominal$date[index < tail(index, 1) & nominal$date != max(nominal$date)])
+  age <- heatmap[heatmap$metric == "lastdate", ]
+  stopifnot(identical(age$p, 0.5),
+            identical(age$value, as.numeric(max(nominal$date) - last_lower)))
+  labels <- ggplot_build(plots[[3]])$data[[2]]$label
+  stopifnot(identical(labels[heatmap$metric == "pnorm"], scales::percent(expected_p, 0.1)),
+            identical(labels[heatmap$metric != "pnorm"],
+                      paste0(scales::number(heatmap$value[heatmap$metric != "pnorm"], 0.01),
+                             " (", scales::percent(heatmap$p[heatmap$metric != "pnorm"], 0.1), ")")))
+  axis_labels <- ggplot_build(plots[[3]])$layout$panel_params[[1]]$x$get_labels()
+  stopifnot("Price percentile" %in% axis_labels, !"pnorm" %in% axis_labels)
+  last_year <- nominal$date >= book_date() - years(1)
+  stopifnot(isTRUE(all.equal(plots[[4]]$data$index,
+                            (index - TTR::SMA(index, n = 200))[last_year])),
+            isTRUE(all.equal(plots[[5]]$data$rsi, TTR::RSI(index, n = 30)[last_year])),
+            identical(plots[[5]]$labels$title, "RSI (30 observations)"),
+            is.null(plots[[5]]$labels$subtitle))
+  title <- ggplotGrob(plots[[5]])
+  stopifnot(!inherits(title$grobs[[which(title$layout$name == "title")]], "zeroGrob"))
+  rebased <- input %>%
+    filter(series_id %in% c("PRICE_INDEX", "NOMINAL")) %>%
+    group_by(series_id) %>%
+    mutate(nominal_2015 = ifelse(date == ymd("2015-01-01"), index, NA)) %>%
+    fill(nominal_2015, .direction = "downup") %>%
+    ungroup() %>%
+    mutate(index = 100 * index / nominal_2015) %>%
+    select(-nominal_2015)
+  trend <- rebased %>%
+    mutate(priceindex = ifelse(series_id == "PRICE_INDEX", index, NA)) %>%
+    fill(priceindex, .direction = "downup") %>%
+    mutate(index = index - priceindex) %>%
+    filter(series_id != "PRICE_INDEX")
+  stopifnot(identical(plots[[10]]$data, rebased), identical(plots[[11]]$data, trend))
+}
+check_numeric_methods(data, present)
+stopifnot(length(present[[10]]$layers) == 1L, length(present[[11]]$layers) == 2L)
+
+# Missing, non-finite, and partially missing baselines get annotations, never a
+# replacement baseline. Disabling only annotation must leave every other panel
+# and all original plotted numerical layers identical.
+late <- filter(data, date >= as.Date("2015-02-01"))
+cases <- list(late, filter(data, !(series_id == "NOMINAL" & date == as.Date("2015-01-01"))))
+for (value in c(NA_real_, Inf)) {
+  invalid <- data
+  invalid$index[invalid$date == as.Date("2015-01-01") &
+                  invalid$series_id %in% c("NOMINAL", "PRICE_INDEX")] <- value
+  cases <- c(cases, list(invalid))
+}
+original_annotate <- annotate
+for (input in cases) {
+  annotated <- capture(input)
+  annotate <- function(...) NULL
+  unannotated <- capture(input)
+  annotate <- original_annotate
+  for (panel in seq_along(annotated)) {
+    stopifnot(identical(annotated[[panel]]$data, unannotated[[panel]]$data))
+    a <- suppressWarnings(ggplot_build(annotated[[panel]]))$data
+    b <- suppressWarnings(ggplot_build(unannotated[[panel]]))$data
+    stopifnot(identical(a[seq_along(b)], b))
+    if (panel %in% c(10L, 11L)) {
+      stopifnot(length(a) == length(b) + 1L,
+                grepl("No usable observation on 2015-01-01", tail(a, 1)[[1]]$label))
+      built <- suppressWarnings(ggplot_build(annotated[[panel]]))
+      position <- built$layout$coord$transform(tail(a, 1)[[1]], built$layout$panel_params[[1]])
+      stopifnot(all(is.finite(position$x)), all(is.finite(position$y)))
+    } else stopifnot(identical(a, b))
+  }
+}
+check_numeric_methods(late, capture(late))
+stopifnot(all(is.na(capture(late)[[10]]$data$index)),
+          all(is.na(capture(late)[[11]]$data$index)))
+
+# Optional offline visual fixture: full gallery dimensions, missing baseline,
+# percentile labels and explicit RSI title, using no remote data.
+if (nzchar(Sys.getenv("READER_FIXTURE_PNG"))) {
+  png(Sys.getenv("READER_FIXTURE_PNG"), width = 960, height = 2400, res = 96)
+  gridExtra::grid.arrange(grobs = capture(late), ncol = 1)
+  dev.off()
+}
 unavailable <- draw_plots(data[FALSE, ])
 stopifnot(identical(unavailable$labels$title, "Market data unavailable"))
-cat("Russell success/failure, empty/non-finite FX labels, 11 panels and unchanged other panel values passed\n")
+cat("Optional sources, FX/baseline annotations, unchanged panels, original indicator scores and rebasing methods passed\n")
+}
+run_market_fixture()
 '''
         result = subprocess.run(command, input=script, text=True, capture_output=True, cwd=ROOT, timeout=60)
         if result.returncode == 42:

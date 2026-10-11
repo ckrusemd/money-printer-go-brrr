@@ -243,10 +243,10 @@ market_chart_description <- function(label, currency) {
     "30-observation relative strength index with reference lines at 20 and 70; ",
     "currency and crude oil, silver, and gold comparisons where available, ",
     "with unavailable FX comparison data labeled in its panel; ",
-    "nominal and inflation-adjusted series rebased to January 2015; ",
+    "nominal and inflation-adjusted series rebased to January 2015 where baseline history exists; ",
     "and the difference between those rebased series. ",
     "Dates run left to right. Non-trading days carry prices forward. ",
-    "Missing price histories or insufficient indicator histories are marked unavailable."
+    "Missing price histories, insufficient indicator histories, and missing 2015 baselines are marked unavailable."
   )
 }
 
@@ -362,7 +362,10 @@ if (sum(is.finite(indicator_index)) < 200) {
   spread(type,val) %>%
   ggplot(aes(x=metric,y=ticker,fill=p)) +
   geom_tile() +
-  geom_text(aes(label=paste0(scales::number(value,0.01)," (",scales::percent(p,0.1),")")),color="white") +
+  geom_text(aes(label=ifelse(metric=="pnorm",
+                           ifelse(is.finite(p),scales::percent(p,0.1),"Unavailable"),
+                           paste0(scales::number(value,0.01)," (",scales::percent(p,0.1),")"))),color="white") +
+  scale_x_discrete(labels=function(metric) ifelse(metric=="pnorm","Price percentile",metric)) +
   scale_fill_gradientn(colours=hcl.colors(10, palette = "ag_GrnYl"),
                        na.value = "transparent",
                        breaks=c(0,0.5,1),
@@ -399,7 +402,8 @@ p4 = temp_df %>%
   theme_money_printer_go_brrr(12) +
   scale_x_date(date_labels = "%b",date_breaks = "1 month") +
   geom_hline(yintercept = c(20,70),linetype=2) +
-  labs(x=NULL,y=NULL,subtitle="RSI")
+  labs(x=NULL,y=NULL,title="RSI (30 observations)",subtitle=NULL) +
+  theme(plot.title=element_text(size=12),plot.title.position="plot")
 
 # Real terms (US)
 p5 = temp_df %>%
@@ -489,6 +493,22 @@ p9 = temp_df %>%
     scale_x_date(date_labels = "%Y",date_breaks = "1 year") +
     labs(x=NULL,y=NULL,subtitle="Above/below price trend") +
     geom_hline(yintercept = 0,linetype=2)
+
+  # Annotate absent baseline history without changing either rebasing calculation.
+  missing_2015 <- setdiff(c("NOMINAL","PRICE_INDEX"),
+    temp_df$series_id[temp_df$date==ymd("2015-01-01") & is.finite(temp_df$index)])
+  if (length(missing_2015)) {
+    baseline_message <- paste0("2015 rebasing unavailable for ",
+      paste(ifelse(missing_2015=="NOMINAL","nominal prices","inflation-adjusted prices"),collapse=" and "),
+      "\nNo usable observation on 2015-01-01")
+    p10_has_values <- any(is.finite(p10$data$index))
+    p10 <- p10 + annotate("text",x=min(p10$data$date),y=if (p10_has_values) Inf else 0,
+                         label=baseline_message,hjust=0,vjust=if (p10_has_values) 1.2 else 0.5,size=3.5)
+    p11 <- p11 + annotate("text",x=min(p11$data$date),y=Inf,
+                         label=baseline_message,hjust=0,vjust=1.2,size=3.5)
+    if (!p10_has_values) p10 <- p10 + guides(colour="none")
+    if (!any(is.finite(p11$data$index))) p11 <- p11 + guides(colour="none")
+  }
 
 p_all = grid.arrange(p1,p2,p2b,p3,p4,
                      # p5,

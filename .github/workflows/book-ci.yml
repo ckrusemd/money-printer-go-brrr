@@ -50,6 +50,20 @@ jobs:
               python3 -B -m unittest tests.test_research_paths
             '
 
+      - name: Run market reader fixtures and reject skipped tests
+        shell: bash
+        run: |
+          docker run --rm -i --network none --read-only --tmpfs /tmp \
+            --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
+            ghcr.io/ckrusemd/money-printer-go-brrr-r:latest -B - <<'PY'
+          import sys
+          import unittest
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_reader_output.MarketReaderFixtures")
+          assert suite.countTestCases() > 0, "No market reader fixtures discovered"
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)
+          PY
+
   dashboard-fixtures:
     runs-on: ubuntu-latest
     timeout-minutes: 15
