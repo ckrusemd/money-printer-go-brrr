@@ -16,6 +16,10 @@ import tarfile
 def adapt_source(text):
     text = re.sub(r"if \(!require\(pacman\)\) \{ install.packages\(\"pacman\"\) \}", "", text)
     text = text.replace("pacman::p_load(", "book_load_packages(")
+    # Legacy loaders installed this unused animation package during rendering.
+    # None of the published, evaluated analyses use it; keep both versions on
+    # the same locked environment without changing the baseline calculations.
+    text = re.sub(r"(?m)^\s*gganimate,\s*\n", "", text)
     text = text.replace("fredr::fredr_set_key(", 'if (.book_runtime$mode != "replay") fredr::fredr_set_key(')
     text = text.replace("fredr::fredr_series_observations(", "book_fred(")
     text = text.replace("fredr::fredr(", "book_fred(")

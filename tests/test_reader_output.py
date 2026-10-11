@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -216,6 +217,99 @@ class PublishedReaderOutputTests(unittest.TestCase):
                      "sector-etf-chart-gallery.html", "data-status.html"):
             self.assertTrue((directory / page).is_file(), f"Missing required reader page: {page}")
         self.assertEqual(check_output(directory), [])
+
+
+class MarketReaderFixtures(unittest.TestCase):
+    def test_fx_placeholder_preserves_other_panels_and_russell_is_optional(self):
+        # READER_R_COMMAND can run this fixture in the existing publication
+        # container. The default uses local R and skips missing locked packages.
+        command = shlex.split(os.environ.get("READER_R_COMMAND", "Rscript --vanilla -"))
+        if not command or not shutil.which(command[0]):
+            self.skipTest("R fixture runner unavailable")
+        script = r'''
+packages <- c("ggplot2", "dplyr", "tidyr", "lubridate", "data.table",
+              "glue", "gridExtra", "xts", "TTR", "scales")
+missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing)) {
+  cat("Missing locked reader fixture packages:", paste(missing, collapse = ", "), "\n")
+  quit(status = 42L)
+}
+suppressPackageStartupMessages(for (package in packages) library(package, character.only = TRUE))
+source("money_theme.R")
+book_date <- function() as.Date("2016-12-31")
+lines <- readLines("Chapters/04_Markets/Markets.Rmd")
+expressions <- list()
+active <- FALSE
+code <- character()
+for (line in lines) {
+  if (grepl("^```\\{r", line)) {
+    active <- TRUE
+    code <- character()
+  } else if (active && grepl("^```\\s*$", line)) {
+    expressions <- c(expressions, as.list(parse(text = code)))
+    active <- FALSE
+  } else if (active) code <- c(code, line)
+}
+definition <- function(name) Filter(function(x) {
+  is.call(x) && (identical(x[[1]], as.name("=")) || identical(x[[1]], as.name("<-"))) &&
+    identical(x[[2]], as.name(name))
+}, expressions)
+for (name in c("draw_plots", "get_yahoo_ticker")) eval(definition(name)[[1]])
+eval(tail(definition("series_ids_yahoo"), 1)[[1]])
+stopifnot("^RUT" %in% series_ids_yahoo)
+requests <- 0L
+book_yahoo <- function(ticker, env = NULL) {
+  requests <<- requests + 1L
+  stopifnot(identical(ticker, "^RUT"), is.null(env))
+  xts::xts(matrix(1:12, ncol = 6), order.by = as.Date(c("2016-12-30", "2016-12-31")))
+}
+prices <- get_yahoo_ticker("^RUT", attempts = 1)
+stopifnot(requests == 1L, identical(prices$price, 1:2),
+          all(prices$ticker == "^RUT"),
+          identical(prices$date, as.Date(c("2016-12-30", "2016-12-31"))))
+book_yahoo <- function(...) stop("optional Yahoo fixture unavailable")
+stopifnot(is.null(suppressWarnings(get_yahoo_ticker("^RUT", attempts = 1))))
+
+dates <- seq(as.Date("2014-01-01"), book_date(), by = "day")
+data <- bind_rows(lapply(c("NOMINAL", "PRICE_INDEX", "CL=F", "SI=F", "GC=F", "USDDKK=X"), function(series) {
+  data.frame(date = dates, index = 100 + seq_along(dates) / 100 + sin(seq_along(dates) / 30),
+             ticker = "^RUT", currency = "USD", series_id = series)
+}))
+captured <- NULL
+grid.arrange <- function(..., ncol) {
+  captured <<- list(...)
+  invisible(NULL)
+}
+capture <- function(input) {
+  invisible(suppressWarnings(draw_plots(input)))
+  stopifnot(length(captured) == 11L)
+  captured
+}
+present <- capture(data)
+missing <- capture(filter(data, series_id != "USDDKK=X"))
+stopifnot(identical(ggplot_build(present[[6]])$data[[1]]$y,
+                    data$index[data$series_id == "USDDKK=X"]))
+stopifnot(identical(ggplot_build(missing[[6]])$data[[1]]$label,
+                    "FX comparison data unavailable for this chart"))
+for (panel in setdiff(seq_along(present), 6L)) {
+  stopifnot(identical(ggplot_build(present[[panel]])$data,
+                      ggplot_build(missing[[panel]])$data))
+}
+for (value in c(NA_real_, Inf)) {
+  invalid <- data
+  invalid$index[invalid$series_id == "USDDKK=X"] <- value
+  plot <- capture(invalid)[[6]]
+  stopifnot(identical(ggplot_build(plot)$data[[1]]$label,
+                      "FX comparison data unavailable for this chart"))
+}
+unavailable <- draw_plots(data[FALSE, ])
+stopifnot(identical(unavailable$labels$title, "Market data unavailable"))
+cat("Russell success/failure, empty/non-finite FX labels, 11 panels and unchanged other panel values passed\n")
+'''
+        result = subprocess.run(command, input=script, text=True, capture_output=True, cwd=ROOT, timeout=60)
+        if result.returncode == 42:
+            self.skipTest(result.stdout.strip())
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

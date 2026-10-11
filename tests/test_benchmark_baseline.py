@@ -17,6 +17,12 @@ class BaselineAdapterTests(unittest.TestCase):
         self.assertIn('book_dst(table="X")', new)
         self.assertIn('book_dst_metadata(table="X")', new)
 
+    def test_unused_animation_loader_is_removed_not_analysis(self):
+        new = adapt_source('pacman::p_load(fredr,\n  gganimate,\n  dplyr)\nfit <- randomForest(x, ntree = 300)\n')
+        self.assertNotIn('gganimate,', new)
+        self.assertIn('book_load_packages(fredr,\n  dplyr)', new)
+        self.assertIn('fit <- randomForest(x, ntree = 300)', new)
+
 
 if __name__ == "__main__":
     unittest.main()

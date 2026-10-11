@@ -1,6 +1,6 @@
 # Bond ETF chart gallery
 
-Explore bond ETF price histories, moving averages, momentum, and comparisons with inflation and commodities. The groups below distinguish short and long exposures as listed; use each fund's name and ticker to identify its mandate. Return to the [market snapshots](equity-markets-and-the-sp-500.html) for a compact Treasury-bond view.
+Explore bond ETF price histories, moving averages, momentum, and comparisons with inflation and commodities. The groups below distinguish short-maturity Treasury holdings, inverse exposure, and other long bond exposure; use each fund's name and ticker to identify its mandate. Return to the [market snapshots](equity-markets-and-the-sp-500.html) for a compact Treasury-bond view.
 
 Each chart follows the same order as the [market gallery](market-chart-gallery.html): price history, recent prices, indicator heatmap, moving-average distance, RSI, currency and commodity comparisons, then rebased nominal and inflation-adjusted prices. These are opening-price histories, not total-return series with reinvested distributions. Short and leveraged funds can have very different price paths from ordinary bond holdings.
 
@@ -8,11 +8,14 @@ The heatmap's distribution scores are historical comparisons, not forecasts. Non
 
 ## Bond ETFs
 
-Short:
-- SHV: iShares Short Treasury Bond ETF
+Short-maturity Treasury holdings (long exposure):
+
+- SHV: [iShares 0–1 Year Treasury Bond ETF](https://www.ishares.com/us/products/239466/ishares-short-treasury-bond-etf). Its Treasury holdings have remaining maturities of one year or less.
 ```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("SHV", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="SHV",currency=="USD"))
 ```
+Inverse bond exposure (including leveraged funds):
+
 - TBF: ProShares Short 20+ Yr Treasury
 ```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("TBF", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="TBF",currency=="USD"))
@@ -34,7 +37,8 @@ draw_plots(data = df_adjusted %>% filter(ticker=="PST",currency=="USD"))
 draw_plots(data = df_adjusted %>% filter(ticker=="TBT",currency=="USD"))
 ```
 
-Long:
+Other long bond exposure (including leveraged funds):
+
 - MBB: iShares MBS ETF
 ```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("MBB", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="MBB",currency=="USD"))
