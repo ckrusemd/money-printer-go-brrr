@@ -34,6 +34,23 @@ class BaselineAdapterTests(unittest.TestCase):
         self.assertIn('fit <- caret::train(x, ntree = 300)', new)
         self.assertEqual(adapt_source(new), new)
 
+    def test_approved_finans_iso_input_correction_leaves_statistics_original(self):
+        old_date = 'as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")'
+        surrounding = ('df_interest$År[1] = 1997\n'
+                       'df_interest = df_interest %>% fill(År,.direction = "down")\n')
+        statistics = ('df_all = bind_rows(df_fred, df_yahoo, df_dst, df_interest, df_etfs)\n'
+                      'result = ccf(value.x, value.y, lag.max=365, plot=FALSE)\n'
+                      'fit <- caret::train(x, ntree = 300)\n')
+        old = surrounding + 'df_interest$Date = ' + old_date + '\n' + statistics
+        new = adapt_source(old)
+        expected = surrounding + ('df_interest$Date = '
+                   'book_iso_week_monday(df_interest$År, df_interest$Uge)\n') + statistics
+        self.assertEqual(new, expected)
+        self.assertEqual(adapt_source(new), new)
+        # Do not replace unrelated Sunday-week parsers or another data source.
+        unrelated = old_date.replace('df_interest', 'other_source')
+        self.assertEqual(adapt_source(unrelated), unrelated)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -163,6 +163,15 @@ median warm runtime and no increase in median peak RSS. Historical ETF
 duplicate-correlation differences are reported separately from model parity.
 Use new, empty baseline and artifact directories; existing evidence is preserved.
 
+Mortgage-rate year/week observations are dated to ISO-week Mondays. The former
+Sunday-based `%U` parser shifted some dates and returned `NA` for valid week-53
+observations in 1998, 2009, 2015, and 2020. This is an intentional input-date
+correction: the historical benchmark adapter applies the same normalization
+before comparing unchanged statistical methods and complete prediction tables.
+The correlation audit separately proves that remaining input differences are
+only the exact duplicated ETF append and checks all pairs against the original
+three-horizon CCF calculation on corrected, deduplicated observations.
+
 ### Data Pipeline
 
 ```bash

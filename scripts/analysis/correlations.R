@@ -1,14 +1,37 @@
 # Match observations on date without expanding every pair into a joined table.
 # Keep source order: the original joins fed each x series' order to stats::ccf.
-book_prepare_correlations <- function(data) {
+book_prepare_correlations <- function(data, namespace = "unlabelled") {
   required <- c("series_id", "date", "value")
   if (!all(required %in% names(data))) {
     stop("Correlation data requires series_id, date and value", call. = FALSE)
   }
-  data <- as.data.frame(data)[required]
+  source_rows <- as.data.frame(data)
+  data <- source_rows[required]
   data$series_id <- as.character(data$series_id)
   if (anyNA(data$series_id) || anyNA(data$date)) {
-    stop("Correlation series_id and date must not be missing", call. = FALSE)
+    invalid <- which(is.na(data$series_id) | is.na(data$date))
+    labels <- data$series_id[invalid]
+    labels[is.na(labels)] <- "<missing series_id>"
+    counts <- sort(table(labels), decreasing = TRUE)
+    directory <- Sys.getenv("BOOK_RESULTS_DIR", "")
+    if (nzchar(directory)) {
+      record <- list(namespace = namespace, row_indices = invalid,
+                     invalid_rows = source_rows[invalid, , drop = FALSE],
+                     series_counts = data.frame(series_id = names(counts), rows = as.integer(counts)),
+                     missing_series_id = sum(is.na(data$series_id)),
+                     missing_date = sum(is.na(data$date)))
+      filename <- paste0("invalid-correlation-inputs-", gsub("[^A-Za-z0-9_-]", "_", namespace), ".rds")
+      tryCatch(book_save_rds(record, file.path(directory, filename)),
+               error = function(error) warning("Cannot capture invalid correlation rows: ",
+                                                conditionMessage(error), call. = FALSE))
+    }
+    shown <- head(counts, 10L)
+    detail <- paste(sprintf("%s=%d", names(shown), as.integer(shown)), collapse = ", ")
+    if (length(counts) > 10L) detail <- paste0(detail, "; ", length(counts) - 10L, " more series")
+    stop(sprintf(paste0("Correlation series_id and date must not be missing [%s]: ",
+                        "%d invalid rows; missing series_id=%d, missing date=%d; series counts: %s"),
+                 namespace, length(invalid), sum(is.na(data$series_id)), sum(is.na(data$date)), detail),
+         call. = FALSE)
   }
   if (!is.numeric(data$value)) {
     stop("Correlation values must be numeric", call. = FALSE)
@@ -89,7 +112,7 @@ book_correlations_aligned <- function(data) {
 }
 
 book_correlations <- function(data, namespace) {
-  data <- book_prepare_correlations(data)
+  data <- book_prepare_correlations(data, namespace = namespace)
   book_cache_derived(
     namespace = namespace,
     inputs = list(observations = data, horizons = c(30L, 365L, 1825L)),

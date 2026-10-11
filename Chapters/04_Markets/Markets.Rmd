@@ -194,7 +194,7 @@ series_ids_yahoo = unique(c("GC=F",
 get_yahoo_ticker = function(ticker, attempts = 3) {
   for (attempt in seq_len(attempts)) {
     temp_df = tryCatch(
-      book_yahoo(ticker, env = NULL),
+      book_yahoo(ticker, env = NULL, attempts = 1L),
       error = function(error) NULL
     )
 

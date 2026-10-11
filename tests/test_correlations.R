@@ -204,8 +204,79 @@ run_correlation_audit_tests <- function(scope) {
   cat("PASS: historical helper-free chapter captures full df_all/results after CCF via namespace adapter, surviving runtime hook reinstallation\n")
 }
 
+run_mortgage_date_tests <- function(scope) {
+  # Evaluate the actual pure runtime helpers without initializing providers or
+  # changing knitr hooks. They require only base R, including diagnostic RDS.
+  runtime <- new.env(parent = globalenv())
+  definitions <- Filter(function(expression) {
+    is.call(expression) && length(expression) >= 3L &&
+      as.character(expression[[1L]]) %in% c("<-", "=") &&
+      is.symbol(expression[[2L]]) &&
+      as.character(expression[[2L]]) %in% c("book_iso_week_monday", "book_save_rds")
+  }, as.list(parse("scripts/book_runtime.R")))
+  stopifnot(length(definitions) == 2L)
+  for (definition in definitions) eval(definition, runtime)
+  year <- c(1998, 2009, 2015, 2020, 2019, 2020, 2021, 2026)
+  week <- c(53, 53, 53, 53, 1, 1, 1, 40)
+  expected <- as.Date(c("1998-12-28", "2009-12-28", "2015-12-28", "2020-12-28",
+                        "2018-12-31", "2019-12-30", "2021-01-04", "2026-09-28"))
+  assert_equal(runtime$book_iso_week_monday(year, week), expected, "ISO Monday boundaries")
+  assert_equal(runtime$book_iso_week_monday(as.character(year), as.character(week)),
+               expected, "workbook character years")
+  stopifnot(all(is.na(suppressWarnings(as.Date(paste(year[1:4], week[1:4], 1, sep="-"),
+                                                "%Y-%U-%u")))))
+  # A four-row-only fallback would collide with the old week 52 Mondays.
+  old_52 <- suppressWarnings(as.Date(paste(year[1:4], 52, 1, sep="-"), "%Y-%U-%u"))
+  stopifnot(all(old_52 == expected[1:4]),
+            all(runtime$book_iso_week_monday(year[1:4], rep(52, 4)) < expected[1:4]))
+  for (bad_week in c(0, 54, 1.5, NA_real_, Inf)) {
+    assert_error(runtime$book_iso_week_monday(2021, bad_week), "valid integer ISO")
+  }
+  assert_error(runtime$book_iso_week_monday(2021, 53), "invalid ISO week")
+  assert_error(runtime$book_iso_week_monday(NA_real_, 1), "valid integer ISO")
+  assert_error(runtime$book_iso_week_monday(c(2020, 2021), 1), "valid integer ISO")
+  assert_equal(runtime$book_iso_week_monday(integer(), integer()), as.Date(character()),
+               "empty ISO input")
+  # Every published affected chapter uses precisely the same normalization.
+  for (chapter in c("Chapters/01_Indicators/1_Indicators.Rmd", "Chapters/05_ETFs/ETFs.Rmd",
+                    "Chapters/03_InterestRates/InterestRates.Rmd")) {
+    assignments <- Filter(function(expression) {
+      is.call(expression) && length(expression) >= 3L &&
+        identical(expression[[2L]], quote(df_interest$Date))
+    }, chapter_expressions(chapter))
+    stopifnot(length(assignments) == 1L,
+              identical(assignments[[1L]][[3L]], quote(book_iso_week_monday(df_interest$År, df_interest$Uge))))
+  }
+
+  directory <- tempfile("invalid-correlation-input-")
+  previous <- Sys.getenv("BOOK_RESULTS_DIR", unset = NA_character_)
+  on.exit({
+    if (is.na(previous)) Sys.unsetenv("BOOK_RESULTS_DIR") else Sys.setenv(BOOK_RESULTS_DIR = previous)
+    unlink(directory, recursive = TRUE)
+    scope$book_save_rds <- NULL
+  }, add = TRUE)
+  invalid <- data.frame(series_id = c("Kort.rente", "Kort.rente", NA_character_),
+                        date = as.Date(c(NA_character_, NA_character_, "2020-12-28")),
+                        value = c(4.07, 1.74, 5.19), provider_note = c("a", "b", "c"))
+  Sys.unsetenv("BOOK_RESULTS_DIR")
+  scope$book_save_rds <- function(...) stop("Unconfigured capture must not write")
+  assert_error(scope$book_prepare_correlations(invalid, "indicators-correlations"),
+                "indicators-correlations.*3 invalid rows; missing series_id=1, missing date=2.*Kort.rente=2")
+  stopifnot(!dir.exists(directory))
+  scope$book_save_rds <- runtime$book_save_rds
+  Sys.setenv(BOOK_RESULTS_DIR = directory)
+  assert_error(scope$book_prepare_correlations(invalid, "indicators-correlations"), "must not be missing")
+  record <- readRDS(file.path(directory, "invalid-correlation-inputs-indicators-correlations.rds"))
+  stopifnot(identical(record$invalid_rows, invalid), identical(record$row_indices, 1:3),
+            identical(record$namespace, "indicators-correlations"),
+            record$missing_series_id == 1L, record$missing_date == 2L,
+            sum(record$series_counts$rows) == 3L)
+  cat("PASS: ISO week 53/year boundaries, consistent three-chapter dates, invalid weeks rejected, strict missing-key diagnostics and configured-only full-row capture\n")
+}
+
 run_correlations_tests <- function() {
   scope <- correlation_scope
+  run_mortgage_date_tests(scope)
   horizons <- c(30L, 365L, 1825L)
   max_error <- 0
   # Execute the chapter's actual failure path with no network or retry sleeps.
@@ -219,7 +290,8 @@ run_correlations_tests <- function() {
   stopifnot(length(getter) == 1L)
   eval(getter[[1L]], optional)
   requests <- character()
-  optional$book_yahoo <- function(ticker) {
+  optional$book_yahoo <- function(ticker, attempts = 3L) {
+    stopifnot(identical(attempts, 1L))
     requests <<- c(requests, ticker)
     stop("Current fixture data unavailable")
   }

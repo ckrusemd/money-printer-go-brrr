@@ -258,9 +258,9 @@ for (name in c("draw_plots", "get_yahoo_ticker")) eval(definition(name)[[1]])
 eval(tail(definition("series_ids_yahoo"), 1)[[1]])
 stopifnot("^RUT" %in% series_ids_yahoo)
 requests <- 0L
-book_yahoo <- function(ticker, env = NULL) {
+book_yahoo <- function(ticker, env = NULL, attempts = 3L) {
   requests <<- requests + 1L
-  stopifnot(identical(ticker, "^RUT"), is.null(env))
+  stopifnot(identical(ticker, "^RUT"), is.null(env), identical(attempts, 1L))
   xts::xts(matrix(1:12, ncol = 6), order.by = as.Date(c("2016-12-30", "2016-12-31")))
 }
 prices <- get_yahoo_ticker("^RUT", attempts = 1)

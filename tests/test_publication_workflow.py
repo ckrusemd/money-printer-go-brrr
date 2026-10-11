@@ -69,6 +69,35 @@ class PublicationImageTests(unittest.TestCase):
         self.assertIn("github.event.workflow_run.head_sha == github.sha", build)
         self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository", build)
 
+    def test_failed_snapshots_are_diagnostic_only(self):
+        def step(name):
+            return self.workflow.split("      - name: " + name + "\n", 1)[1].split("\n      - name:", 1)[0]
+
+        successful = step("Retain successful provider snapshots")
+        # No status override: GitHub's default success() skips this on failure.
+        self.assertNotIn("\n        if:", successful)
+        self.assertIn("name: book-provider-snapshots\n", successful)
+        self.assertIn("if-no-files-found: error", successful)
+        self.assertIn("retention-days: 14", successful)
+
+        diagnostic = step("Retain diagnostic provider snapshots on failure")
+        self.assertIn("if: failure()\n", diagnostic)
+        self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", diagnostic)
+        self.assertIn("name: book-provider-snapshots-debug\n", diagnostic)
+        self.assertIn("path: .cache/book-inputs\n", diagnostic)
+        self.assertIn("include-hidden-files: true", diagnostic)
+        self.assertIn("if-no-files-found: warn", diagnostic)
+        self.assertIn("retention-days: 3", diagnostic)
+        # The debug name appears only at upload, never as a replay input.
+        self.assertEqual(self.workflow.count("book-provider-snapshots-debug"), 1)
+        download = step("Download recorded provider snapshots")
+        self.assertIn("name: book-provider-snapshots\n", download)
+        self.assertNotIn("book-provider-snapshots-debug", download)
+        deploy = self.workflow.split("\n  deploy:\n", 1)[1]
+        self.assertIn("needs: build", deploy)
+        self.assertNotIn("always()", deploy)
+        self.assertNotIn("failure()", deploy)
+
 
 if __name__ == "__main__":
     unittest.main()

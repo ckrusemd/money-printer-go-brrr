@@ -43,7 +43,7 @@ This report was compiled `r print_danish_time()` (Europe/Copenhagen).
 
 Analysis date: `r book_date()`. Rolling windows use this fixed date throughout the build.
 
-This is a quick route into my market and macro research. The charts use public data from [FRED](https://fred.stlouisfed.org/), [Yahoo Finance](https://finance.yahoo.com/), [Statistics Denmark](https://www.dst.dk/), and [Finans Danmark](https://finansdanmark.dk/). Series refresh when the book is built; a provider may publish observations later than the build date, and market prices may be carried forward over non-trading days.
+This is a quick route into my market and macro research. The charts use public data from [FRED](https://fred.stlouisfed.org/), [Yahoo Finance](https://finance.yahoo.com/), [Statistics Denmark](https://www.dst.dk/), and [Finans Danmark](https://finansdanmark.dk/). Series refresh when the book is built. Providers publish on different schedules, so observation dates may lag compilation, and market prices may be carried forward over non-trading days.
 
 ## Start here
 

@@ -1,7 +1,8 @@
 """Create an untracked historical book with current snapshot adapters only.
 
 Analysis, joins, model fitting, charts and chapter order remain historical.
-Only retrieval, dependency loading and date reads are adapted for offline replay.
+Only retrieval, dependency loading and date reads are adapted for offline replay,
+plus the approved Finans Danmark ISO-week input-date correction in both versions.
 """
 
 import argparse
@@ -33,6 +34,13 @@ def adapt_source(text):
     text = re.sub(r"\becb::get_data\(", "book_ecb_data(attempts = 1L, ", text)
     text = text.replace("getSymbols(", "book_yahoo(")
     text = text.replace("openxlsx::read.xlsx(xlsxFile = xlsx_url", "book_workbook(url = xlsx_url")
+    # Approved input bug correction, NOT a statistical parity exemption:
+    # Sunday-based %U produced four NA dates and shifted other valid ISO weeks.
+    # Correct the exact historical expression before fitting in BOTH versions;
+    # preserve every rate, fill, join, model and original pairwise CCF calculation.
+    text = text.replace(
+        'as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")',
+        'book_iso_week_monday(df_interest$År, df_interest$Uge)')
     # Leave YAML's display date intact; all analytical windows are frozen.
     if text.startswith("---"):
         end = text.find("\n---", 3)

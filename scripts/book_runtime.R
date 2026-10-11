@@ -25,6 +25,29 @@ if (!exists(".book_runtime", envir = .GlobalEnv, inherits = FALSE)) {
 
 book_date <- function() .book_runtime$as_of
 
+# All observed Finans Danmark year/week keys agree with the ISO calendar
+# (including week 53); its publication page specifies weekly rates, not an
+# explicit ISO schema. Preserve the chapters' Monday observation convention.
+# %U is Sunday-based and yields shifted dates or NA for these ISO week keys.
+book_iso_week_monday <- function(year, week) {
+  year <- suppressWarnings(as.numeric(as.character(year)))
+  week <- suppressWarnings(as.numeric(as.character(week)))
+  if (length(year) != length(week) || anyNA(year) || anyNA(week) ||
+      any(!is.finite(year)) || any(!is.finite(week)) ||
+      any(year != floor(year) | year < 1 | year > 9999) ||
+      any(week != floor(week) | week < 1 | week > 53)) {
+    stop("Finans Danmark requires valid integer ISO years and weeks", call. = FALSE)
+  }
+  if (!length(year)) return(as.Date(character()))
+  january_four <- as.Date(sprintf("%04d-01-04", as.integer(year)))
+  monday <- january_four - (as.integer(format(january_four, "%u")) - 1L) + (week - 1L) * 7L
+  valid <- as.integer(format(monday, "%G")) == year & as.integer(format(monday, "%V")) == week
+  if (anyNA(monday) || anyNA(valid) || !all(valid)) {
+    stop("Finans Danmark has an invalid ISO week for its year", call. = FALSE)
+  }
+  monday
+}
+
 book_hash <- function(value) {
   if (!requireNamespace("digest", quietly = TRUE)) stop("Missing locked dependency: digest")
   digest::digest(value, algo = "sha256", serialize = TRUE)
@@ -200,12 +223,12 @@ book_ecb_data <- function(key, filter = NULL, ..., attempts = 4L) {
   }, attempts = attempts)
 }
 
-book_yahoo <- function(ticker, ..., env = NULL) {
+book_yahoo <- function(ticker, ..., env = NULL, attempts = 3L) {
   if (!is.null(env)) stop("book_yahoo returns prices directly; env must be NULL")
   parameters <- c(list(Symbols = ticker, env = NULL, src = "yahoo"), list(...))
   book_fetch("Yahoo Finance", parameters, function() {
     quantmod::getSymbols(Symbols = ticker, env = NULL, src = "yahoo", ...)
-  })
+  }, attempts = attempts)
 }
 
 book_dst <- function(...) {

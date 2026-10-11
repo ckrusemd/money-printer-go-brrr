@@ -84,7 +84,7 @@ df_etfs = openxlsx::read.xlsx(xlsxFile = "Chapters/05_ETFs/etf_list.xlsx")
 get_yahoo_value = function(ticker, attempts = 3) {
   for (attempt in seq_len(attempts)) {
     prices = tryCatch(
-      book_yahoo(ticker),
+      book_yahoo(ticker, attempts = 1L),
       error = function(error) NULL
     )
 
@@ -217,7 +217,7 @@ xlsx_url = finansdanmark_xlsx_url(source_url)
 df_interest = book_workbook(url = xlsx_url,startRow = 1)
 df_interest$År[1] = 1997
 df_interest = df_interest %>% fill(År,.direction = "down")
-df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
+df_interest$Date = book_iso_week_monday(df_interest$År, df_interest$Uge)
 df_interest = df_interest %>%
   dplyr::select(Date,Kort.rente,Lang.rente) %>%
   dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente ) %>%
@@ -330,7 +330,7 @@ df_all = df_macro_yahoo %>%
   bind_rows(BYG42) %>%
   bind_rows(PRIS90) %>%
   bind_rows(BYGV80)
-df_all = book_prepare_correlations(df_all)
+df_all = book_prepare_correlations(df_all, namespace = book_correlation_namespace)
 all_ids = unique(df_all$series_id)
 
 rm(df_macro_yahoo)
