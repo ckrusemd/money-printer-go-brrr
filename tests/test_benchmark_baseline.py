@@ -3,6 +3,11 @@ from scripts.prepare_benchmark_baseline import adapt_source
 
 
 class BaselineAdapterTests(unittest.TestCase):
+    def test_second_mortgage_workbook_read_uses_same_date_normalization(self):
+        source = 'df_DK$date = as.Date(paste(df_DK$År, df_DK$Uge, 1, sep="-"), "%Y-%U-%u")\n'
+        self.assertEqual(adapt_source(source),
+                         'df_DK$date = book_iso_week_monday(df_DK$År, df_DK$Uge)\n')
+
     def test_only_adapts_retrieval_and_runtime(self):
         old = 'getSymbols(ticker, env = NULL)\nfredr::fredr("DFF")\nSys.Date()\nfit <- randomForest(x, ntree = 300)\n'
         new = adapt_source(old)

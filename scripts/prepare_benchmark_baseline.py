@@ -38,9 +38,12 @@ def adapt_source(text):
     # Sunday-based %U produced four NA dates and shifted other valid ISO weeks.
     # Correct the exact historical expression before fitting in BOTH versions;
     # preserve every rate, fill, join, model and original pairwise CCF calculation.
-    text = text.replace(
-        'as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")',
-        'book_iso_week_monday(df_interest$År, df_interest$Uge)')
+    # The historical rates chapter reads the same workbook a second time
+    # into df_DK for model inputs. Normalize both consumers identically.
+    for frame in ("df_interest", "df_DK"):
+        text = text.replace(
+            f'as.Date(paste({frame}$År, {frame}$Uge, 1, sep="-"), "%Y-%U-%u")',
+            f'book_iso_week_monday({frame}$År, {frame}$Uge)')
     # Leave YAML's display date intact; all analytical windows are frozen.
     if text.startswith("---"):
         end = text.find("\n---", 3)
