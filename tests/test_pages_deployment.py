@@ -19,10 +19,6 @@ class PagesDeploymentTests(unittest.TestCase):
     def test_retry_only_follows_failure_and_never_cancellation_or_success(self):
         self.assertIn("continue-on-error: true", self.first)
         self.assertIn("if: ${{ !cancelled() && steps.deployment.outcome == 'failure' }}", self.retry)
-        for cancelled in (False, True):
-            for outcome in ("success", "failure", "cancelled", "skipped"):
-                should_retry = not cancelled and outcome == "failure"
-                self.assertEqual(should_retry, (cancelled, outcome) == (False, "failure"))
 
     def test_retry_failure_is_not_silenced(self):
         self.assertNotIn("continue-on-error", self.retry)
