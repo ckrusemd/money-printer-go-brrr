@@ -66,6 +66,20 @@ class PublicationImageTests(unittest.TestCase):
         self.assertIn('docker pull "$PUBLICATION_IMAGE"', benchmark)
         self.assertIn('"$PUBLICATION_IMAGE" --vanilla', benchmark)
         self.assertIn("--network none", benchmark)
+        self.assertIn("completed_benchmark_run_id:", self.workflow)
+        render = benchmark.split("      - name: Render eight fixed-input books only without network\n", 1)[1].split("\n      - name:", 1)[0]
+        self.assertIn("if: inputs.completed_benchmark_run_id == ''", render)
+        self.assertIn("scripts/benchmark_book.R render-only", render)
+        recovery = benchmark.split("      - name: Authenticate completed benchmark archive without rendering\n", 1)[1].split("\n      - name:", 1)[0]
+        self.assertIn("if: inputs.completed_benchmark_run_id != ''", recovery)
+        self.assertIn("benchmark_provenance.py recover", recovery)
+        self.assertNotIn("render-only", recovery)
+        self.assertIn("namespace: [indicators-correlations, etf-correlations]", benchmark)
+        self.assertIn("fail-fast: false", benchmark)
+        self.assertIn("needs: [benchmark, benchmark-audit]", benchmark)
+        self.assertIn("scripts/benchmark_book.R aggregate", benchmark)
+        self.assertIn("scripts/benchmark_book.R verify", benchmark)
+        self.assertIn("Rscript --vanilla scripts/check_publication_closure.R", build)
         self.assertIn("github.event.workflow_run.head_sha == github.sha", build)
         self.assertIn("github.event.workflow_run.head_repository.full_name == github.repository", build)
         self.assertIn("github.event.workflow_run.repository.full_name == github.repository", build)
@@ -85,6 +99,29 @@ class PublicationImageTests(unittest.TestCase):
         self.assertIn("run: python3 scripts/publication_push_guard.py", preflight)
         self.assertIn("needs.publication-image.outputs.render_allowed == 'true' &&", build)
         self.assertLess(build.index("outputs.render_allowed"), build.index("    container:"))
+
+    def test_namespace_audits_and_aggregate_are_separate_jobs_with_complete_proofs(self):
+        benchmark = self.workflow.split("\n  benchmark:\n", 1)[1].split("\n  benchmark-audit:\n", 1)[0]
+        audit = self.workflow.split("\n  benchmark-audit:\n", 1)[1].split("\n  benchmark-aggregate:\n", 1)[0]
+        aggregate = self.workflow.split("\n  benchmark-aggregate:\n", 1)[1].split("\n  deploy:\n", 1)[0]
+        self.assertIn("scripts/benchmark_book.R verify", benchmark)
+        self.assertNotIn("scripts/benchmark_book.R audit", benchmark)
+        self.assertIn("needs: benchmark", audit)
+        self.assertIn("namespace: [indicators-correlations, etf-correlations]", audit)
+        self.assertIn("fail-fast: false", audit)
+        self.assertIn("scripts/benchmark_book.R audit", audit)
+        self.assertIn('"$NAMESPACE"', audit)
+        self.assertIn("name: book-benchmark-audit-${{ matrix.namespace }}", audit)
+        self.assertIn("needs: [benchmark, benchmark-audit]", aggregate)
+        self.assertIn("scripts/benchmark_book.R aggregate", aggregate)
+        self.assertIn("name: book-benchmark-parity", aggregate)
+        self.assertIn("pattern: book-benchmark-audit-*", aggregate)
+        self.assertIn("merge-multiple: true", aggregate)
+        for job in (audit, aggregate):
+            self.assertIn("--network none", job)
+            self.assertIn("name: book-benchmark-receipts", job)
+            self.assertIn("name: book-provider-snapshots", job)
+            self.assertNotIn("render-only", job)
 
     def test_failed_snapshots_are_diagnostic_only(self):
         def step(name):

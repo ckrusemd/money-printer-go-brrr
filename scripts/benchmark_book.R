@@ -82,6 +82,15 @@ book_correlation_namespace_setup <- function(text, namespace) {
          after = first)
 }
 
+book_benchmark_required <- function() {
+  c("df_ccfs", "rf_backtest", "rf_metrics", "rf_regime_metrics",
+    "rf_live_forecast", "dff_rf_has_skill",
+    paste0("model_predictions_", c("DFF", "DGS2", "DGS10", "MORTGAGE30US",
+      "DK_Short", "DK_Long", "CPIAUCSL", "CSUSHPINSA", "M2SL", "UMCSENT",
+      "USREC", "DF", "DGS2_on_DFF", "DGS10_on_DFF", "MORTGAGE30US_on_DFF",
+      "DK_Long_on_DK_Short")))
+}
+
 book_benchmark_render <- function(config_path) {
   config <- readRDS(config_path)
   setwd(config$root)
@@ -108,16 +117,7 @@ book_benchmark_render <- function(config_path) {
   check_bookdown_output("_book", expected_pages = expected,
                         check_chart_alt = !identical(config$version, "baseline"))
   if (!length(list.files(config$numeric, "\\.rds$"))) stop("No numeric chunk captures produced")
-  required <- c("df_ccfs", "rf_backtest", "rf_metrics", "rf_regime_metrics",
-                "rf_live_forecast", "dff_rf_has_skill",
-                "model_predictions_DFF", "model_predictions_DGS2",
-                "model_predictions_DGS10", "model_predictions_MORTGAGE30US",
-                "model_predictions_DK_Short", "model_predictions_DK_Long",
-                "model_predictions_CPIAUCSL", "model_predictions_CSUSHPINSA",
-                "model_predictions_M2SL", "model_predictions_UMCSENT",
-                "model_predictions_USREC", "model_predictions_DF",
-                "model_predictions_DGS2_on_DFF", "model_predictions_DGS10_on_DFF",
-                "model_predictions_MORTGAGE30US_on_DFF", "model_predictions_DK_Long_on_DK_Short")
+  required <- book_benchmark_required()
   present <- sub("-[0-9]+\\.rds$", "", list.files(config$numeric, "\\.rds$"))
   if (!all(required %in% present)) stop("Missing full analysis outputs: ",
                                        paste(setdiff(required, present), collapse = ", "))
@@ -144,8 +144,263 @@ book_compare_numeric <- function(baseline, optimized, tolerance = 1e-8,
   differences
 }
 
+book_benchmark_namespaces <- c("indicators-correlations", "etf-correlations")
+
+book_read_provenance <- function(path) {
+  fields <- c("schema", "repository", "source_sha", "baseline_sha", "image",
+              "snapshot_run_id", "benchmark_run_id", "mode",
+              "snapshot_artifact_id", "snapshot_artifact_digest")
+  value <- read.dcf(path)
+  if (nrow(value) != 1L || !all(fields %in% colnames(value))) stop("Incomplete provenance receipt")
+  value <- as.list(value[1L, ])
+  if (!identical(value$schema, "1") ||
+      !identical(value$repository, "ckrusemd/money-printer-go-brrr") ||
+      !value$mode %in% c("fresh", "legacy") ||
+      !grepl("^[0-9a-f]{40}$", value$source_sha) ||
+      !grepl("^[0-9a-f]{40}$", value$baseline_sha) ||
+      !grepl("^ghcr\\.io/ckrusemd/money-printer-go-brrr-r@sha256:[0-9a-f]{64}$", value$image) ||
+      !grepl("^sha256:[0-9a-f]{64}$", value$snapshot_artifact_digest) ||
+      any(!vapply(value[c("snapshot_run_id", "benchmark_run_id", "snapshot_artifact_id")],
+                  function(x) grepl("^[1-9][0-9]*$", x), logical(1)))) stop("Invalid provenance receipt")
+  value
+}
+
+book_check_archive_contents <- function(directory, provenance) {
+  if (is.null(provenance$archive_path) || is.null(provenance$archive_digest) ||
+      !file.exists(provenance$archive_path) ||
+      !identical(paste0("sha256:", digest::digest(file = provenance$archive_path, algo = "sha256")),
+                 provenance$archive_digest)) stop("Authenticated archive digest mismatch")
+  entries <- utils::unzip(provenance$archive_path, list = TRUE)
+  entries <- entries[!endsWith(entries$Name, "/"), , drop = FALSE]
+  files <- sort(list.files(directory, recursive = TRUE, full.names = TRUE, all.files = TRUE, no.. = TRUE))
+  relative <- substring(files, nchar(normalizePath(directory)) + 2L)
+  if (anyDuplicated(entries$Name) || !setequal(relative, entries$Name)) stop("Extracted archive coverage mismatch")
+  for (i in seq_len(nrow(entries))) {
+    entry <- entries$Name[[i]]
+    connection <- unz(provenance$archive_path, entry, open = "rb")
+    bytes <- tryCatch(readBin(connection, "raw", n = entries$Length[[i]]), finally = close(connection))
+    if (length(bytes) != entries$Length[[i]] ||
+        !identical(digest::digest(bytes, algo = "md5", serialize = FALSE),
+                   unname(tools::md5sum(file.path(directory, entry))))) stop("Extracted archive content mismatch: ", entry)
+  }
+  invisible(TRUE)
+}
+
+book_evidence_key <- function(directory, provenance) {
+  files <- sort(list.files(directory, recursive = TRUE, full.names = TRUE,
+                           all.files = TRUE, no.. = TRUE))
+  hashes <- tools::md5sum(files)
+  names(hashes) <- substring(names(hashes), nchar(normalizePath(directory)) + 2L)
+  digest::digest(list(hashes = hashes, provenance = provenance), algo = "sha256")
+}
+
+# Read evidence only. Never execute artifact scripts or re-use vanished scratch
+# roots from config.rds. All eight successful child processes already ran the
+# full publication validator (strict alt on optimized, explicit legacy mode).
+book_validate_evidence <- function(directory, snapshots, provenance_path) {
+  directory <- normalizePath(directory, mustWork = TRUE)
+  snapshots <- normalizePath(snapshots, mustWork = TRUE)
+  provenance <- book_read_provenance(provenance_path)
+  authenticated <- provenance
+  if (!is.null(authenticated$archive_path) &&
+      !grepl("^(/|[A-Za-z]:[/\\\\])", authenticated$archive_path)) {
+    authenticated$archive_path <- file.path(dirname(normalizePath(provenance_path, mustWork = TRUE)),
+                                          authenticated$archive_path)
+  }
+  saved_path <- file.path(directory, "provenance.dcf")
+  if (file.exists(saved_path)) {
+    saved <- book_read_provenance(saved_path)
+    if (!identical(saved, provenance[names(saved)])) stop("Source/image provenance mismatch")
+  } else {
+    # The sole legacy artifact is independently authenticated by the fixed-repo
+    # API, its archive SHA256, and original runner logs in benchmark_provenance.py.
+    legacy <- c(benchmark_run_id = "38169256067",
+      source_sha = "0e4d1110188a68f203a3fa17efdfd0010b1a96a4",
+      baseline_sha = "b7e08934877da8a88b4b2393a3745b994f8bff48",
+      snapshot_run_id = "38166191755", snapshot_artifact_id = "11712094467",
+      snapshot_artifact_digest = "sha256:1109864ee6b096cc5e6fd6662790d39d8e3263f7a5122542917f5ff5600df668",
+      image = "ghcr.io/ckrusemd/money-printer-go-brrr-r@sha256:89a9b02fd62a3cbca56bb06519dabfc321117ac69fd2432dc7c8b3cbaf17a5db",
+      archive_digest = "sha256:cfc889b82604bc9a58a54e02311ad9c074f56c8ced670add17da43fd33f2ad41")
+    if (!identical(provenance$mode, "legacy") ||
+        !identical(unlist(provenance[names(legacy)]), legacy) ||
+        is.null(authenticated$archive_path) || !file.exists(authenticated$archive_path) ||
+        is.null(provenance$logs_digest) ||
+        !grepl("^sha256:[0-9a-f]{64}$", provenance$logs_digest)) {
+      stop("Missing authenticated legacy provenance")
+    }
+  }
+  if (!is.null(authenticated$archive_path)) book_check_archive_contents(directory, authenticated)
+  results <- utils::read.csv(file.path(directory, "runs.csv"), stringsAsFactors = FALSE)
+  columns <- c("version", "run", "warmup", "elapsed_seconds", "max_rss_kb", "exit_status")
+  keys <- paste(results$version, results$run, sep = "-")
+  expected <- as.vector(outer(c("baseline", "optimized"), 0:3, paste, sep = "-"))
+  if (!identical(names(results), columns) || nrow(results) != 8L ||
+      anyDuplicated(keys) || !setequal(keys, expected) || anyNA(results) ||
+      !is.logical(results$warmup) || !identical(results$warmup, results$run == 0L) ||
+      any(results$exit_status != 0L) ||
+      any(!is.finite(results$elapsed_seconds) | results$elapsed_seconds <= 0) ||
+      any(!is.finite(results$max_rss_kb) | results$max_rss_kb <= 0)) stop("Incomplete/invalid eight-run evidence")
+  as_of <- trimws(readLines(file.path(directory, "as-of.txt"), warn = FALSE))
+  if (length(as_of) != 1L || !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", as_of) ||
+      is.na(as.Date(as_of)) || !identical(as_of, trimws(readLines(file.path(snapshots, "as-of.txt"), warn = FALSE)))) {
+    stop("Snapshot as-of mismatch")
+  }
+  saved_hashes <- readRDS(file.path(directory, "snapshot-hashes.rds"))
+  snapshot_files <- sort(list.files(snapshots, recursive = TRUE, full.names = TRUE))
+  current_hashes <- tools::md5sum(snapshot_files)
+  names(saved_hashes) <- basename(names(saved_hashes))
+  names(current_hashes) <- basename(names(current_hashes))
+  if (!length(saved_hashes) || anyNA(saved_hashes) || anyDuplicated(names(saved_hashes)) ||
+      anyDuplicated(names(current_hashes)) ||
+      !identical(saved_hashes[order(names(saved_hashes))], current_hashes[order(names(current_hashes))])) {
+    stop("Snapshot content hashes mismatch")
+  }
+  manifest <- readRDS(file.path(snapshots, "manifest.rds"))
+  if (!is.list(manifest) || !identical(manifest$schema_version, 1L) ||
+      !identical(manifest$as_of, as.Date(as_of)) || !is.list(manifest$requests)) stop("Snapshot manifest schema/date mismatch")
+  source("scripts/analysis/correlations.R", local = TRUE)
+  coverage <- NULL
+  configurations <- list()
+  for (i in seq_len(nrow(results))) {
+    path <- file.path(directory, keys[[i]])
+    timing <- scan(file.path(path, "time.csv"), sep = ",", quiet = TRUE)
+    if (length(timing) != 2L || !identical(as.numeric(timing),
+        c(results$elapsed_seconds[[i]], as.numeric(results$max_rss_kb[[i]])))) stop("Run timing mismatch: ", keys[[i]])
+    config <- readRDS(file.path(path, "config.rds"))
+    if (!identical(config$version, results$version[[i]]) || !identical(config$as_of, as_of) ||
+        !is.character(config$snapshots) || length(config$snapshots) != 1L ||
+        !nzchar(config$snapshots)) stop("Run configuration mismatch: ", keys[[i]])
+    configurations[[keys[[i]]]] <- config
+    log <- readLines(file.path(path, "render.log"), warn = FALSE)
+    if (!any(grepl("Bookdown output checked:", log, fixed = TRUE)) ||
+        any(grepl("Execution halted|Quitting from lines", log)) ||
+        !file.exists(file.path(path, "session-info.txt")) ||
+        !file.exists(file.path(path, "book-metrics.csv"))) stop("Missing successful render evidence: ", keys[[i]])
+    numeric <- file.path(path, "numeric")
+    files <- sort(list.files(numeric, "\\.rds$"))
+    if (any(!grepl("^[A-Za-z0-9_]+-[0-9]{3}\\.rds$", files))) stop("Invalid numeric capture filename")
+    domains <- sub("-[0-9]+\\.rds$", "", files)
+    if (!all(book_benchmark_required() %in% domains)) stop("Missing numeric domains: ", keys[[i]])
+    for (domain in unique(domains)) {
+      actual <- files[domains == domain]
+      if (!identical(actual, sprintf("%s-%03d.rds", domain, seq_along(actual)))) stop("Numeric capture sequence gap")
+    }
+    if (is.null(coverage)) coverage <- files
+    if (!identical(coverage, files)) stop("Numeric capture coverage mismatch")
+    records <- book_load_correlation_captures(numeric)
+    for (j in seq_along(records)) {
+      record <- records[[j]]
+      if (!identical(record$schema, 1L) || !identical(record$namespace, book_benchmark_namespaces[[j]]) ||
+          !is.data.frame(record$observations) || !is.data.frame(record$output) ||
+          !all(c("series_id", "date", "value") %in% names(record$observations))) stop("Correlation capture schema/namespace mismatch")
+    }
+  }
+  if (length(unique(vapply(configurations, `[[`, character(1), "snapshots"))) != 1L) stop("Run snapshot paths differ")
+  for (version in c("baseline", "optimized")) {
+    configs <- configurations[paste0(version, "-", 0:3)]
+    for (field in c("root", "derived")) {
+      if (length(unique(vapply(configs, `[[`, character(1), field))) != 1L) stop("Run scratch/cache configuration differs")
+    }
+  }
+  list(results = results, as_of = as_of, provenance = provenance,
+       proof_key = book_evidence_key(directory, provenance))
+}
+
+book_benchmark_verify <- function(directory, snapshots, provenance, output) {
+  evidence <- book_validate_evidence(directory, snapshots, provenance)
+  source("scripts/analysis/correlations.R", local = TRUE)
+  differences <- historical <- character()
+  reference <- file.path(directory, "baseline-1/numeric")
+  for (version in c("baseline", "optimized")) for (run in 0:3) {
+    current <- file.path(directory, paste0(version, "-", run), "numeric")
+    own <- file.path(directory, paste0(version, "-1"), "numeric")
+    differences <- c(differences, book_compare_numeric(reference, current),
+                     book_compare_numeric(own, current, correlations = TRUE))
+    book_compare_correlation_captures(own, current)
+    if (version == "optimized") historical <- c(historical,
+      book_compare_numeric(reference, current, correlations = TRUE))
+  }
+  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  writeLines(if (length(differences)) unique(differences) else "All full numeric captures match (tolerance 1e-8).",
+             file.path(output, "numeric-comparison.txt"))
+  writeLines(if (length(historical)) unique(historical) else "Correlations match.",
+             file.path(output, "historical-correlation-differences.txt"))
+  if (length(differences)) stop("Numeric analysis differs; see numeric-comparison.txt")
+  proof <- list(schema = 1L, proof_key = evidence$proof_key,
+                model_results_equal = TRUE, correlation_parity_runs = 8L,
+                historical_correlation_differences = length(unique(historical)))
+  saveRDS(proof, file.path(output, "parity.rds"))
+  invisible(proof)
+}
+
+book_benchmark_audit <- function(directory, snapshots, provenance, output, namespace) {
+  if (length(namespace) != 1L || !namespace %in% book_benchmark_namespaces) stop("Unapproved audit namespace")
+  evidence <- book_validate_evidence(directory, snapshots, provenance)
+  source("scripts/analysis/correlations.R", local = TRUE)
+  records <- lapply(c("baseline", "optimized"), function(version) {
+    book_load_correlation_captures(file.path(directory, paste0(version, "-1/numeric")))
+  })
+  index <- match(namespace, book_benchmark_namespaces)
+  cat("Starting full independent oracle:", namespace, "\n")
+  report <- book_audit_correlation_record(records[[1L]][[index]], records[[2L]][[index]], tolerance = 1e-8)
+  proof <- list(schema = 1L, proof_key = evidence$proof_key, namespace = namespace,
+                source_sha = evidence$provenance$source_sha, image = evidence$provenance$image,
+                report = report)
+  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  utils::write.csv(report, file.path(output, paste0(namespace, ".csv")), row.names = FALSE)
+  saveRDS(proof, file.path(output, paste0(namespace, ".rds")))
+  cat("Full independent oracle passed:", namespace, "\n")
+  invisible(proof)
+}
+
+book_benchmark_aggregate <- function(directory, snapshots, provenance, output, proofs) {
+  evidence <- book_validate_evidence(directory, snapshots, provenance)
+  parity <- readRDS(file.path(proofs, "parity.rds"))
+  if (!identical(parity$schema, 1L) || !identical(parity$proof_key, evidence$proof_key) ||
+      !identical(parity$model_results_equal, TRUE) || !identical(parity$correlation_parity_runs, 8L) ||
+      !is.integer(parity$historical_correlation_differences) ||
+      length(parity$historical_correlation_differences) != 1L ||
+      is.na(parity$historical_correlation_differences) ||
+      parity$historical_correlation_differences < 0L) stop("Incomplete/mismatched numeric parity proof")
+  reports <- lapply(book_benchmark_namespaces, function(namespace) {
+    proof <- readRDS(file.path(proofs, paste0(namespace, ".rds")))
+    report <- proof$report
+    if (!identical(proof$schema, 1L) || !identical(proof$proof_key, evidence$proof_key) ||
+        !identical(proof$namespace, namespace) ||
+        !identical(proof$source_sha, evidence$provenance$source_sha) ||
+        !identical(proof$image, evidence$provenance$image) ||
+        !is.data.frame(report) || nrow(report) != 1L ||
+        !identical(names(report), c("namespace", "pairs", "rows", "removed_exact_etf_rows", "max_coefficient_error", "tolerance")) ||
+        !identical(report$namespace, namespace) || anyNA(report) ||
+        report$tolerance != 1e-8 || !is.finite(report$max_coefficient_error) ||
+        report$max_coefficient_error < 0 || report$max_coefficient_error > 1e-8 ||
+        report$pairs < 1 || report$rows < report$pairs || report$removed_exact_etf_rows < 0) stop("Incomplete/mismatched independent audit proof: ", namespace)
+    record <- readRDS(file.path(directory, "optimized-1/numeric/correlations", paste0(namespace, ".rds")))
+    baseline <- readRDS(file.path(directory, "baseline-1/numeric/correlations", paste0(namespace, ".rds")))
+    if (report$rows != nrow(record$output) || report$pairs != nrow(unique(record$output[c("x1", "x2")])) ||
+        report$removed_exact_etf_rows != nrow(baseline$observations) - nrow(record$observations)) stop("Audit report coverage mismatch")
+    report
+  })
+  results <- evidence$results
+  medians <- tapply(results$elapsed_seconds[!results$warmup], results$version[!results$warmup], median)
+  reduction <- 1 - medians[["optimized"]] / medians[["baseline"]]
+  rss <- book_benchmark_rss(results)
+  summary <- cbind(data.frame(baseline_median_seconds = medians[["baseline"]],
+    optimized_median_seconds = medians[["optimized"]], reduction = reduction), rss,
+    data.frame(model_results_equal = TRUE, correlations_audited = TRUE,
+      historical_correlation_differences = parity$historical_correlation_differences,
+      runtime_target_met = is.finite(reduction) && reduction >= 0.30,
+      target_met = is.finite(reduction) && reduction >= 0.30 && isTRUE(rss$rss_target_met)))
+  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  utils::write.csv(do.call(rbind, reports), file.path(output, "correlation-audit.csv"), row.names = FALSE)
+  utils::write.csv(summary, file.path(output, "summary.csv"), row.names = FALSE)
+  if (!isTRUE(summary$target_met)) stop("Benchmark runtime/RSS acceptance gate failed; see summary.csv")
+  invisible(summary)
+}
+
 benchmark_book <- function(baseline, optimized, snapshots,
-                           artifacts = ".cache/book-benchmark", as_of = NULL) {
+                           artifacts = ".cache/book-benchmark", as_of = NULL,
+                           render_only = FALSE, provenance = NULL) {
   roots <- c(baseline = normalizePath(baseline, mustWork = TRUE),
              optimized = normalizePath(optimized, mustWork = TRUE))
   snapshots <- normalizePath(snapshots, mustWork = TRUE)
@@ -197,6 +452,10 @@ benchmark_book <- function(baseline, optimized, snapshots,
   }
   dir.create(destination, recursive = TRUE, showWarnings = FALSE)
   artifacts <- normalizePath(destination, mustWork = TRUE)
+  if (!is.null(provenance)) {
+    book_read_provenance(provenance)
+    if (!file.copy(provenance, file.path(artifacts, "provenance.dcf"))) stop("Cannot record provenance")
+  }
   scratch <- tempfile("book-benchmark-")
   dir.create(scratch)
   on.exit(unlink(scratch, recursive = TRUE), add = TRUE)
@@ -274,6 +533,7 @@ benchmark_book <- function(baseline, optimized, snapshots,
     if (status != 0L) stop("Benchmark render failed; see ", log)
   }
   if (!identical(snapshot_hash, tools::md5sum(snapshot_files))) stop("Provider snapshots changed during benchmark")
+  if (render_only) return(invisible(results))
   differences <- correlation_differences <- character()
   correlation_audits <- NULL
   correlation_parity_runs <- 0L
@@ -337,9 +597,22 @@ benchmark_book <- function(baseline, optimized, snapshots,
 
 if (sys.nframe() == 0L) {
   args <- commandArgs(trailingOnly = TRUE)
-  if (length(args) < 3L || length(args) > 4L) {
+  if (length(args) && args[[1L]] %in% c("render-only", "verify", "audit", "aggregate")) {
+    phase <- args[[1L]]
+    args <- args[-1L]
+    expected <- switch(phase, "render-only" = 5L, verify = 4L, audit = 5L, aggregate = 5L)
+    if (length(args) != expected) stop("Invalid argument count for benchmark phase: ", phase)
+    switch(phase,
+      "render-only" = benchmark_book(args[[1L]], args[[2L]], args[[3L]], args[[4L]],
+                                    render_only = TRUE, provenance = args[[5L]]),
+      verify = book_benchmark_verify(args[[1L]], args[[2L]], args[[3L]], args[[4L]]),
+      audit = book_benchmark_audit(args[[1L]], args[[2L]], args[[3L]], args[[4L]], args[[5L]]),
+      aggregate = book_benchmark_aggregate(args[[1L]], args[[2L]], args[[3L]], args[[4L]], args[[5L]]))
+  } else {
+    if (length(args) < 3L || length(args) > 4L) {
     stop("Usage: benchmark_book.R BASELINE OPTIMIZED SNAPSHOTS [ARTIFACT_DIR]")
+    }
+    benchmark_book(args[[1L]], args[[2L]], args[[3L]],
+                   if (length(args) == 4L) args[[4L]] else ".cache/book-benchmark")
   }
-  benchmark_book(args[[1L]], args[[2L]], args[[3L]],
-                 if (length(args) == 4L) args[[4L]] else ".cache/book-benchmark")
 }

@@ -195,7 +195,7 @@ local({
         identical(expression[[2L]], as.name("required"))
     }, logical(1)))
     stopifnot(length(start) == 1L)
-    validation <- new.env(parent = globalenv())
+    validation <- new.env(parent = benchmark)
     validation$config <- list(numeric = directory)
     for (index in seq.int(start, start + 2L)) eval(expressions[[index]], validation)
     stopifnot(all(prediction_names %in% validation$required))

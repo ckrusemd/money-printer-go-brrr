@@ -44,7 +44,7 @@ A collection of macroeconomic analysis notebooks covering interest rates, housin
 
 ### Prerequisites
 
-- R (≥ 4.0) with [renv](https://rstudio.github.io/renv/)
+- R 4.3.3 (the locked publication version) with [renv](https://rstudio.github.io/renv/)
 - Python 3 with Jupyter (for ETL and dashboard)
 - A [FRED API key](https://fred.stlouisfed.org/docs/api/api_key.html)
 
@@ -68,6 +68,11 @@ Rscript --vanilla -e "bookdown::render_book('index.Rmd', output_format = 'bookdo
 Dependency restoration is an explicit setup step. Rendering uses the installed,
 locked dependencies and must not restore the environment or install packages
 from inside a chapter.
+The research lock remains intact. `renv/publication.lock` retains 212 identical
+root records and omits only the dynamically tested notebook/kernel and obsolete
+package-loader dependencies: `IRdisplay`, `IRkernel`, `pacman`, `pbdZMQ`, `repr`
+and `uuid`. CI checks both the identical-record subset and its mandatory
+dependency closure; it does not treat a static closure alone as pruning proof.
 `Rscript --vanilla` does not automatically read `.Renviron`; export `FRED_API`
 before rendering, as above.
 
@@ -165,6 +170,21 @@ both warm medians/maxima and warmup peaks separately; warmup peaks are diagnosti
 not part of the warm-run acceptance gates. Historical ETF
 duplicate-correlation differences are reported separately from model parity.
 Use new, empty baseline and artifact directories; existing evidence is preserved.
+
+The dispatched benchmark separates eight render-only runs from two parallel
+full independent correlation audits, then aggregates their proofs with complete
+numeric parity and the runtime/RSS gates. Each render/audit job has its own
+six-hour limit. To recover completed renders without running **any** book again,
+dispatch with `benchmark=true`, `publish=false`, and
+`completed_benchmark_run_id=<original-run-id>`. The fixed-repository recovery
+checks immutable archive digests, source/image/input provenance, all eight
+successful runs, timing files and every required prediction domain. Partial
+evidence is rejected. Cancelled runs are eligible only when their complete
+render evidence passes those checks. The original run's digest-pinned image and
+recorded inputs override new tag/snapshot selections; the original `0e4d111`
+run additionally requires its exact original runner-log receipts. Recovery
+receipts, parity, per-namespace audit logs/reports and the aggregate acceptance
+report are retained as separate artifacts. No benchmark mode deploys.
 
 Mortgage-rate year/week observations are dated to ISO-week Mondays. The former
 Sunday-based `%U` parser shifted some dates and returned `NA` for valid week-53
