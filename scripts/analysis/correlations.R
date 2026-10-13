@@ -186,15 +186,21 @@ book_correlation_original <- function(observations, namespace, retain_undefined 
   observations <- as.data.frame(observations)
   observations$series_id <- as.character(observations$series_id)
   ids <- unique(observations$series_id)
+  # Literal original subsets, once per series instead of twice per pair.
+  # Keep full frames (including ancillary columns/attributes) and source order;
+  # all pair joins, NA omission and three separate CCF calls remain below.
+  series <- lapply(ids, function(id) observations[observations$series_id == id, , drop = FALSE])
   columns <- as.vector(rbind(paste0("best_corr_time_", c(30L, 365L, 1825L)),
                             paste0("best_corr_value_", c(30L, 365L, 1825L))))
   empty <- data.frame(x1 = character(), x2 = character())
   for (column in columns) empty[[column]] <- numeric()
   result <- list()
-  for (x1 in ids) for (x2 in ids) {
+  for (i in seq_along(ids)) for (j in seq_along(ids)) {
+    x1 <- ids[i]
+    x2 <- ids[j]
     if (x1 == x2) next
-    x <- observations[observations$series_id == x1, , drop = FALSE]
-    y <- observations[observations$series_id == x2, , drop = FALSE]
+    x <- series[[i]]
+    y <- series[[j]]
     x$.book_x_row <- seq_len(nrow(x))
     y$.book_y_row <- seq_len(nrow(y))
     x$series_id <- y$series_id <- NULL
@@ -226,6 +232,21 @@ book_correlation_original <- function(observations, namespace, retain_undefined 
     output$best_corr_value <- output$best_corr_value_365
   }
   output
+}
+
+# Reuse an oracle only for exact full inputs, allowing column order alone.
+# Do not canonicalize rows, discard ancillary columns/attributes or coerce
+# types. Duplicate names are ambiguous: force the independent third oracle.
+book_correlation_inputs_identical <- function(left, right) {
+  if (!is.data.frame(left) || !is.data.frame(right) ||
+      anyDuplicated(names(left)) || anyDuplicated(names(right)) ||
+      anyNA(names(left)) || anyNA(names(right)) ||
+      length(names(left)) != length(names(right)) ||
+      !setequal(names(left), names(right))) return(FALSE)
+  left_attributes <- attributes(left)
+  left_attributes$names <- names(right)
+  if (!identical(left_attributes, attributes(right))) return(FALSE)
+  identical(left[, match(names(right), names(left)), drop = FALSE], right)
 }
 
 book_audit_correlation_record <- function(baseline, optimized, tolerance = 1e-8) {
@@ -278,7 +299,11 @@ book_audit_correlation_record <- function(baseline, optimized, tolerance = 1e-8)
   # Independently check current actual df_all as well as cleaned historical
   # df_all. Dropping an ancillary NA column must not alter pair selection.
   rownames(clean) <- rownames(current) <- NULL
-  current_reference <- if (identical(clean, current)) reference else book_correlation_original(current, namespace)
+  current_reference <- if (book_correlation_inputs_identical(clean, current)) {
+    reference
+  } else {
+    book_correlation_original(current, namespace)
+  }
   if (!book_correlation_equal(reference, current_reference, tolerance) ||
       !book_correlation_equal(optimized$output, reference, tolerance)) {
     stop(namespace, ": optimized complete pairs differ from independent original clean CCF")

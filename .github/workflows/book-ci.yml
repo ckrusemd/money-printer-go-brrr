@@ -21,16 +21,35 @@ jobs:
           python3 -m compileall -q scripts tests knowledgegraph/app
           python3 scripts/sync_book_notebooks.py --check
           python3 -m unittest discover -s tests -p 'test_*.py' -v
-      - name: Check publication lock preserves root package records
+      - name: Check publication lock is an approved identical-record subset
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
+
+          def validate_publication_lock(root, publication):
+              # Live/replay and minimal-image evidence approves only these six.
+              approved_omissions = {"IRdisplay", "IRkernel", "pacman", "pbdZMQ", "repr", "uuid"}
+              if publication["R"] != root["R"]:
+                  raise ValueError("Publication R metadata differs from root lock")
+              original = root["Packages"]
+              retained = publication["Packages"]
+              extra = set(retained) - set(original)
+              if extra:
+                  raise ValueError("Extra publication records: " + ", ".join(sorted(extra)))
+              omitted = set(original) - set(retained)
+              unapproved = omitted - approved_omissions
+              if unapproved:
+                  raise ValueError("Unapproved publication omissions: " + ", ".join(sorted(unapproved)))
+              changed = {name for name in retained if retained[name] != original[name]}
+              if changed:
+                  raise ValueError("Changed publication records: " + ", ".join(sorted(changed)))
+              return omitted
+
           root = json.loads(Path("renv.lock").read_text())
           publication = json.loads(Path("renv/publication.lock").read_text())
-          assert publication["R"] == root["R"]
-          assert publication["Packages"] == root["Packages"], "Pruning requires measured dependency proof"
-          print(f"Preserved all {len(root['Packages'])} locked package records")
+          omitted = validate_publication_lock(root, publication)
+          print(f"Preserved {len(publication['Packages'])} identical root records; approved omissions: {', '.join(sorted(omitted))}")
           PY
       - name: Parse sources and discover every R fixture without network
         shell: bash
@@ -42,6 +61,7 @@ jobs:
             ghcr.io/ckrusemd/money-printer-go-brrr-r:latest -euo pipefail -c '
               Rscript --vanilla scripts/check_sources.R
               Rscript --vanilla scripts/check_publication_dependencies.R
+              Rscript --vanilla scripts/check_publication_closure.R
               tests=(tests/test_*.R)
               test -f "${tests[0]}"
               for fixture in "${tests[@]}"; do

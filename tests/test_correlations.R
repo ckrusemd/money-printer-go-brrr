@@ -85,6 +85,173 @@ chapter_expressions <- function(path) {
   as.list(parse(text = code))
 }
 
+# Frozen literal oracle before pre-indexing. Keep independent of every new
+# preparation/alignment/maxima/input-equality helper and retain all columns.
+literal_correlation_original <- function(observations, namespace, retain_undefined = TRUE) {
+  observations <- as.data.frame(observations)
+  observations$series_id <- as.character(observations$series_id)
+  ids <- unique(observations$series_id)
+  columns <- as.vector(rbind(paste0("best_corr_time_", c(30L, 365L, 1825L)),
+                            paste0("best_corr_value_", c(30L, 365L, 1825L))))
+  empty <- data.frame(x1 = character(), x2 = character())
+  for (column in columns) empty[[column]] <- numeric()
+  result <- list()
+  for (x1 in ids) for (x2 in ids) {
+    if (x1 == x2) next
+    x <- observations[observations$series_id == x1, , drop = FALSE]
+    y <- observations[observations$series_id == x2, , drop = FALSE]
+    x$.book_x_row <- seq_len(nrow(x))
+    y$.book_y_row <- seq_len(nrow(y))
+    x$series_id <- y$series_id <- NULL
+    joined <- merge(x, y, by = "date", suffixes = c(".x", ".y"), sort = FALSE)
+    joined <- joined[order(joined$.book_x_row, joined$.book_y_row), , drop = FALSE]
+    joined$date <- joined$.book_x_row <- joined$.book_y_row <- NULL
+    joined <- stats::na.omit(joined)
+    undefined <- nrow(joined) < 2L ||
+      all(joined$value.x == joined$value.x[1L]) || all(joined$value.y == joined$value.y[1L])
+    if (undefined) {
+      if (!retain_undefined) next
+      peaks <- as.data.frame(setNames(rep(list(NA_real_), length(columns)), columns))
+    } else {
+      peaks <- list()
+      for (horizon in c(30L, 365L, 1825L)) {
+        ccf <- stats::ccf(joined$value.x, joined$value.y, lag.max = horizon, plot = FALSE)
+        best <- which(abs(ccf$acf) == max(abs(ccf$acf)))
+        peaks[[paste0("best_corr_time_", horizon)]] <- ccf$lag[best]
+        peaks[[paste0("best_corr_value_", horizon)]] <- ccf$acf[best]
+      }
+      peaks <- as.data.frame(peaks)
+    }
+    result[[length(result) + 1L]] <- cbind(data.frame(x1 = x1, x2 = x2), peaks)
+  }
+  output <- if (length(result)) do.call(rbind, result) else empty
+  rownames(output) <- NULL
+  if (namespace == "etf-correlations") {
+    output$best_corr_time <- output$best_corr_time_365
+    output$best_corr_value <- output$best_corr_value_365
+  }
+  output
+}
+
+run_original_oracle_tests <- function(scope) {
+  t <- 1:96
+  clean <- rbind(make_series("ETF", t, sin(t / 7) + t / 80),
+                 make_series("MACRO", t, cos(t / 11) - t / 100),
+                 make_series("OTHER", t, sin(t / 13) + cos(t / 9)))
+  raw <- rbind(clean, clean[clean$series_id == "ETF", ])
+  ancillary <- raw
+  ancillary$value[c(8, 100)] <- NA_real_
+  ancillary$note <- factor(rep(c("a", "b"), length.out = nrow(ancillary)))
+  ancillary$note[c(3, 44, 291, 332)] <- NA
+  attr(ancillary$value, "units") <- "fixture units"
+  attr(ancillary, "provider") <- "literal-oracle fixture"
+  undefined <- rbind(make_series("constant", 1:4, rep(7, 4)), make_series("short", 1, 2),
+                      make_series("missing", 1:4, rep(NA_real_, 4)),
+                      make_series("disjoint", 10:13, 1:4),
+                      make_series("variable", 1:4, c(1, 3, 2, 5)))
+  x <- y <- numeric(1900L)
+  x[100:101] <- c(1, -1)
+  y[200:201] <- c(1, -1)
+  ties <- rbind(make_series("impulse-x", 1:1900, x), make_series("impulse-y", 1:1900, y))
+  frames <- list(clean = clean, duplicated = raw, ancillary_NA = ancillary,
+                 unsorted = clean[c(96:1, 193:288, 97:192), ],
+                 reversed = clean[nrow(clean):1, ], undefined = undefined, ties = ties,
+                 reordered_columns = ancillary[c("note", "value", "date", "series_id")],
+                 empty = clean[FALSE, ], singleton = clean[clean$series_id == "ETF", ])
+  # Empty symbol names must not become a fragile named-list lookup.
+  frames$empty_series_name <- clean
+  frames$empty_series_name$series_id[frames$empty_series_name$series_id == "ETF"] <- ""
+  for (namespace in c("indicators-correlations", "etf-correlations")) {
+    for (retain in c(TRUE, FALSE)) for (label in names(frames)) {
+      expected <- literal_correlation_original(frames[[label]], namespace, retain)
+      actual <- scope$book_correlation_original(frames[[label]], namespace, retain)
+      stopifnot(identical(actual, expected),
+                identical(serialize(actual, NULL, version = 3), serialize(expected, NULL, version = 3)))
+      assert_equal(actual, expected, paste("literal oracle", namespace, retain, label))
+    }
+  }
+
+  reordered <- clean[c("date", "value", "series_id")]
+  stopifnot(scope$book_correlation_inputs_identical(clean, clean),
+            scope$book_correlation_inputs_identical(clean, reordered))
+  cases <- list(row_order = clean[nrow(clean):1, ],
+                column_removed = clean[c("series_id", "date")], ancillary = clean,
+                frame_attribute = clean, column_attribute = clean, type = clean, row_names = clean,
+                date_class = clean, duplicated_names = clean)
+  cases$ancillary$note <- NA_real_
+  attr(cases$frame_attribute, "provider") <- "different"
+  attr(cases$column_attribute$value, "units") <- "different"
+  cases$type$series_id <- factor(cases$type$series_id)
+  cases$date_class$date <- as.numeric(cases$date_class$date)
+  rownames(cases$row_names) <- paste0("row-", seq_len(nrow(clean)))
+  cases$duplicated_names$extra <- clean$value
+  names(cases$duplicated_names)[4] <- "value"
+  for (case in cases) stopifnot(!scope$book_correlation_inputs_identical(clean, case))
+  # Even identical duplicate names cannot qualify for reuse, and changing the
+  # second duplicate column must never be hidden by name-based subsetting.
+  duplicate <- cases$duplicated_names
+  stopifnot(!scope$book_correlation_inputs_identical(duplicate, duplicate))
+  changed_duplicate <- duplicate
+  changed_duplicate[[4]][1] <- NA_real_
+  stopifnot(!scope$book_correlation_inputs_identical(duplicate, changed_duplicate))
+  changed_ancillary <- ancillary
+  changed_ancillary$note[1] <- NA
+  stopifnot(!scope$book_correlation_inputs_identical(ancillary, changed_ancillary))
+
+  # Exercise the actual audit branch, counting calls rather than relying only
+  # on the equality predicate. Cosmetic column order uses two oracles; changed
+  # rows/attributes/ancillary inputs and duplicate names require a third.
+  original <- scope$book_correlation_original
+  calls <- 0L
+  scope$book_correlation_original <- function(...) { calls <<- calls + 1L; original(...) }
+  on.exit({ scope$book_correlation_original <- original }, add = TRUE)
+  for (namespace in c("indicators-correlations", "etf-correlations")) {
+    baseline <- list(schema = 1L, namespace = namespace, observations = raw, etf_ids = "ETF",
+                      output = literal_correlation_original(raw, namespace, FALSE))
+    optimized <- list(schema = 1L, namespace = namespace, observations = reordered, etf_ids = "ETF",
+                       output = literal_correlation_original(clean, namespace))
+    calls <- 0L
+    scope$book_audit_correlation_record(baseline, optimized)
+    stopifnot(calls == 2L)
+    for (mutation in c("row_order", "frame_attribute", "ancillary", "duplicated_names")) {
+      bad <- optimized
+      bad$observations <- clean
+      if (mutation == "row_order") bad$observations <- clean[c(193:288, 97:192, 1:96), ]
+      if (mutation == "frame_attribute") attr(bad$observations, "provider") <- "different"
+      if (mutation == "ancillary") bad$observations$note <- 1
+      if (mutation == "duplicated_names") {
+        bad$observations$note <- 1
+        bad$observations$other_note <- 2
+        names(bad$observations)[5] <- "note"
+      }
+      calls <- 0L
+      if (mutation == "duplicated_names") {
+        notices <- character()
+        withCallingHandlers(scope$book_audit_correlation_record(baseline, bad),
+          warning = function(warning) {
+            message <- conditionMessage(warning)
+            stopifnot(grepl("column names", message, fixed = TRUE),
+                      grepl("are duplicated in the result", message, fixed = TRUE))
+            notices <<- c(notices, message)
+            invokeRestart("muffleWarning")
+          })
+        stopifnot(length(notices) == 6L)
+      } else {
+        scope$book_audit_correlation_record(baseline, bad)
+      }
+      stopifnot(calls == 3L)
+    }
+    bad <- optimized
+    bad$observations <- clean
+    bad$observations$note <- 1
+    bad$observations$note[c(3, 44)] <- NA_real_
+    calls <- 0L
+    assert_error(scope$book_audit_correlation_record(baseline, bad), "optimized complete pairs")
+    stopifnot(calls == 3L)
+  }
+  cat("PASS: indexed independent oracle byte-identical to literal oracle across 44 namespace/NA-policy fixtures; exact full-input reuse rejects row/type/attribute/ancillary/duplicate-name changes and audits them independently\n")
+}
+
 run_correlation_audit_tests <- function(scope) {
   t <- 1:96
   clean <- rbind(make_series("ETF", t, sin(t / 7) + t / 80),
@@ -277,6 +444,7 @@ run_mortgage_date_tests <- function(scope) {
 run_correlations_tests <- function() {
   scope <- correlation_scope
   run_mortgage_date_tests(scope)
+  run_original_oracle_tests(scope)
   horizons <- c(30L, 365L, 1825L)
   max_error <- 0
   # Execute the chapter's actual failure path with no network or retry sleeps.
