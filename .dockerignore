@@ -3,7 +3,7 @@
 # invalidate the dependency-image build cache.
 **
 !Dockerfile
-!renv.lock
 !renv/
+!renv/publication.lock
 !renv/activate.R
 !renv/settings.json

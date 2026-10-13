@@ -1,10 +1,11 @@
---- 
+---
 title: "Money Printer Go BRRR"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 site: bookdown::bookdown_site
 output:
   bookdown::gitbook:
+    css: scripts/book-style.css
     config:
       toc:
         collapse: section
@@ -22,6 +23,9 @@ description: "Since 1971, Money Printer Has Gone BRRR. Let's Make the Most of It
 
 ```{r include=FALSE}
 
+source("scripts/book_runtime.R")
+source("money_theme.R")
+
 library(lubridate)
 library(scales)
 library(fredr)
@@ -33,17 +37,13 @@ knitr::write_bib(c(
 
 options(scipen=999)
 
-print_danish_time = function() {
-  time = lubridate::with_tz(Sys.time(), "CET")
-  
-  paste0( strftime(time,tz="CET",format="%A %b")," ",scales::ordinal_format()(lubridate::day(time))," ",strftime(time,tz="CET",format="%Y %H:%M")," ",lubridate::tz(time))
-}
-
 ```
 
-This report was compiled `r print_danish_time() `.
+This report was compiled `r print_danish_time()` (Europe/Copenhagen).
 
-This is a quick route into my market and macro research. The charts use public data from [FRED](https://fred.stlouisfed.org/), [Yahoo Finance](https://finance.yahoo.com/), [Statistics Denmark](https://www.dst.dk/), and [Finans Danmark](https://finansdanmark.dk/). Series refresh when the book is built; a provider may publish observations later than the build date, and market prices may be carried forward over non-trading days.
+Analysis date: `r book_date()`. Rolling windows use this fixed date throughout the build.
+
+This is a quick route into my market and macro research. The charts use public data from [FRED](https://fred.stlouisfed.org/), [Yahoo Finance](https://finance.yahoo.com/), [Statistics Denmark](https://www.dst.dk/), and [Finans Danmark](https://finansdanmark.dk/). Series refresh when the book is built. Providers publish on different schedules, so observation dates may lag compilation, and market prices may be carried forward over non-trading days.
 
 ## Start here
 
@@ -53,5 +53,18 @@ This is a quick route into my market and macro research. The charts use public d
 - [US housing](united-states-housing-market.html) and [Danish housing](danish-housing-market.html): construction and price trends.
 - [ETF analysis](etf-tracking-and-analysis.html): historical rankings and correlations.
 - [Danish fund taxation](etf-tracking-and-analysis.html#danish-fund-tax): 2026 ETF and investment-fund classifications for an ordinary depot and aktiesparekonto.
+- [Data status](data-status.html): provider retrieval times, latest observation dates, and unavailable optional sources for this edition.
 
 The [economic release calendar](economic-release-calendar.html) is the quickest way to check which series may have updated recently.
+
+## Sources and freshness
+
+The compilation time records when this edition was built. It does not mean every series has an observation from that day. Economic releases can lag their reference month or quarter, historical observations can be revised, and market holidays create gaps in trading data. Where a chart carries the last value forward, that value is an earlier observation rather than a new trade or release.
+
+Check [this edition's data status](data-status.html) for each provider's retrieval time and latest observation date, together with any failed optional requests. These dates distinguish when the book retrieved a series from how recent its underlying observations are.
+
+FRED supplies US economic series; Statistics Denmark supplies Danish statistics; Yahoo Finance supplies market histories; and Finans Danmark supplies mortgage-rate data. Follow the source links above for release notes and definitions. The Danish fund-tax tables use dated source snapshots, with their provenance described in the [ETF chapter](etf-tracking-and-analysis.html#danish-fund-tax).
+
+Builds retrieve essential source data before reusing derived calculations. A failed essential retrieval must stop publication so a newly dated edition cannot silently present an old cached source response as fresh data. Optional unavailable market symbols are identified in the data-status appendix. Cached calculations reuse matching inputs; they do not make those inputs more recent.
+
+The analysis is historical and exploratory. Read the observation dates, units, and chapter methods alongside each chart; indicator scores and fitted relationships are not forecasts or probabilities of future returns. The [publication source](https://github.com/ckrusemd/money-printer-go-brrr) contains the chapter code, dependency lockfile, and build checks.

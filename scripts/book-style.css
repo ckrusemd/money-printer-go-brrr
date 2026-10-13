@@ -1,0 +1,64 @@
+/* Reader styles scoped to GitBook; preserve chart aspect ratios and navigation. */
+.book .book-body .page-wrapper .page-inner {
+  max-width: 1000px;
+}
+
+.book .book-body .page-wrapper .page-inner section.normal {
+  line-height: 1.65;
+  overflow-wrap: break-word;
+}
+
+.book .book-body .page-wrapper .page-inner section.normal img {
+  max-width: 100%;
+  height: auto;
+}
+
+.book .book-body .page-wrapper .page-inner section.normal a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.book a:focus-visible,
+.book button:focus-visible,
+.book input:focus-visible {
+  outline: 3px solid #005a9c;
+  outline-offset: 3px;
+}
+
+.book .book-body .page-wrapper .page-inner section.normal table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.book .book-body .page-wrapper .page-inner section.normal pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 600px) {
+  .book .book-body .page-wrapper .page-inner {
+    padding: 16px 12px 32px;
+  }
+
+  .book .book-body .page-wrapper .page-inner section.normal {
+    font-size: 16px;
+  }
+
+  .book .book-body .page-wrapper .page-inner section.normal h1 {
+    font-size: 1.8em;
+  }
+
+  .book .book-body .page-wrapper .page-inner section.normal h2 {
+    font-size: 1.4em;
+  }
+
+  .book .book-body .page-wrapper .page-inner section.normal li {
+    margin-bottom: 0.5em;
+  }
+
+  .book .book-body .page-wrapper .page-inner section.normal .caption {
+    font-size: 0.9em;
+    line-height: 1.5;
+  }
+}

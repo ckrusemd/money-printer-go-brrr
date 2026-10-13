@@ -1,62 +1,74 @@
 # save_png_plot.R
 # Standard R function for saving ggplot objects as high-quality PNG files
 
+if (!exists("research_path", mode = "function")) {
+  local({
+    files <- vapply(sys.frames(), function(frame) {
+      if (is.null(frame$ofile)) "" else as.character(frame$ofile)
+    }, character(1))
+    helper_dir <- dirname(normalizePath(utils::tail(files[nzchar(files)], 1L), mustWork = TRUE))
+    source(file.path(helper_dir, "..", "scripts", "research_paths.R"),
+           local = parent.env(environment()))
+  })
+}
+
 #' Save ggplot object as PNG with customizable aspect ratio and DPI
-#' 
+#'
 #' This function saves a ggplot object as a PNG file with precise control over
 #' dimensions, aspect ratio, and resolution.
-#' 
+#'
 #' @param plot_object A ggplot object to save
-#' @param filename Character string for output filename. If NULL, uses plot object name
+#' @param filename Output filename; if NULL, uses plot name under repo datacollection or RESEARCH_OUTPUT_DIR
 #' @param width_ratio Numeric, width component of aspect ratio (default: 16)
 #' @param height_ratio Numeric, height component of aspect ratio (default: 9)
 #' @param dpi Numeric, dots per inch for resolution (default: 300)
 #' @param base_size Numeric, base size units for scaling (default: 50)
-#' 
+#'
 #' @return Invisible NULL. Saves PNG file and prints confirmation message.
-#' 
+#'
 #' @examples
 #' # Basic usage
 #' save_plot_png(my_plot)
-#' 
+#'
 #' # Custom filename and square aspect ratio
 #' save_plot_png(my_plot, "analysis_results.png", 1, 1)
-#' 
+#'
 #' # High resolution for publication
 #' save_plot_png(my_plot, "figure1.png", dpi = 600)
-#' 
+#'
 #' @export
-save_plot_png <- function(plot_object, 
-                         filename = NULL, 
-                         width_ratio = 16, 
-                         height_ratio = 9, 
+save_plot_png <- function(plot_object,
+                         filename = NULL,
+                         width_ratio = 16,
+                         height_ratio = 9,
                          dpi = 100,
                          base_size = 72) {
-  
+
   # Load required library
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("ggplot2 package is required but not installed.")
   }
-  
+
   # If no filename provided, use the name of the plot object
   if (is.null(filename)) {
-    filename <- paste0(deparse(substitute(plot_object)), ".png")
+    filename <- file.path(research_path("datacollection", "RESEARCH_OUTPUT_DIR"),
+                          paste0(deparse(substitute(plot_object)), ".png"))
   }
-  
+
   # Ensure filename ends with .png
   if (!grepl("\\.png$", filename, ignore.case = TRUE)) {
     filename <- paste0(filename, ".png")
   }
-  
+
   # Calculate pixels based on aspect ratio and DPI
   # Using base_size as a scaling factor
   width_px <- width_ratio * base_size * (dpi / 100)
   height_px <- height_ratio * base_size * (dpi / 100)
-  
+
   # Convert pixels to inches for ggsave
   width_in <- width_px / dpi
   height_in <- height_px / dpi
-  
+
   # Save the plot
   ggplot2::ggsave(filename = filename,
                   plot = plot_object,
@@ -64,13 +76,13 @@ save_plot_png <- function(plot_object,
                   height = height_in,
                   units = "in",
                   dpi = dpi)
-  
+
   # Print confirmation message
   cat("✅ Plot saved as:", filename, "\n")
   cat("   Aspect ratio:", width_ratio, ":", height_ratio, "\n")
-  cat("   Dimensions:", round(width_px), "x", round(height_px), "pixels (", 
+  cat("   Dimensions:", round(width_px), "x", round(height_px), "pixels (",
       round(width_in, 2), "x", round(height_in, 2), "inches) at", dpi, "DPI\n")
-  
+
   # Return invisibly
   invisible(NULL)
 }
@@ -86,7 +98,7 @@ save_plot_png <- function(plot_object,
 #' @param height_ratio Numeric, height component of aspect ratio (default: 9)
 #' @param dpi Numeric, dots per inch for resolution (default: 100)
 #' @param base_size Numeric, base size units for scaling (default: 72)
-#' @param base_dir Character string specifying the base directory. Default is current working directory
+#' @param base_dir Base directory; defaults to repo datacollection or RESEARCH_OUTPUT_DIR
 #'
 #' @return Character string with the path of the saved file
 #'
@@ -106,7 +118,7 @@ save_plot <- function(plot_object,
                      height_ratio = 9,
                      dpi = 100,
                      base_size = 72,
-                     base_dir = getwd()) {
+                     base_dir = research_path("datacollection", "RESEARCH_OUTPUT_DIR")) {
 
   # Input validation
   if (!requireNamespace("ggplot2", quietly = TRUE)) {

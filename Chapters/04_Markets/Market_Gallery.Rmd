@@ -1,9 +1,13 @@
 # Market chart gallery
 
-Full indicator panels for broad markets and commodities. Values are derived from Yahoo Finance, FRED, and Statistics Denmark data available at build time.
+Compare broad equity indices, Bitcoin, and precious metals using the same indicator panels. For a quicker view, return to the [six market snapshots](equity-markets-and-the-sp-500.html). Values are derived from Yahoo Finance, FRED, and Statistics Denmark data available at build time.
+
+Read each panel from top to bottom: full price history and the past year, an indicator heatmap, the distance from the 200-observation moving average, RSI, currency and commodity comparisons, and nominal versus inflation-adjusted prices rebased to January 2015. A rebasing panel requires history covering that base date. Dashed support lines, where present, extend fits through the selected historical dates; they are not forecasts.
+
+The heatmap labels give both indicator values and historical distribution scores. The RSI panel uses 30 observations; the heatmap uses its separately specified indicator settings. Prices are carried forward over non-trading days. Missing symbols and insufficient history are marked unavailable; currency and commodity panels may have gaps where matching observations are absent.
 
 ## S&P 500 {#gallery-sp500}
-```{r fig.height=30,fig.width=10}
+```{r fig.height=30,fig.width=10,fig.alt=market_chart_description("^GSPC", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="^GSPC",currency=="USD"),
            lines = list(c(ymd("2020-03-23"),ymd("2023-10-30")),
                         c(ymd("2018-01-20"),ymd("2022-01-01")))
@@ -11,39 +15,39 @@ draw_plots(data = df_adjusted %>% filter(ticker=="^GSPC",currency=="USD"),
 ```
 
 ## Nasdaq {#gallery-nasdaq}
-```{r fig.height=25,fig.width=10}
+```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("^IXIC", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="^IXIC",currency=="USD"),
            lines = list(c(ymd("2020-03-23"),ymd("2023-01-03"))))
 ```
 
 ## OMX C25 {#gallery-omxc25}
-```{r fig.height=25,fig.width=10}
+```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("^OMXC25", "DKK")}
 draw_plots(data = df_adjusted %>% filter(ticker=="^OMXC25",currency=="DKK"),
            lines = list(c(ymd("2020-03-23"),ymd("2023-10-30")),
                         c(ymd("2018-01-20"),ymd("2022-01-01"))))
 ```
 
 ## RUSSELL 2000
-```{r fig.height=25,fig.width=10}
+```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("^RUT", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="^RUT",currency=="USD"))
 ```
 
 ## WILLSHIRE
-```{r fig.height=25,fig.width=10}
+```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("^W5000", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="^W5000",currency=="USD"))
 ```
 
 ## Bitcoin {#gallery-bitcoin}
-```{r fig.height=25,fig.width=10}
+```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("BTC-USD", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="BTC-USD",currency=="USD"))
 ```
 
 ## Gold {#gallery-gold}
-```{r fig.height=25,fig.width=10}
+```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("GC=F", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="GC=F",currency=="USD"))
 ```
 
 ## Silver
-```{r fig.height=25,fig.width=10}
+```{r fig.height=25,fig.width=10,fig.alt=market_chart_description("SI=F", "USD")}
 draw_plots(data = df_adjusted %>% filter(ticker=="SI=F",currency=="USD"))
 ```

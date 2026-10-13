@@ -2,6 +2,30 @@ name: Build and deploy Money Printer Go BRRR
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Deploy after validation (false uploads evidence only, including on a branch)"
+        type: boolean
+        default: true
+      benchmark:
+        description: "Replay baseline/optimized benchmark only; never deploy"
+        type: boolean
+        default: false
+      publication_tag:
+        description: "Tag in the fixed publication GHCR repository; validation/benchmark only"
+        type: string
+        default: "latest"
+      baseline_ref:
+        description: "Historical commit to adapt for replay; required for benchmark"
+        type: string
+        default: "b7e08934877da8a88b4b2393a3745b994f8bff48"
+      snapshot_run_id:
+        description: "Successful validation run containing book-provider-snapshots; required for benchmark"
+        type: string
+      completed_benchmark_run_id:
+        description: "Recover eight completed renders from this repository (including cancelled runs); never render"
+        type: string
+        default: ""
   workflow_run:
     workflows: ["Build R publication container"]
     types: [completed]
@@ -10,12 +34,11 @@ on:
     paths:
       - "**.R"
       - "**.Rmd"
-      - "data/positivliste_2026.csv"
-      - "data/investment_products_2026.csv"
+      - "data/**"
       - "_bookdown.yml"
       - "book.bib"
       - "packages.bib"
-      - "index.Rmd"
+      - "scripts/book-style.css"
       - ".github/workflows/deploy_bookdown.yml"
   schedule:
     # 04:00 CET = 03:00 UTC
@@ -25,23 +48,77 @@ permissions:
   contents: read
 
 concurrency:
-  group: money-printer-pages
-  cancel-in-progress: true
+  group: money-printer-${{ github.event_name == 'workflow_run' && (github.event.workflow_run.conclusion != 'success' || github.event.workflow_run.head_sha != github.sha || github.event.workflow_run.head_branch != github.event.repository.default_branch || github.event.workflow_run.head_repository.full_name != github.repository || github.event.workflow_run.repository.full_name != github.repository || github.event.workflow_run.event == 'pull_request') && format('ignored-container-{0}', github.event.workflow_run.id) || github.event_name == 'workflow_dispatch' && (inputs.benchmark && 'benchmark' || !inputs.publish && format('validate-{0}', github.ref) || 'pages') || 'pages' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.benchmark }}
 
 jobs:
-  build:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
+  publication-image:
     runs-on: ubuntu-latest
-    # External data retrieval and the full Bookdown render can exceed 45 minutes.
-    # Leave sufficient headroom for a complete scheduled build and Pages upload.
+    timeout-minutes: 2
+    outputs:
+      image: ${{ steps.resolve.outputs.image }}
+      render_allowed: ${{ github.event_name != 'push' && 'true' || steps.push_guard.outputs.render_allowed || 'false' }}
+    steps:
+      - name: Check out push commit for bounded image-input comparison
+        if: github.event_name == 'push'
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Defer main-push rendering when container inputs changed
+        id: push_guard
+        if: github.event_name == 'push'
+        timeout-minutes: 1
+        run: python3 scripts/publication_push_guard.py
+      - name: Resolve publication image without accepting another repository
+        id: resolve
+        env:
+          ALLOW_PUBLICATION_TAG: ${{ github.event_name == 'workflow_dispatch' && (inputs.benchmark || !inputs.publish) }}
+          PUBLICATION_TAG: ${{ inputs.publication_tag || 'latest' }}
+          DEFAULT_PUBLICATION_TAG: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'latest' }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+
+          tag = (os.environ["PUBLICATION_TAG"] if os.environ["ALLOW_PUBLICATION_TAG"] == "true"
+                 else os.environ["DEFAULT_PUBLICATION_TAG"])
+          if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", tag):
+              raise SystemExit("Invalid publication tag: supply a Docker tag, not a repository, digest, or URL")
+          image = "ghcr.io/ckrusemd/money-printer-go-brrr-r:" + tag
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("image=" + image + "\n")
+          print("Publication image: " + image)
+          PY
+
+  build:
+    needs: publication-image
+    if: >-
+      needs.publication-image.outputs.render_allowed == 'true' &&
+      !inputs.benchmark &&
+      (github.event_name != 'workflow_dispatch' || !inputs.publish ||
+       github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_sha == github.sha &&
+        github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.repository.full_name == github.repository &&
+        github.event.workflow_run.event != 'pull_request'))
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     container:
-      image: ${{ github.event_name == 'workflow_run' && format('ghcr.io/ckrusemd/money-printer-go-brrr-r:{0}', github.event.workflow_run.head_sha) || 'ghcr.io/ckrusemd/money-printer-go-brrr-r:latest' }}
+      image: ${{ needs.publication-image.outputs.image }}
       options: --user root
     env:
       FRED_API: ${{ secrets.FRED_API }}
+      BOOK_SNAPSHOT_MODE: record
+      BOOK_SNAPSHOT_DIR: .cache/book-inputs
+      BOOK_DERIVED_DIR: .cache/book-derived
+      BOOK_METRICS_FILE: .cache/book-metrics.csv
+      BOOK_RESULTS_DIR: .cache/book-results
+      BOOK_VALIDATE_ONLY: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -49,42 +126,340 @@ jobs:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - name: Check repository configuration
         run: |
-          test -f renv.lock
+          test -f renv/publication.lock
           test -f _bookdown.yml
           test -f index.Rmd
+          test -f scripts/book_runtime.R
           test -n "$FRED_API"
-      - name: Verify render dependencies
-        run: >-
-          Rscript --vanilla -e
-          'stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE))'
+      - name: Verify locked render dependencies
+        run: |
+          Rscript --vanilla - <<'RS'
+          lock <- renv::lockfile_read("renv/publication.lock")
+          audit <- do.call(rbind, lapply(names(lock$Packages), function(p) {
+            installed <- as.character(utils::packageVersion(p))
+            data.frame(package = p, locked = lock$Packages[[p]]$Version, installed = installed,
+                       matches = package_version(installed) == package_version(lock$Packages[[p]]$Version))
+          }))
+          dir.create(".cache", showWarnings = FALSE)
+          write.csv(audit, ".cache/book-dependency-audit.csv", row.names = FALSE)
+          if (any(!audit$matches)) {
+            print(audit[!audit$matches, ])
+            if (Sys.getenv("BOOK_VALIDATE_ONLY") == "true") {
+              warning("Validation-only run uses existing image with recorded dependency drift")
+            } else stop("Rebuild publication container to match locked versions before publishing")
+          }
+          required <- c("bookdown", "rmarkdown", "fredr", "dkstat", "digest", "xml2")
+          stopifnot(all(vapply(required, requireNamespace, logical(1), quietly = TRUE)))
+          RS
       - name: Validate R sources
-        run: Rscript --vanilla -e 'parse(file = "money_theme.R")'
-      - name: Render Bookdown site
+        run: |
+          Rscript --vanilla scripts/check_sources.R
+          Rscript --vanilla scripts/check_publication_dependencies.R
+          Rscript --vanilla scripts/check_publication_closure.R
+      - name: Restore derived analysis cache
+        id: derived
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/book-derived
+          key: ${{ runner.os }}-book-derived-v1-${{ hashFiles('renv/publication.lock', 'scripts/book_runtime.R', 'scripts/analysis/*.R') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-book-derived-v1-${{ hashFiles('renv/publication.lock', 'scripts/book_runtime.R', 'scripts/analysis/*.R') }}-
+      - name: Record current inputs and render Bookdown
         shell: bash
         run: |
+          set -euo pipefail
+          mkdir -p "$BOOK_SNAPSHOT_DIR"
+          export BOOK_AS_OF="$(TZ=Europe/Copenhagen date +%F)"
+          printf '%s\n' "$BOOK_AS_OF" > "$BOOK_SNAPSHOT_DIR/as-of.txt"
+          printf '%s\n' "$GITHUB_SHA" > "$BOOK_SNAPSHOT_DIR/source-sha.txt"
           start_time=$(date +%s)
-          set -o pipefail
-          Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")' 2>&1 | tee "$GITHUB_WORKSPACE/render.log"
-          elapsed=$(( $(date +%s) - start_time ))
-          echo "Pages render duration: ${elapsed}s" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Upload failed render log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bookdown-render-log
-          path: ${{ github.workspace }}/render.log
-          if-no-files-found: warn
-          retention-days: 7
+          if test -x /usr/bin/time; then
+            /usr/bin/time -f 'elapsed_seconds,max_rss_kb\n%e,%M' -o .cache/book-render-time.csv \
+              Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")' 2>&1 | tee render.log
+          else
+            Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")' 2>&1 | tee render.log
+            elapsed=$(( $(date +%s) - start_time ))
+            printf 'elapsed_seconds,max_rss_kb\n%s,NA\n' "$elapsed" > .cache/book-render-time.csv
+          fi
+          cat .cache/book-render-time.csv >> "$GITHUB_STEP_SUMMARY"
       - name: Check rendered book
         run: Rscript --vanilla scripts/check_bookdown_output.R
+      - name: Save successful derived analysis cache
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/book-derived
+          key: ${{ steps.derived.outputs.cache-primary-key }}
+      - name: Retain render logs, performance and full numeric results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-render-evidence
+          path: |
+            render.log
+            .cache/book-render-time.csv
+            .cache/book-metrics.csv
+            .cache/book-dependency-audit.csv
+            .cache/book-results
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Retain successful provider snapshots
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-provider-snapshots
+          path: .cache/book-inputs
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain diagnostic provider snapshots on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-provider-snapshots-debug
+          path: .cache/book-inputs
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 3
+      - name: Upload complete validation book
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-validation-output
+          path: _book
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload Pages artifact
+        if: github.event_name != 'workflow_dispatch' || inputs.publish
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: _book
           retention-days: 1
 
+  benchmark:
+    needs: publication-image
+    if: github.event_name == 'workflow_dispatch' && inputs.benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      image: ${{ steps.fresh.outputs.image || steps.recovery.outputs.image }}
+      snapshot_run_id: ${{ steps.fresh.outputs.snapshot_run_id || steps.recovery.outputs.snapshot_run_id }}
+    steps:
+      - name: Check out optimized repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Validate benchmark inputs
+        if: inputs.completed_benchmark_run_id == ''
+        env:
+          BASELINE_REF: ${{ inputs.baseline_ref }}
+          SNAPSHOT_RUN_ID: ${{ inputs.snapshot_run_id }}
+        run: |
+          test -n "$BASELINE_REF"
+          test -n "$SNAPSHOT_RUN_ID"
+          test -f scripts/prepare_benchmark_baseline.py
+          python3 scripts/prepare_benchmark_baseline.py --ref "$BASELINE_REF" --output .cache/benchmark-baseline
+      - name: Authenticate completed benchmark archive without rendering
+        id: recovery
+        if: inputs.completed_benchmark_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMPLETED_RUN_ID: ${{ inputs.completed_benchmark_run_id }}
+        run: python3 scripts/benchmark_provenance.py recover --run-id "$COMPLETED_RUN_ID"
+      - name: Pin fresh benchmark image and record provenance before rendering
+        id: fresh
+        if: inputs.completed_benchmark_run_id == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLICATION_IMAGE: ${{ needs.publication-image.outputs.image }}
+          BASELINE_REF: ${{ inputs.baseline_ref }}
+          SNAPSHOT_RUN_ID: ${{ inputs.snapshot_run_id }}
+        run: |
+          set -euo pipefail
+          docker pull "$PUBLICATION_IMAGE"
+          image=$(docker image inspect "$PUBLICATION_IMAGE" --format '{{index .RepoDigests 0}}')
+          baseline=$(git rev-parse "$BASELINE_REF^{commit}")
+          python3 scripts/benchmark_provenance.py fresh --image "$image" \
+            --baseline-sha "$baseline" --snapshot-run-id "$SNAPSHOT_RUN_ID"
+      - name: Download recorded provider snapshots
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: book-provider-snapshots
+          path: .cache/benchmark-inputs
+          run-id: ${{ steps.fresh.outputs.snapshot_run_id || steps.recovery.outputs.snapshot_run_id }}
+          github-token: ${{ github.token }}
+      - name: Render eight fixed-input books only without network
+        if: inputs.completed_benchmark_run_id == ''
+        shell: bash
+        env:
+          PUBLICATION_IMAGE: ${{ steps.fresh.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker pull "$PUBLICATION_IMAGE"
+          docker run --rm --network none --entrypoint Rscript \
+            -v "$GITHUB_WORKSPACE:/project" -w /project \
+            "$PUBLICATION_IMAGE" --vanilla \
+            scripts/benchmark_book.R render-only /project/.cache/benchmark-baseline /project \
+            /project/.cache/benchmark-inputs /project/.cache/book-benchmark \
+            /project/.cache/benchmark-provenance.dcf
+      - name: Verify complete evidence and every numeric capture without rendering
+        env:
+          PUBLICATION_IMAGE: ${{ steps.fresh.outputs.image || steps.recovery.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker pull "$PUBLICATION_IMAGE"
+          docker run --rm --network none --entrypoint Rscript \
+            -v "$GITHUB_WORKSPACE:/project" -w /project "$PUBLICATION_IMAGE" --vanilla \
+            scripts/benchmark_book.R verify .cache/book-benchmark .cache/benchmark-inputs \
+            .cache/benchmark-provenance.dcf .cache/benchmark-proofs
+      - name: Retain full benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-benchmark-evidence
+          path: .cache/book-benchmark
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Retain authenticated provenance receipts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-benchmark-receipts
+          path: .cache/benchmark-provenance.*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain complete numeric parity proof
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-benchmark-parity
+          path: .cache/benchmark-proofs
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+  benchmark-audit:
+    needs: benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        namespace: [indicators-correlations, etf-correlations]
+    steps:
+      - name: Check out verifier and independent oracle
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download completed render evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: book-benchmark-evidence
+          path: .cache/book-benchmark
+      - name: Download authenticated provenance receipts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: book-benchmark-receipts
+          path: .cache
+      - name: Download identical recorded inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: book-provider-snapshots
+          path: .cache/benchmark-inputs
+          run-id: ${{ needs.benchmark.outputs.snapshot_run_id }}
+          github-token: ${{ github.token }}
+      - name: Audit full independent namespace oracle without network
+        env:
+          PUBLICATION_IMAGE: ${{ needs.benchmark.outputs.image }}
+          NAMESPACE: ${{ matrix.namespace }}
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/benchmark-proofs
+          docker pull "$PUBLICATION_IMAGE"
+          docker run --rm --network none --entrypoint Rscript \
+            -v "$GITHUB_WORKSPACE:/project" -w /project "$PUBLICATION_IMAGE" --vanilla \
+            scripts/benchmark_book.R audit .cache/book-benchmark .cache/benchmark-inputs \
+            .cache/benchmark-provenance.dcf .cache/benchmark-proofs "$NAMESPACE" \
+            2>&1 | tee ".cache/benchmark-proofs/$NAMESPACE.log"
+      - name: Retain namespace audit evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-benchmark-audit-${{ matrix.namespace }}
+          path: .cache/benchmark-proofs
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
+  benchmark-aggregate:
+    needs: [benchmark, benchmark-audit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check out acceptance verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download completed render evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: book-benchmark-evidence
+          path: .cache/book-benchmark
+      - name: Download authenticated provenance receipts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: book-benchmark-receipts
+          path: .cache
+      - name: Download numeric parity proof
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: book-benchmark-parity
+          path: .cache/benchmark-proofs
+      - name: Download both independent namespace proofs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: book-benchmark-audit-*
+          merge-multiple: true
+          path: .cache/benchmark-proofs
+      - name: Download identical recorded inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: book-provider-snapshots
+          path: .cache/benchmark-inputs
+          run-id: ${{ needs.benchmark.outputs.snapshot_run_id }}
+          github-token: ${{ github.token }}
+      - name: Require complete parity, both oracles, runtime and median/max RSS gates
+        env:
+          PUBLICATION_IMAGE: ${{ needs.benchmark.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker pull "$PUBLICATION_IMAGE"
+          docker run --rm --network none --entrypoint Rscript \
+            -v "$GITHUB_WORKSPACE:/project" -w /project "$PUBLICATION_IMAGE" --vanilla \
+            scripts/benchmark_book.R aggregate .cache/book-benchmark .cache/benchmark-inputs \
+            .cache/benchmark-provenance.dcf .cache/benchmark-summary .cache/benchmark-proofs
+      - name: Retain complete benchmark acceptance report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: book-benchmark-acceptance
+          path: .cache/benchmark-summary
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
   deploy:
     needs: build
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_dispatch' || (inputs.publish && !inputs.benchmark)) &&
+      (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+       github.event_name == 'workflow_run')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

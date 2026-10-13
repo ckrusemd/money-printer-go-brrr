@@ -1,0 +1,25 @@
+# Data freshness and availability {#data-status}
+
+The analysis date for this publication is **`r book_date()`**. Retrieval timestamps
+below use UTC. The latest observation is the provider's most recent dated row;
+it may precede the analysis date or contain a missing value. Monthly and quarterly
+series naturally update less often than market prices.
+
+Essential missing inputs stop publication and leave the previous book available.
+An optional series that could not be retrieved is marked unavailable and excluded
+from this build. Historical comparisons use the dates and data preparation
+described in their chapters.
+
+```{r source-status, echo=FALSE, results='asis'}
+source_status <- book_source_status()
+if (nrow(source_status)) {
+  print(knitr::kable(source_status, row.names = FALSE))
+} else {
+  cat("No remote observations were requested in this build.\n")
+}
+book_write_manifest()
+```
+
+The Danish fund-tax catalogue is a separately maintained, dated snapshot. Its
+classification dates and supporting links appear in the catalogue itself; they
+are not refreshed by rendering this book.
