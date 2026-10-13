@@ -93,8 +93,20 @@ jobs:
       id-token: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
+        # Retry the same validated artifact once; never repeat the render.
+        continue-on-error: true
+        timeout-minutes: 5
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+        with:
+          timeout: 240000
+      - name: Retry Pages deployment once after a failed attempt
+        id: deployment_retry
+        if: ${{ !cancelled() && steps.deployment.outcome == 'failure' }}
+        timeout-minutes: 5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+        with:
+          timeout: 240000
