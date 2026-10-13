@@ -26,6 +26,8 @@ jobs:
           test -f index.Rmd
           test -f Dockerfile
           git diff --check
+      - name: Check bounded Pages deployment recovery
+        run: python3 -m unittest discover -s tests -p 'test_pages_deployment.py' -v
       - name: Scan source for credential material
         run: |
           ! rg -n -i \
