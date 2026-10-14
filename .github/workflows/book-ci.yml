@@ -12,7 +12,9 @@ permissions:
 jobs:
   offline-book:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
+    env:
+      BOOK_CI_IMAGE: money-printer-book-ci
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -51,14 +53,29 @@ jobs:
           omitted = validate_publication_lock(root, publication)
           print(f"Preserved {len(publication['Packages'])} identical root records; approved omissions: {', '.join(sorted(omitted))}")
           PY
+      - name: Select or build an image matching the candidate lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository=ghcr.io/ckrusemd/money-printer-go-brrr-r
+          context_hash=$(python3 scripts/publication_image_key.py)
+          if docker pull "$repository:context-$context_hash"; then
+            docker tag "$repository:context-$context_hash" "$BOOK_CI_IMAGE"
+          else
+            # Missing candidate context: build rather than silently testing a
+            # different Dockerfile/base image/system-library configuration.
+            docker build --tag "$BOOK_CI_IMAGE" .
+          fi
+          docker run --rm --network none --read-only --tmpfs /tmp \
+              -v "$GITHUB_WORKSPACE:/project:ro" -w /project "$BOOK_CI_IMAGE" \
+              Rscript --vanilla -e 'lock <- renv::lockfile_read("renv/publication.lock"); stopifnot(as.character(getRversion()) == lock$R$Version); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version))'
       - name: Parse sources and discover every R fixture without network
         shell: bash
         run: |
           set -euo pipefail
-          docker pull ghcr.io/ckrusemd/money-printer-go-brrr-r:latest
           docker run --rm --network none --read-only --tmpfs /tmp \
             --entrypoint /bin/bash -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
-            ghcr.io/ckrusemd/money-printer-go-brrr-r:latest -euo pipefail -c '
+            "$BOOK_CI_IMAGE" -euo pipefail -c '
               Rscript --vanilla scripts/check_sources.R
               Rscript --vanilla scripts/check_publication_dependencies.R
               Rscript --vanilla scripts/check_publication_closure.R
@@ -75,7 +92,7 @@ jobs:
         run: |
           docker run --rm -i --network none --read-only --tmpfs /tmp \
             --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
-            ghcr.io/ckrusemd/money-printer-go-brrr-r:latest -B - <<'PY'
+            "$BOOK_CI_IMAGE" -B - <<'PY'
           import sys
           import unittest
           suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_reader_output.MarketReaderFixtures")

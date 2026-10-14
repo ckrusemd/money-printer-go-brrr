@@ -1,4 +1,4 @@
-FROM rocker/r-ver:4.3.3@sha256:732d15020af326da9e919c07f70ca32bf5d3e409220af32e0a4b6d0a89437309
+FROM rocker/r-ver:4.6.1@sha256:4e6e6696ff54a86625c7f80046478e67014a2184e942b85eeff43db7b992d93e
 
 LABEL org.opencontainers.image.source="https://github.com/ckrusemd/money-printer-go-brrr"
 
@@ -6,7 +6,7 @@ ARG PANDOC_VERSION=3.1.11.1
 ARG PANDOC_SHA256=ab0ac0aa1c3f9b23243d14e43023e06cbce51a52420aba17d27bd0d9c28f73ac
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    RENV_CONFIG_REPOS_OVERRIDE=https://packagemanager.posit.co/cran/2026-09-08 \
+    RENV_CONFIG_REPOS_OVERRIDE=https://packagemanager.posit.co/cran/2026-10-14 \
     RENV_PATHS_CACHE=/renv/cache \
     R_LIBS_USER=/opt/publication-library
 
@@ -16,6 +16,9 @@ RUN apt-get update \
         curl \
         time \
         python3 \
+        git \
+        libgit2-dev \
+        libx11-dev \
         libcurl4-openssl-dev \
         libgdal-dev \
         libgeos-dev \
@@ -53,8 +56,10 @@ COPY renv/activate.R renv/activate.R
 
 # Keep the library outside /project: Actions checkout replaces that directory.
 # Bootstrap the same renv version as the lock, rather than the latest release.
+# Ignore upstream optional Remotes (dkstat suggests geodk/dawaR). Explicit
+# GitHub records remain pinned and all strong dependencies remain in the lock.
 RUN mkdir -p /opt/publication-library \
-    && Rscript --vanilla -e 'install.packages("https://cran.r-project.org/src/contrib/Archive/renv/renv_1.1.5.tar.gz", repos = NULL, type = "source", lib = Sys.getenv("R_LIBS_USER")); renv::restore(lockfile = "renv/publication.lock", library = Sys.getenv("R_LIBS_USER"), prompt = FALSE)' \
+    && Rscript --vanilla -e 'Sys.setenv(RENV_CONFIG_INSTALL_REMOTES = "FALSE"); install.packages("renv", repos = Sys.getenv("RENV_CONFIG_REPOS_OVERRIDE"), lib = Sys.getenv("R_LIBS_USER")); stopifnot(utils::packageVersion("renv") == "1.3.1"); renv::restore(lockfile = "renv/publication.lock", library = Sys.getenv("R_LIBS_USER"), prompt = FALSE)' \
     && Rscript --vanilla -e 'lock <- renv::lockfile_read("renv/publication.lock"); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version)); stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("xml2", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE))'
 
 CMD ["Rscript", "--vanilla"]

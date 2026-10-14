@@ -44,7 +44,7 @@ A collection of macroeconomic analysis notebooks covering interest rates, housin
 
 ### Prerequisites
 
-- R 4.3.3 (the locked publication version) with [renv](https://rstudio.github.io/renv/)
+- R 4.6.1 (the locked publication version) with [renv](https://rstudio.github.io/renv/)
 - Python 3 with Jupyter (for ETL and dashboard)
 - A [FRED API key](https://fred.stlouisfed.org/docs/api/api_key.html)
 
@@ -59,7 +59,7 @@ cd money-printer-go-brrr
 export FRED_API=your_key_here
 
 # Restore R dependencies
-Rscript -e "renv::restore()"
+RENV_CONFIG_INSTALL_REMOTES=FALSE Rscript -e "renv::restore()"
 
 # Build the book
 Rscript --vanilla -e "bookdown::render_book('index.Rmd', output_format = 'bookdown::gitbook')"
@@ -68,13 +68,23 @@ Rscript --vanilla -e "bookdown::render_book('index.Rmd', output_format = 'bookdo
 Dependency restoration is an explicit setup step. Rendering uses the installed,
 locked dependencies and must not restore the environment or install packages
 from inside a chapter.
-The research lock remains intact. `renv/publication.lock` retains 212 identical
+The restore setting ignores upstream optional `Remotes` outside the lock (such
+as `dkstat`'s geodata suggestions); explicitly locked GitHub packages and their
+strong dependencies are still restored.
+Both locks use the 14 October 2026 CRAN snapshot. The research lock includes
+229 packages; `renv/publication.lock` retains 223 identical
 root records and omits only the dynamically tested notebook/kernel and obsolete
 package-loader dependencies: `IRdisplay`, `IRkernel`, `pacman`, `pbdZMQ`, `repr`
 and `uuid`. CI checks both the identical-record subset and its mandatory
 dependency closure; it does not treat a static closure alone as pruning proof.
 `Rscript --vanilla` does not automatically read `.Renviron`; export `FRED_API`
 before rendering, as above.
+
+Refresh both locks deliberately with the target R version and renv installed:
+`Rscript --vanilla scripts/refresh_r_locks.R YYYY-MM-DD`. Build and validate
+the resulting publication image before promotion; rendering never upgrades packages.
+The hosted [scheduler setup](docs/hosted-scheduler.md) provides 05:00 Copenhagen
+dispatches and independent recovery invocations without keeping runners waiting.
 
 ### Book runtime and freshness
 

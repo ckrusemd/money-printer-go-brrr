@@ -93,7 +93,7 @@ class PublicationImageTests(unittest.TestCase):
         self.assertIn("timeout-minutes: 2", preflight)
         self.assertIn("render_allowed: ${{ github.event_name != 'push' && 'true' || steps.push_guard.outputs.render_allowed || 'false' }}", preflight)
         self.assertEqual(preflight.count("if: github.event_name == 'push'"), 2)
-        self.assertEqual(preflight.count("timeout-minutes: 1"), 2)
+        self.assertEqual(preflight.count("timeout-minutes: 1"), 3)
         self.assertIn("ref: ${{ github.sha }}", preflight)
         self.assertIn("fetch-depth: 1", preflight)
         self.assertIn("run: python3 scripts/publication_push_guard.py", preflight)

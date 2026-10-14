@@ -17,6 +17,7 @@ IMAGE_INPUTS = frozenset({
     "Dockerfile", ".dockerignore", "renv.lock", "renv/publication.lock",
     "renv/settings.json", "renv/activate.R", ".Rprofile",
     ".github/workflows/build-container.yml",
+    "scripts/publication_image_key.py",
 })
 FETCH_TIMEOUT_SECONDS = 35
 
