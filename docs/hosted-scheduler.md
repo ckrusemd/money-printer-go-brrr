@@ -52,15 +52,31 @@ Rotation disables the job for retesting; enable it only after the replacement wo
 See the [cron-job.org API](https://docs.cron-job.org/rest-api.html) and
 [GitHub dispatch API](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event).
 
-## Provisioning status (14 October 2026)
+## Active deployment (14 October 2026)
 
-Bookdown job `8642126` has been created disabled. Enable only after the
-new workflow is on `main` and its provider test and completion gate pass.
+Bookdown job **`8642126` is enabled** at 05:00/05:10/05:30 Europe/Copenhagen.
+The first regular calls are confirmed for 15 October 2026. Native hourly
+off-hour cron remains enabled independently. No local computer is required.
+
+- [Upgrade PR #66](https://github.com/ckrusemd/money-printer-go-brrr/pull/66)
+  merged; R 4.6.1 and all 223 locked publication package versions verified.
+- [Production publication](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/38522947037)
+  succeeded and journaled the 14 October book from commit
+  `8f216c6b7e3d1b2c2e675d088f7935cf49433e4a`. All 13 live pages and 46
+  scripts/styles/representative chart assets were checked successfully.
+- A single expiring provider test at 08:39 Copenhagen initiated its HTTP request
+  about 9.5 seconds after the target minute and returned HTTP 200.
+  [Provider-dispatched workflow](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/38523464625)
+  queued without allocating a runner behind the active publication, then its
+  preflight finished in **seven seconds** and skipped every render/deploy job.
+  No duplicate publication occurred. The daily schedule was enabled only after
+  deployment, journaling, provider dispatch and duplicate gating all passed.
+
 At the owner's request, its dispatch credential was reused from the existing
 provider-held weather job after checking authenticated Actions read access to
 this repository. A subsequent dispatch against a deliberately nonexistent ref
 returned the expected HTTP 422 ref-validation error, verifying dispatch access
-without starting a workflow. The actual provider execution test is still required.
+without starting a workflow. The subsequent real provider execution passed as above.
 The source job was not modified, credential values were not displayed or saved
 locally, and no broad CLI credential was used. Rotate shared credentials in both
 repositories before expiry, or replace Bookdown's with a single-repository token.
