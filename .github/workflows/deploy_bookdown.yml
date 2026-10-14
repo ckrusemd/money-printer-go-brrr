@@ -3,6 +3,14 @@ name: Build and deploy Money Printer Go BRRR
 on:
   workflow_dispatch:
     inputs:
+      scheduled_delivery:
+        description: "Hosted scheduler: enforce Copenhagen due/completion gates"
+        type: boolean
+        default: false
+      dispatch_id:
+        description: "Hosted scheduler correlation identifier (not a credential)"
+        type: string
+        default: ""
       publish:
         description: "Deploy after validation (false uploads evidence only, including on a branch)"
         type: boolean
@@ -41,15 +49,16 @@ on:
       - "scripts/book-style.css"
       - ".github/workflows/deploy_bookdown.yml"
   schedule:
-    # 04:00 CET = 03:00 UTC
-    - cron: "0 3 * * *"
+    # Off-hour recovery watchdog; hosted scheduler supplies 05:00 local calls.
+    - cron: "17 * * * *"
 
 permissions:
   contents: read
 
 concurrency:
   group: money-printer-${{ github.event_name == 'workflow_run' && (github.event.workflow_run.conclusion != 'success' || github.event.workflow_run.head_sha != github.sha || github.event.workflow_run.head_branch != github.event.repository.default_branch || github.event.workflow_run.head_repository.full_name != github.repository || github.event.workflow_run.repository.full_name != github.repository || github.event.workflow_run.event == 'pull_request') && format('ignored-container-{0}', github.event.workflow_run.id) || github.event_name == 'workflow_dispatch' && (inputs.benchmark && 'benchmark' || !inputs.publish && format('validate-{0}', github.ref) || 'pages') || 'pages' }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.benchmark }}
+  # Queued recovery calls must never cancel an active daily render/deployment.
+  cancel-in-progress: false
 
 jobs:
   publication-image:
@@ -58,7 +67,19 @@ jobs:
     outputs:
       image: ${{ steps.resolve.outputs.image }}
       render_allowed: ${{ github.event_name != 'push' && 'true' || steps.push_guard.outputs.render_allowed || 'false' }}
+      schedule_allowed: ${{ steps.schedule.outputs.schedule_allowed }}
+      as_of: ${{ steps.schedule.outputs.as_of }}
     steps:
+      - name: Check out scheduler gate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Check Copenhagen due time and successful publication state
+        id: schedule
+        timeout-minutes: 1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/book_publication_schedule.py
       - name: Check out push commit for bounded image-input comparison
         if: github.event_name == 'push'
         timeout-minutes: 1
@@ -96,6 +117,7 @@ jobs:
     needs: publication-image
     if: >-
       needs.publication-image.outputs.render_allowed == 'true' &&
+      needs.publication-image.outputs.schedule_allowed == 'true' &&
       !inputs.benchmark &&
       (github.event_name != 'workflow_dispatch' || !inputs.publish ||
        github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) &&
@@ -108,6 +130,8 @@ jobs:
         github.event.workflow_run.event != 'pull_request'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      as_of: ${{ needs.publication-image.outputs.as_of }}
     container:
       image: ${{ needs.publication-image.outputs.image }}
       options: --user root
@@ -119,6 +143,7 @@ jobs:
       BOOK_METRICS_FILE: .cache/book-metrics.csv
       BOOK_RESULTS_DIR: .cache/book-results
       BOOK_VALIDATE_ONLY: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
+      BOOK_AS_OF: ${{ needs.publication-image.outputs.as_of }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -169,7 +194,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$BOOK_SNAPSHOT_DIR"
-          export BOOK_AS_OF="$(TZ=Europe/Copenhagen date +%F)"
           printf '%s\n' "$BOOK_AS_OF" > "$BOOK_SNAPSHOT_DIR/as-of.txt"
           printf '%s\n' "$GITHUB_SHA" > "$BOOK_SNAPSHOT_DIR/source-sha.txt"
           start_time=$(date +%s)
@@ -485,3 +509,22 @@ jobs:
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
         with:
           timeout: 240000
+
+  publication-state:
+    # Persist only after validated output actually reached Pages. An unsuccessful
+    # render/deployment never marks the day complete, so later calls can recover.
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Journal successful Copenhagen publication date
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BOOK_AS_OF: ${{ needs.build.outputs.as_of }}
+          BOOK_SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        run: python3 scripts/book_publication_schedule.py record

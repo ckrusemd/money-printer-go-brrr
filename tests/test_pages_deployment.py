@@ -11,7 +11,7 @@ ACTION = "actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346"
 class PagesDeploymentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.deploy = WORKFLOW.read_text().split("\n  deploy:\n", 1)[1]
+        cls.deploy = WORKFLOW.read_text().split("\n  deploy:\n", 1)[1].split("\n  publication-state:\n", 1)[0]
         cls.first, cls.retry = cls.deploy.split(
             "      - name: Retry Pages deployment once after a failed attempt\n", 1
         )

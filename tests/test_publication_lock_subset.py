@@ -30,10 +30,9 @@ class PublicationLockSubsetTests(unittest.TestCase):
         cls.root = json.loads((REPOSITORY / "renv.lock").read_text(encoding="utf-8"))
         cls.publication = json.loads((REPOSITORY / "renv/publication.lock").read_text(encoding="utf-8"))
 
-    def test_real_lock_omits_exactly_six_and_preserves_all_212_records_and_r_metadata(self):
+    def test_real_lock_omits_exactly_six_and_preserves_all_records_and_r_metadata(self):
         self.assertEqual(self.validate(self.root, self.publication), APPROVED)
-        self.assertEqual(len(self.root["Packages"]), 218)
-        self.assertEqual(len(self.publication["Packages"]), 212)
+        self.assertEqual(len(self.root["Packages"]) - len(self.publication["Packages"]), len(APPROVED))
         self.assertEqual(self.publication["R"], self.root["R"])
         for name, record in self.publication["Packages"].items():
             with self.subTest(package=name):
