@@ -55,7 +55,11 @@ Bookdown job `8642126` has been created disabled. Enable only after the
 new workflow is on `main` and its provider test and completion gate pass.
 At the owner's request, its dispatch credential was reused from the existing
 provider-held weather job after checking authenticated Actions read access to
-this repository. The source job was not modified, credential values were not
-displayed or saved locally, and no broad CLI credential was used. Dispatch
-write access still requires the live test. Rotate shared credentials in both
+this repository. A subsequent dispatch against a deliberately nonexistent ref
+returned the expected HTTP 422 ref-validation error, verifying dispatch access
+without starting a workflow. The actual provider execution test is still required.
+The source job was not modified, credential values were not displayed or saved
+locally, and no broad CLI credential was used. Rotate shared credentials in both
 repositories before expiry, or replace Bookdown's with a single-repository token.
+GitHub reports expiry at **11 October 2027, 00:00 Europe/Copenhagen**
+(`2027-10-10 22:00:00 UTC`). Renew by **11 September 2027**.
