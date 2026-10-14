@@ -53,3 +53,9 @@ See the [cron-job.org API](https://docs.cron-job.org/rest-api.html) and
 
 Bookdown job `8642126` has been created disabled. Enable only after the
 new workflow is on `main` and its provider test and completion gate pass.
+At the owner's request, its dispatch credential was reused from the existing
+provider-held weather job after checking authenticated Actions read access to
+this repository. The source job was not modified, credential values were not
+displayed or saved locally, and no broad CLI credential was used. Dispatch
+write access still requires the live test. Rotate shared credentials in both
+repositories before expiry, or replace Bookdown's with a single-repository token.

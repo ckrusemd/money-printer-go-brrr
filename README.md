@@ -59,7 +59,7 @@ cd money-printer-go-brrr
 export FRED_API=your_key_here
 
 # Restore R dependencies
-Rscript -e "renv::restore()"
+RENV_CONFIG_INSTALL_REMOTES=FALSE Rscript -e "renv::restore()"
 
 # Build the book
 Rscript --vanilla -e "bookdown::render_book('index.Rmd', output_format = 'bookdown::gitbook')"
@@ -68,6 +68,9 @@ Rscript --vanilla -e "bookdown::render_book('index.Rmd', output_format = 'bookdo
 Dependency restoration is an explicit setup step. Rendering uses the installed,
 locked dependencies and must not restore the environment or install packages
 from inside a chapter.
+The restore setting ignores upstream optional `Remotes` outside the lock (such
+as `dkstat`'s geodata suggestions); explicitly locked GitHub packages and their
+strong dependencies are still restored.
 Both locks use the 14 October 2026 CRAN snapshot. The research lock includes
 229 packages; `renv/publication.lock` retains 223 identical
 root records and omits only the dynamically tested notebook/kernel and obsolete
