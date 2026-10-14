@@ -13,6 +13,7 @@ on:
       - renv/activate.R
       - .Rprofile
       - .github/workflows/build-container.yml
+      - scripts/publication_image_key.py
 
 permissions:
   contents: read
@@ -43,6 +44,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+      - name: Fingerprint the publication Docker context
+        id: context
+        run: echo "digest=$(python3 scripts/publication_image_key.py)" >> "$GITHUB_OUTPUT"
       - name: Build and publish image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
@@ -51,6 +55,7 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:context-${{ steps.context.outputs.digest }}
           cache-from: type=gha,scope=money-printer-r
           cache-to: type=gha,mode=max,scope=money-printer-r
       - name: Smoke test published image

@@ -2,7 +2,10 @@
 import json
 from pathlib import Path
 import re
+import tempfile
 import unittest
+
+from scripts.publication_image_key import INPUTS, image_key
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,6 +40,23 @@ class REnvironmentTests(unittest.TestCase):
         self.assertIn('utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version)', selection)
         self.assertIn('docker build --tag "$BOOK_CI_IMAGE" .', selection)
         self.assertNotIn("sleep", selection)
+
+    def test_every_docker_context_input_changes_image_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            scratch = Path(directory)
+            for name in INPUTS:
+                (scratch / name).parent.mkdir(parents=True, exist_ok=True)
+                (scratch / name).write_bytes((ROOT / name).read_bytes())
+            original = image_key(scratch)
+            self.assertEqual(original, image_key(ROOT))
+            for name in INPUTS:
+                path = scratch / name
+                contents = path.read_bytes()
+                path.write_bytes(contents + b"\n")
+                self.assertNotEqual(original, image_key(scratch), name)
+                path.write_bytes(contents)
+            (scratch / "index.Rmd").write_text("Analysis changes do not change the package image")
+            self.assertEqual(original, image_key(scratch))
 
 
 if __name__ == "__main__":

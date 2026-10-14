@@ -58,20 +58,17 @@ jobs:
         run: |
           set -euo pipefail
           repository=ghcr.io/ckrusemd/money-printer-go-brrr-r
-          lock_hash=$(sha256sum renv/publication.lock | cut -d ' ' -f 1)
-          if docker pull "$repository:lock-$lock_hash"; then
-            docker tag "$repository:lock-$lock_hash" "$BOOK_CI_IMAGE"
+          context_hash=$(python3 scripts/publication_image_key.py)
+          if docker pull "$repository:context-$context_hash"; then
+            docker tag "$repository:context-$context_hash" "$BOOK_CI_IMAGE"
           else
-            docker pull "$repository:latest"
-            docker tag "$repository:latest" "$BOOK_CI_IMAGE"
-          fi
-          if ! docker run --rm --network none --read-only --tmpfs /tmp \
-              -v "$GITHUB_WORKSPACE:/project:ro" -w /project "$BOOK_CI_IMAGE" \
-              Rscript --vanilla -e 'lock <- renv::lockfile_read("renv/publication.lock"); stopifnot(as.character(getRversion()) == lock$R$Version); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version))'; then
-            # New R/package pins must be tested in their own image, not latest.
-            # No secrets are passed to builds or offline fixtures.
+            # Missing candidate context: build rather than silently testing a
+            # different Dockerfile/base image/system-library configuration.
             docker build --tag "$BOOK_CI_IMAGE" .
           fi
+          docker run --rm --network none --read-only --tmpfs /tmp \
+              -v "$GITHUB_WORKSPACE:/project:ro" -w /project "$BOOK_CI_IMAGE" \
+              Rscript --vanilla -e 'lock <- renv::lockfile_read("renv/publication.lock"); stopifnot(as.character(getRversion()) == lock$R$Version); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version))'
       - name: Parse sources and discover every R fixture without network
         shell: bash
         run: |

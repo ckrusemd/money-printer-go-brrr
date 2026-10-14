@@ -61,11 +61,11 @@ class PublicationPushGuardTests(unittest.TestCase):
                                      "GITHUB_OUTPUT": str(output), "GITHUB_STEP_SUMMARY": str(summary)})
         return result, output.read_text(), summary.read_text()
 
-    def test_all_eight_inputs_exactly_match_container_workflow(self):
+    def test_all_image_inputs_exactly_match_container_workflow(self):
         workflow = (ROOT / ".github/workflows/build-container.yml").read_text()
         paths = workflow.split("    paths:\n", 1)[1].split("\n\n", 1)[0]
         declared = {line.strip()[2:].strip("\"'") for line in paths.splitlines() if line.strip().startswith("- ")}
-        self.assertEqual(len(guard.IMAGE_INPUTS), 8)
+        self.assertEqual(len(guard.IMAGE_INPUTS), 9)
         self.assertEqual(guard.IMAGE_INPUTS, declared)
 
     def test_every_image_input_defers(self):
