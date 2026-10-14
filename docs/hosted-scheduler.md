@@ -16,6 +16,9 @@ state is accepted only after repository access and absent branch are confirmed;
 malformed or inaccessible existing state fails closed. Ordinary manual, push
 and container-completion publishing remain available, including same-day updates.
 Pages/recovery invocations are serialized without cancelling active publications.
+A container-completion callback also skips if this exact source commit was
+already successfully published for today (for example by a recovery call).
+Different source commits and ordinary manual force runs still publish normally.
 
 ## Setup
 

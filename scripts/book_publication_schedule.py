@@ -118,6 +118,28 @@ def scheduled_event(event_name, event):
     return scheduled
 
 
+def completed_callback(event_name, event, source_sha, now, state):
+    """A successful same-source publication makes its image callback redundant.
+
+    Push updates and ordinary manual force runs stay untouched. Never use
+    another repository, branch, stale commit or PR callback as delivery proof.
+    """
+    run = event.get("workflow_run", {})
+    repository = "ckrusemd/money-printer-go-brrr"
+    eligible = (event_name == "workflow_run" and run.get("conclusion") == "success"
+                and run.get("head_sha") == source_sha and run.get("head_branch") == "main"
+                and run.get("head_repository", {}).get("full_name") == repository
+                and run.get("repository", {}).get("full_name") == repository
+                and run.get("event") != "pull_request")
+    if not eligible or state is None:
+        return False
+    validate_state(state)
+    today = now.astimezone(ZONE).date().isoformat()
+    if state["last_publication_date"] > today:
+        raise ValueError("Publication journal is dated in the future")
+    return state["last_publication_date"] == today and state["source_sha"] == source_sha
+
+
 def write_state(api, publication_date, source_sha):
     replacement = validate_state({"schema": 1, "last_publication_date": publication_date,
                                   "source_sha": source_sha})
@@ -147,10 +169,16 @@ def main():
             return 0
         now = datetime.now(ZONE)
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-        if scheduled_event(os.environ["GITHUB_EVENT_NAME"], event):
+        event_name = os.environ["GITHUB_EVENT_NAME"]
+        if scheduled_event(event_name, event):
             # An early invocation doesn't need even a state/network lookup.
             state = read_state(GitHub())[0] if now.hour >= 5 else None
             allowed, reason = decide(now, state)
+        elif event_name == "workflow_run" and event.get("workflow_run", {}).get("conclusion") == "success":
+            state = read_state(GitHub())[0]
+            allowed = not completed_callback(event_name, event, os.environ["GITHUB_SHA"], now, state)
+            reason = ("Today's book from this exact commit was already deployed." if not allowed
+                      else "Container callback has no completed same-date/source publication.")
         else:
             allowed, reason = True, "Ordinary manual/push/container event is unchanged."
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:

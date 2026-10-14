@@ -87,6 +87,24 @@ class PublicationScheduleTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             schedule.read_state(FakeGitHub(stored={}, branch_exists=True))
 
+    def test_image_callback_skips_only_successful_same_day_and_source(self):
+        now = datetime.fromisoformat("2026-10-14T01:00:00+00:00")
+        run = {"conclusion": "success", "head_sha": "a" * 40, "head_branch": "main",
+               "head_repository": {"full_name": FakeGitHub.repository},
+               "repository": {"full_name": FakeGitHub.repository}, "event": "push"}
+        callback = lambda event, stored: schedule.completed_callback(
+            "workflow_run", event, "a" * 40, now, stored)
+        self.assertTrue(callback({"workflow_run": run}, state()))
+        self.assertFalse(callback({"workflow_run": run}, state("2026-10-13")))
+        self.assertFalse(callback({"workflow_run": run}, {**state(), "source_sha": "b" * 40}))
+        self.assertFalse(callback({"workflow_run": run}, None))
+        for override in ({"conclusion": "failure"}, {"head_sha": "b" * 40},
+                         {"head_branch": "feature"}, {"event": "pull_request"},
+                         {"head_repository": {"full_name": "other/repository"}}):
+            self.assertFalse(callback({"workflow_run": {**run, **override}}, state()))
+        with self.assertRaises(ValueError):
+            callback({"workflow_run": run}, state("2026-10-15"))
+
     def test_writes_orphan_initial_state_or_compare_and_swap_existing(self):
         api = FakeGitHub()
         schedule.write_state(api, "2026-10-14", "a" * 40)
