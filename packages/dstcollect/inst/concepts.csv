@@ -1,0 +1,32 @@
+table_id,dimension_id,category_code,concept,concept_code,relationship,mapping_version,evidence
+BYGV80,BYGFASE,1,construction_phase,permitted,exact,1,StatBank BYGV80 TABLEINFO
+BYGV80,BYGFASE,2,construction_phase,started,exact,1,StatBank BYGV80 TABLEINFO
+BYGV80,BYGFASE,3,construction_phase,completed,exact,1,StatBank BYGV80 TABLEINFO
+BYGV80,BYGFASE,4,construction_phase,under_construction,exact,1,StatBank BYGV80 TABLEINFO
+BYGV80,ANVENDELSE,120,dwelling_type,detached_house,exact,1,StatBank BYGV80 TABLEINFO
+BYGV80,ANVENDELSE,130,dwelling_type,terraced_linked_semidetached_house,exact,1,StatBank BYGV80 TABLEINFO
+BYGV80,ANVENDELSE,140,dwelling_type,apartment_building,exact,1,StatBank BYGV80 TABLEINFO
+BYG1,BRANCHE07,F,industry,DB07_F,exact,1,StatBank BYG1 TABLEINFO
+BYG1,SÆSON,10,seasonal_adjustment,seasonally_adjusted,exact,1,StatBank BYG1 TABLEINFO
+BYG1,SÆSON,20,seasonal_adjustment,unadjusted,exact,1,StatBank BYG1 TABLEINFO
+BYG1,ART,TOT,work_type,total,exact,1,StatBank BYG1 TABLEINFO
+BYG1,ART,001,work_type,new_construction_and_extensions,exact,1,StatBank BYG1 TABLEINFO
+BYG1,ART,002,work_type,repair_and_maintenance,exact,1,StatBank BYG1 TABLEINFO
+PRIS90,BOLTYP,0111,dwelling_type,single_family_house,exact,1,StatBank PRIS90 TABLEINFO; distinct from detached only
+PRIS90,ENHED,100,measure,index_level,exact,1,StatBank PRIS90 TABLEINFO
+PRIS90,ENHED,210,measure,period_change_percent,exact,1,StatBank PRIS90 TABLEINFO
+BYG42,HINDEKS,01,index_family,residential_construction_cost,exact,1,StatBank BYG42 TABLEINFO
+BYG42,HINDEKS,02,index_family,single_family_construction_cost,exact,1,StatBank BYG42 TABLEINFO
+BYG42,HINDEKS,03,index_family,apartment_building_construction_cost,exact,1,StatBank BYG42 TABLEINFO
+BYG42,ART,1002,cost_component,total,exact,1,StatBank BYG42 TABLEINFO
+BYG42,ART,1004,cost_component,materials,exact,1,StatBank BYG42 TABLEINFO
+BYG42,ART,1006,cost_component,labour,exact,1,StatBank BYG42 TABLEINFO
+BYG42,TAL,100,measure,index_level,exact,1,StatBank BYG42 TABLEINFO
+BYG42,TAL,210,measure,period_change_percent,exact,1,StatBank BYG42 TABLEINFO
+BYG42,TAL,310,measure,year_change_percent,exact,1,StatBank BYG42 TABLEINFO
+PRIS114,VAREGR,000005,price_index,net_price_index_total,exact,1,StatBank PRIS114 TABLEINFO
+PRIS114,ENHED,100,measure,index_level,exact,1,StatBank PRIS114 TABLEINFO
+PRIS114,ENHED,200,measure,period_change_percent,exact,1,StatBank PRIS114 TABLEINFO
+PRIS114,ENHED,300,measure,year_change_percent,exact,1,StatBank PRIS114 TABLEINFO
+FOLK1A,OMRÅDE,000,geography,DK,exact,1,StatBank FOLK1A TABLEINFO nationwide; no boundary crosswalk
+FOLK1A,OMRÅDE,101,geography,DK_municipality_0101,exact,1,StatBank FOLK1A TABLEINFO Copenhagen; no historical boundary conversion
