@@ -1,4 +1,33 @@
 /* Quarto reader styles; keep wide tables inside the reading column. */
+.research-brief {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+  gap: 14px;
+  margin: 22px 0 30px;
+}
+.research-card {
+  background: #f7fafc;
+  border: 1px solid #d6e1ea;
+  border-radius: 8px;
+  padding: 16px;
+  font-variant-numeric: tabular-nums;
+}
+#quarto-document-content .research-card h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  color: #324b62;
+}
+.research-card p { margin: 6px 0; font-size: 0.85rem; }
+.research-card .research-card-value {
+  font-size: 1.8rem;
+  line-height: 1.2;
+  font-weight: 650;
+  color: #183b56;
+}
+.research-card .research-card-date { color: #516374; font-size: 0.8rem; }
+@media (max-width: 460px) {
+  .research-brief { grid-template-columns: 1fr; }
+}
 #quarto-document-content {
   min-width: 0;
   line-height: 1.65;

@@ -258,6 +258,53 @@ research_overview <- function(ctx) {
   research_table(research_summary(ctx$data,ids),paste("Research edition",book_date(),"· observation dates and ages differ by provider"))
 }
 
+research_brief <- function(ctx) {
+  specs<-list(
+    list("dk_build_counts_10000_3","Danish completed dwellings","level"),
+    list("dk_house_bis","Danish house prices","annual"),
+    list("dk_cpi","Danish consumer inflation","annual"),
+    list("us_cpi","US consumer inflation","annual"),
+    list("dk_employees","Danish employee growth","annual"),
+    list("us_payroll","US payroll-job growth","annual"),
+    list("sp500","S&P 500 close","market"),
+    list("yield_10","US 10-year Treasury yield","rate"),
+    list("bitcoin","Bitcoin close (USD)","market"))
+  cards<-lapply(specs,function(spec) {
+    x<-research_series(ctx$data,spec[[1]]);if(!nrow(x))return(NULL)
+    latest<-tail(x,1);year_lag<-if(latest$frequency=="quarterly")4L else 12L
+    annual<-tail(research_returns(x$date,x$value,year_lag),1)
+    at<-which(x$date<=latest$date-30L)
+    previous<-if(length(at))x$value[tail(at,1)] else NA_real_
+    value<-switch(spec[[3]],annual=sprintf("%.1f%%",annual),rate=sprintf("%.2f%%",latest$value),
+      format(round(latest$value),big.mark=",",scientific=FALSE,trim=TRUE))
+    detail<-switch(spec[[3]],annual="Year-on-year change",
+      rate=sprintf("%+.2f percentage points over one month",latest$value-previous),
+      market=sprintf("%+.1f%% over one month",100*(latest$value/previous-1)),
+      sprintf("%+.1f%% year-on-year · seasonally adjusted",annual))
+    htmltools::tags$article(class="research-card",
+      htmltools::tags$h3(spec[[2]]),htmltools::tags$p(class="research-card-value",value),
+      htmltools::tags$p(detail),htmltools::tags$p(class="research-card-date",paste("Observed",latest$date)))
+  })
+  IRdisplay::display_html(as.character(htmltools::tags$section(class="research-brief",
+    `aria-label`="Latest research observations",cards)))
+  invisible(NULL)
+}
+
+research_brief_forecasts <- function(ctx) {
+  x<-ctx$forecasts
+  if(is.null(x)||!nrow(x))return(research_table(data.frame()))
+  selected<-x$id=="dk_build_counts_10000_3"&x$horizon%in%c(3L,12L) |
+    x$id%in%c("sp500","c25")&x$horizon%in%c(20L,252L) |
+    x$id=="bitcoin"&x$horizon%in%c(7L,365L)
+  x<-x[selected,]
+  s<-vapply(x$id,function(id){d<-research_series(ctx$data,id);research_plot_label(id,d$label[1])},character(1))
+  d<-data.frame(Series=s,Horizon=paste(x$horizon,x$horizon_unit),
+    Forecast=paste(format(round(x$estimate),big.mark=",",scientific=FALSE,trim=TRUE),
+      vapply(x$id,research_forecast_unit,character(1))),Model=x$model,
+    `Calibration origins`=x$calibration_n,check.names=FALSE)
+  research_table(d,"Selected short and medium horizons. Deep chapters show all horizons, empirical ranges, model scores and reporting gaps.")
+}
+
 research_release_table <- function(ctx) {
   d<-ctx$data$observations
   rows<-lapply(split(d,d$id),function(x) {

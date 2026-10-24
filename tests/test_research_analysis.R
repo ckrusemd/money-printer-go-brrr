@@ -79,4 +79,9 @@ stopifnot(m$Year[1]==2026L,m$Week_start[1]==as.Date("2026-10-12"),m$Short_DKK[1]
 p<-research_date_plot(plotly::ggplotly(ggplot2::ggplot(data.frame(date=days,value=1:4),
   ggplot2::aes(date,value))+ggplot2::geom_line()))
 stopifnot(p$x$layout$xaxis$type=="date",identical(p$x$data[[1]]$x,as.character(days)))
+definitions<-parse("scripts/analysis/market_notebooks.R")
+eval(Filter(function(x)is.call(x)&&identical(x[[1L]],as.name("<-"))&&
+ identical(x[[2L]],as.name("book_cpi_base")),definitions)[[1]])
+close_to(book_cpi_base(as.Date(c("2015-01-31","2015-02-28")),c(80,88)),c(100,110))
+close_to(book_cpi_base(as.Date(c("2015-01-01","2015-02-01")),c(80,88)),c(100,110))
 cat("Research definitions, currency conversion, calendar alignment and model gates passed\n")

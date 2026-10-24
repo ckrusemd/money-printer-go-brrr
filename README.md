@@ -37,7 +37,8 @@ comparison baseline; do not edit them or synchronize them over notebook edits.
 
 Main is protected. Create a working branch in VS Code, commit and publish that
 branch, then open a pull request and merge after its checks pass. Merged notebook
-changes enter the publication workflow; pull requests run offline checks.
+changes enter the publication workflow; pull requests run offline checks. The home-page pipeline check stages the real
+presentation with explicit synthetic test inputs; production has no fixture mode.
 To add a chapter, create
 an R notebook with the same bootstrap cell/kernel metadata, add its path to
 `book.chapters` in `_quarto.yml`, and optionally set a stable HTML filename in

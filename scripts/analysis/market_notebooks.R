@@ -22,6 +22,12 @@ book_load_packages(fredr,
 
 # Shared explicit dependency for independently executed market notebooks.
 # Call book_market_setup() explicitly; source responses and prepared data are reused only within a build.
+book_cpi_base <- function(date,value,base="2015-01") {
+  at<-which(format(as.Date(date),"%Y-%m")==base)
+  if(length(at)!=1L||!is.finite(value[at])||value[at]<=0)stop("Missing or ambiguous CPI base month: ",base)
+  100*value/value[at]
+}
+
 book_prepare_market_data <- function() {
 options(repr.plot.width = 10, repr.plot.height = 7, repr.plot.res = 120)
 # Consumer CPI; PRIS01 replaces the archived PRIS111. Net prices exclude
@@ -32,7 +38,7 @@ df_PRIS114 = book_dst(table = "PRIS01",
                      Tid = "*") %>%
   dplyr::mutate(TID=as.Date(TID)) %>%
   arrange(TID) %>%
-  dplyr::mutate(Index=value/value[TID==as.Date("2015-01-01")],value=100*Index) %>%
+  dplyr::mutate(value=book_cpi_base(TID,value),Index=value/100) %>%
   tidyr::complete(TID=seq.Date(from=min(TID,na.rm=T),to=book_date(),by="1 day")) %>%
   tidyr::fill(TID,.direction = "down")  %>%
   tidyr::fill(value,.direction = "down")   %>%
