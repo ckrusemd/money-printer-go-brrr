@@ -105,6 +105,14 @@ jobs:
             --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
             "$BOOK_CI_IMAGE" -B -m scripts.notebooks.smoke
 
+      - name: Check book pipeline with a runner-owned checkout
+        run: |
+          mkdir -p "$RUNNER_TEMP/notebook-pipeline" "$GITHUB_WORKSPACE/.cache"
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" \
+            -v "$RUNNER_TEMP/notebook-pipeline:/project/.cache" -w /project \
+            "$BOOK_CI_IMAGE" -B -m scripts.notebooks.book build --chapter index.ipynb
+
       - name: Check widget interactions without external browser requests
         run: |
           python3 -m venv "$RUNNER_TEMP/notebook-browser"

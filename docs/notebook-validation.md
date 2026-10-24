@@ -42,6 +42,7 @@ Observed acceptance results:
 | Promoted registry image Python suite | 163 tests run, 15 skipped, no failures, offline/read-only as `notebook` |
 | Promoted image selection | Actual CI selector passed locally; four fixtures cover digest priority, dependency changes, candidate builds and wrong labels |
 | VS Code Dev Containers tooling | Started the pinned configuration as `notebook` at `/project`; startup audit passed; container image ID equals the pulled registry image ID |
+| Container checkout ownership regression | Scoped Git trust reads a foreign-owned checkout; the root/read-only home-chapter pipeline passes with only its run cache writable |
 
 Container testing exposed and fixed equivalent R version strings being rejected
 (`1.2-5` versus `1.2.5`), the shared Jupyter data directory being private to root,
@@ -78,6 +79,14 @@ Docker group that was added during setup.
 Automatic devcontainer UID rewriting is disabled: the image's `notebook` user
 already matches this desktop's UID 1000. This prevents Dev Containers from adding
 a UID-adjustment image layer and preserves the actual promoted image identity.
+
+The first cloud notebook publication stopped before calculations because Git
+rejected the runner-owned checkout from the root container. The receipt lookup
+now trusts only the explicitly selected checkout for that one Git command.
+Pre-kernel failures retain an incomplete receipt and restore runtime settings.
+CI now runs the actual home-chapter pipeline under the runner/container ownership
+mismatch. Quarto also uses a writable cache inside the isolated run, supporting
+read-only containers without writing to the user's home directory.
 
 Logs and a machine-readable receipt are retained locally under
 `.cache/notebook-acceptance/`; widget HTML is under
