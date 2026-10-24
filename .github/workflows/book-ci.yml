@@ -107,7 +107,7 @@ jobs:
 
       - name: Check book pipeline with a runner-owned checkout
         run: |
-          mkdir -p "$RUNNER_TEMP/notebook-pipeline"
+          mkdir -p "$RUNNER_TEMP/notebook-pipeline" "$GITHUB_WORKSPACE/.cache"
           docker run --rm --network none --read-only --tmpfs /tmp \
             --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" \
             -v "$RUNNER_TEMP/notebook-pipeline:/project/.cache" -w /project \
