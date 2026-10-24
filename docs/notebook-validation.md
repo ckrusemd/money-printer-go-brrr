@@ -5,8 +5,17 @@ The corrected Dockerfile built successfully and was loaded locally as
 `sha256:012a9e0e66f0ef39970b0ab79d932d424940b35cec1d8cb11d076133f4e6d2f5`.
 The dependency-context fingerprint is
 `0e4ee976cdfe9dcde385c0c9ec347728883d4e25350fdc242c665ee9db7f63a0`.
-This is a local candidate, not a promoted GHCR reference. The source changes are
-still uncommitted over HEAD `0da67f6fa0fa25a43d3e05353addb1850787e51a`.
+Local acceptance was performed over the original HEAD
+`0da67f6fa0fa25a43d3e05353addb1850787e51a`. The migration subsequently passed all
+GitHub checks and merged through [PR #68](https://github.com/ckrusemd/money-printer-go-brrr/pull/68).
+
+The [container publication run](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/40092769235)
+built and validated the registry image
+`ghcr.io/ckrusemd/money-printer-go-brrr-r@sha256:1fcecffcfdb0135077130e9973fcfdd036c4c8342871e1a380c08366c8f24d6a`.
+It passed the R audit, notebook/Quarto smoke, Chromium interactions, and non-root
+kernel execution. That image was downloaded and independently verified locally
+before pinning. Its dependency-context fingerprint matches the local candidate;
+the local image ID above is not a registry digest.
 
 Observed acceptance results:
 
@@ -30,6 +39,9 @@ Observed acceptance results:
 | Legacy Bookdown replay | All 457 processing steps and HTML rendering completed offline; R reported 13 warnings |
 | Legacy/notebook numerical parity | Complete captured predictions/metrics and both full correlation input/output records matched at absolute tolerance `1e-8` |
 | Input immutability after legacy replay | All 334 snapshot file SHA-256 hashes still unchanged |
+| Promoted registry image Python suite | 163 tests run, 15 skipped, no failures, offline/read-only as `notebook` |
+| Promoted image selection | Actual CI selector passed locally; four fixtures cover digest priority, dependency changes, candidate builds and wrong labels |
+| VS Code Dev Containers tooling | Started the pinned configuration as `notebook` at `/project`; startup environment audit passed |
 
 Container testing exposed and fixed equivalent R version strings being rejected
 (`1.2-5` versus `1.2.5`), the shared Jupyter data directory being private to root,
@@ -69,6 +81,7 @@ Logs and a machine-readable receipt are retained locally under
 committed. The `.env` file is private and Git-ignored, and is passed to Docker at
 runtime rather than copied into the image.
 
-Pending: manual VS Code editor checks; GHCR digest promotion and the first
-scheduled deployment. Legacy Rmd sources remain available as the comparison
-baseline until final acceptance.
+The first notebook Pages deployment follows the digest-pinning merge. Manual
+VS Code editor checks remain; the host Dev Containers extension is now installed.
+Legacy Rmd sources remain available as the comparison baseline until final
+acceptance.
