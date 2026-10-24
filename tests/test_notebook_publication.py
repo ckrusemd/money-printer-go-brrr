@@ -51,9 +51,15 @@ class NotebookContractTests(unittest.TestCase):
                             'user.email=fixture@example.invalid', 'commit', '--quiet',
                             '--allow-empty', '-m', 'Fixture'], cwd=root, check=True)
             expected = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
-            with patch.dict(os.environ, {'GIT_TEST_ASSUME_DIFFERENT_OWNER': '1'}):
-                untrusted = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True)
+            with patch.dict(os.environ, {
+                'GIT_TEST_ASSUME_DIFFERENT_OWNER': '1', 'GIT_CONFIG_NOSYSTEM': '1',
+                'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_CONFIG_COUNT': '0', 'GIT_CONFIG_PARAMETERS': '',
+            }):
+                # Git's own safe-directory fixtures use status as the rejection
+                # probe; rev-parse need not inspect worktree ownership in every version.
+                untrusted = subprocess.run(['git', 'status', '--porcelain'], cwd=root, capture_output=True)
                 self.assertNotEqual(untrusted.returncode, 0)
+                self.assertIn(b'ownership', untrusted.stderr)
                 self.assertEqual(book.source_commit(root), expected)
 
     def test_unbundled_browser_scripts_stop_publication(self):
