@@ -104,3 +104,14 @@ print.dst_bundle <- function(x, ...) {
   cat(length(mapped),"of",nrow(x$series_dimensions),"series dimensions have curated concept mappings\n")
   print(utils::head(x$data)); invisible(x)
 }
+
+# IRkernel's default list renderer tries to flatten raw API responses into
+# rectangular tables. Show observations instead; provenance stays accessible.
+#' @exportS3Method repr::repr_html
+repr_html.dst_bundle <- function(obj, ...) repr::repr_html(utils::head(obj$data), ...)
+
+#' @exportS3Method repr::repr_latex
+repr_latex.dst_bundle <- function(obj, ...) repr::repr_latex(utils::head(obj$data), ...)
+
+#' @exportS3Method repr::repr_markdown
+repr_markdown.dst_bundle <- function(obj, ...) repr::repr_markdown(utils::head(obj$data), ...)

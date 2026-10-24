@@ -9,6 +9,6 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1)
 Imports: httr2, jsonlite, tibble, digest
-Suggests: testthat
+Suggests: testthat, repr
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.1

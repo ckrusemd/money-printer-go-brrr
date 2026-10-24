@@ -17,10 +17,10 @@ periods <- function(codes) {
       s <- as.Date(paste0(substr(x,1,4),if (substr(x,6,6)=="1") "-01-01" else "-07-01"))
       e <- seq(s,by="6 months",length.out=2)[2]-1; f <- "half_yearly"
     } else if (grepl("^[0-9]{4}M(0[1-9]|1[0-2])D[0-3][0-9]$",x)) {
-      s <- suppressWarnings(as.Date(paste0(substr(x,1,4),"-",substr(x,6,7),"-",substr(x,9,10))))
+      s <- suppressWarnings(as.Date(paste0(substr(x,1,4),"-",substr(x,6,7),"-",substr(x,9,10)),format="%Y-%m-%d"))
       e <- s; if (!is.na(s)) f <- "daily"
     } else if (grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$",x)) {
-      s <- suppressWarnings(as.Date(x)); e <- s; if (!is.na(s)) f <- "daily"
+      s <- suppressWarnings(as.Date(x,format="%Y-%m-%d")); e <- s; if (!is.na(s)) f <- "daily"
     }
     # Unfamiliar or week-calendar codes are intentionally retained unparsed:
     # an ISO week convention cannot safely be assumed for arbitrary tables.

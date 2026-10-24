@@ -66,6 +66,9 @@ test_that("missing cells and unknown period formats remain explicit", {
   expect_equal(as.character(p$period_end[1:5]),c("2024-12-31","2024-03-31","2024-02-29","2024-12-31","2024-02-29"))
   expect_true(all(is.na(p$period_start[6:7])))
   expect_equal(p$frequency[6:7],rep("unknown",2))
+  daily <- dstcollect:::periods(c("2024M02D29","2024-02-30","2024M02D30"))
+  expect_equal(daily$period_start[1],as.Date("2024-02-29"))
+  expect_true(all(is.na(daily$period_start[2:3])))
 })
 
 test_that("partial chunks, changed metadata and conflicting duplicates fail", {
@@ -95,4 +98,6 @@ test_that("curated concepts distinguish house categories and percent measures", 
   expect_equal(nrow(aliases),nrow(a$data))
   expect_equal(length(attr(aliases,"canonical_series_id")),nrow(a$data))
   expect_equal(length(unique(aliases$series)),2L)
+  expect_type(repr::repr_html(a),"character")
+  expect_type(repr::repr_latex(a),"character")
 })
