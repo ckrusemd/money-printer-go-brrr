@@ -158,6 +158,20 @@ class NotebookContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Clear notebook outputs'):
                 book.check(root)
 
+    def test_duplicate_quarto_cell_options_fail_before_execution(self):
+        import nbformat
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'_quarto.yml').write_text('book:\n  chapters: [index.ipynb, Data_Status.ipynb]\n')
+            (root/'renv.lock').write_text((book.ROOT/'renv.lock').read_text())
+            nb = nbformat.read(book.ROOT/'index.ipynb', as_version=4)
+            cell = next(c for c in nb.cells if c.cell_type == 'code')
+            cell.source = '#| echo: false\n#| echo: false\n' + cell.source
+            nbformat.write(nb, root/'index.ipynb')
+            nbformat.write(nb, root/'Data_Status.ipynb')
+            with self.assertRaisesRegex(ValueError, 'Duplicate Quarto cell option'):
+                book.check(root)
+
     def test_capture_has_separate_cells_and_preserves_source(self):
         import nbformat
         nb = nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell('x <- 1')])
