@@ -19,6 +19,14 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def source_commit(root=ROOT):
+    # Actions container jobs can read a runner-owned checkout as root. Trust
+    # only this explicitly selected checkout, without changing Git configuration.
+    return subprocess.check_output(
+        ["git", "-c", "safe.directory=" + str(root.resolve()), "rev-parse", "HEAD"],
+        cwd=root, text=True).strip()
+
+
 def configuration(root=ROOT):
     import yaml
     return yaml.safe_load((root / "_quarto.yml").read_text())
@@ -179,9 +187,9 @@ def build(root=ROOT, chapter=None, replay=None, preview=False):
     os.environ.update(env)
     start = time.monotonic()
     receipt = {"run_id": run_id, "as_of": as_of, "chapters": [], "complete": False,
-               "mode": env["BOOK_SNAPSHOT_MODE"], "source_sha": subprocess.check_output(
-                   ["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()}
+               "mode": env["BOOK_SNAPSHOT_MODE"], "source_sha": None}
     try:
+        receipt["source_sha"] = source_commit(root)
         # Read-only source assets are copied; personal inputs and credentials never enter staging.
         for name in ("scripts/book-style.css", "book.bib", "packages.bib"):
             target = stage / name
@@ -206,7 +214,8 @@ def build(root=ROOT, chapter=None, replay=None, preview=False):
         if chapter:
             command.append(stage_names[chapter])
         command.append("--no-execute")
-        subprocess.run(command, cwd=stage, check=True)
+        subprocess.run(command, cwd=stage,
+                       env={**os.environ, "XDG_CACHE_HOME": str(run / ".cache")}, check=True)
         output = stage / "_book"
         from scripts.notebooks.assets import localize
         localize(output)

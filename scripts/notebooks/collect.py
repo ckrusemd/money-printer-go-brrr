@@ -14,6 +14,9 @@ def collect(root=ROOT):
     run = Path(receipt["directory"]).resolve()
     if not run.is_relative_to((root / ".cache/notebook-runs").resolve()):
         raise ValueError("Notebook receipt points outside its run directory")
+    if receipt.get("source_sha") is None:
+        # A pre-kernel Git failure has no verified source or provider responses.
+        return
     source = run / "inputs"
     if not source.is_dir():
         return

@@ -42,6 +42,20 @@ class MigrationTests(unittest.TestCase):
 
 
 class NotebookContractTests(unittest.TestCase):
+    def test_receipt_reads_foreign_owned_checkout_with_scoped_git_trust(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(['git', 'init', '--quiet', root], check=True)
+            subprocess.run(['git', '-c', 'user.name=Fixture', '-c',
+                            'user.email=fixture@example.invalid', 'commit', '--quiet',
+                            '--allow-empty', '-m', 'Fixture'], cwd=root, check=True)
+            expected = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
+            with patch.dict(os.environ, {'GIT_TEST_ASSUME_DIFFERENT_OWNER': '1'}):
+                untrusted = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True)
+                self.assertNotEqual(untrusted.returncode, 0)
+                self.assertEqual(book.source_commit(root), expected)
+
     def test_unbundled_browser_scripts_stop_publication(self):
         from scripts.notebooks.assets import localize
         with tempfile.TemporaryDirectory() as directory:
@@ -212,6 +226,19 @@ class NotebookContractTests(unittest.TestCase):
             self.assertEqual(os.environ.get('BOOK_RUN_ID'), old_run)
             for name, data in originals.items():
                 self.assertEqual((root/name).read_bytes(), data)
+            # Failure before the first kernel must still restore the environment
+            # and retain an incomplete receipt for diagnostics.
+            import subprocess
+            with patch('scripts.notebooks.environment.audit'), \
+                 patch('scripts.notebooks.book.source_commit', side_effect=subprocess.CalledProcessError(128, 'git')):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    book.build(root=root)
+            receipt = json.loads((root/'.cache/notebook-last-run.json').read_text())
+            self.assertFalse(receipt['complete'])
+            self.assertIsNone(receipt['source_sha'])
+            self.assertEqual(os.environ.get('BOOK_RUN_ID'), old_run)
+            collect(root)
+            self.assertFalse((root/'.cache/book-inputs').exists())
 
     def test_output_copy_failure_preserves_previous_local_book(self):
         with tempfile.TemporaryDirectory() as directory:
