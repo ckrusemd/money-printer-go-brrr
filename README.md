@@ -57,10 +57,10 @@ copy for historical tooling; pruning kernel packages is no longer supported.
 `scripts/notebooks/requirements.lock` pins the complete Python execution stack.
 Quarto and the R base image have fixed checksums/digests.
 
-The devcontainer initially builds from the same Dockerfile for bootstrap. A local
-candidate has been built and validated; **no GHCR digest has been promoted yet**.
-Publication deliberately refuses to substitute an unpinned image. To finish
-promotion:
+The devcontainer pins a validated GHCR image by immutable digest. VS Code,
+publication, and offline CI for notebook edits use that same image. Publication
+refuses to substitute an unpinned image. To change the environment, first build
+and validate a new candidate:
 
 ```bash
 # On a machine with Docker access, build and validate a candidate.
@@ -78,8 +78,8 @@ python -m scripts.notebooks.image pin ghcr.io/ckrusemd/money-printer-go-brrr-r@s
 ```
 
 This verifies the image context fingerprint, installed R packages, and R notebook
-smoke test, then replaces the bootstrap build configuration with that immutable
-image reference. Commit the devcontainer configuration. CI and VS Code then use
+smoke test, then records that immutable image reference in the devcontainer
+configuration. Commit the configuration. CI and VS Code then use
 the **same image digest**. Never invent a digest or promote a tag as a digest.
 Changes to locks or the Dockerfile require a new candidate and promotion.
 
@@ -155,8 +155,9 @@ Rscript --vanilla scripts/notebooks/parity.R /path/to/legacy-results /path/to/no
 
 Parity compares complete captured model/correlation tables in both directions
 with an elementwise absolute tolerance of `1e-8`, including correlation inputs.
-Use identical inputs and analysis dates. GHCR promotion and the first scheduled
-deployment remain unverified.
+Use identical inputs and analysis dates. The published container passed its R,
+notebook, browser, and non-root checks before digest promotion. Deployment results
+are recorded in the [publication workflow](https://github.com/ckrusemd/money-printer-go-brrr/actions/workflows/deploy_bookdown.yml).
 
 Container acceptance on 24 October 2026 now includes the canonical locked R and
 Python environments, 13 R fixture files, and 159 Python tests (15 skipped).
@@ -173,8 +174,8 @@ All 12 real pages and their widgets loaded in Chromium with outside requests
 blocked. Seven optional Yahoo symbols were unavailable and are listed in the
 data-status appendix. The isolated legacy Bookdown replay also completed, and its
 complete captured forecasts/metrics and both correlation input/output records
-matched the notebooks at absolute tolerance `1e-8`. Actual VS Code editor behavior,
-GHCR image promotion, and deployment remain pending.
+matched the notebooks at absolute tolerance `1e-8`. The published GHCR image also
+passed clean-runner checks. Actual VS Code editor behavior remains a manual check.
 See [container acceptance evidence](docs/notebook-validation.md).
 
 ## Research outside the daily book

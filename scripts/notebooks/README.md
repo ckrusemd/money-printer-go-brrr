@@ -4,6 +4,6 @@
 then renders the executed scratch copies with Quarto. `migrate` is a one-time
 legacy importer, never a synchronization or production step.
 
-The `.Rmd` files and `_bookdown.yml` remain temporarily as a numerical comparison
-baseline until full live/replay acceptance succeeds. Edit `.ipynb` only. They are
-not inputs to the notebook publication pipeline.
+The `.Rmd` files and `_bookdown.yml` remain as the verified numerical comparison
+baseline. Edit `.ipynb` only. Legacy documents are not inputs to the notebook
+publication pipeline.
