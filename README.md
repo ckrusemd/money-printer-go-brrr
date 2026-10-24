@@ -35,8 +35,10 @@ comparison baseline; do not edit them or synchronize them over notebook edits.
    python -m scripts.notebooks.book check
    ```
 
-Commit and push notebook changes normally. Relevant main-branch pushes enter the
-publication workflow; pull requests run offline checks. To add a chapter, create
+Main is protected. Create a working branch in VS Code, commit and publish that
+branch, then open a pull request and merge after its checks pass. Merged notebook
+changes enter the publication workflow; pull requests run offline checks.
+To add a chapter, create
 an R notebook with the same bootstrap cell/kernel metadata, add its path to
 `book.chapters` in `_quarto.yml`, and optionally set a stable HTML filename in
 `notebook-publication.page-names`. Put the data-status appendix last.
