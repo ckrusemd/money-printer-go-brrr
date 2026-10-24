@@ -1,4 +1,61 @@
-/* Reader styles scoped to GitBook; preserve chart aspect ratios and navigation. */
+/* Quarto reader styles; keep wide tables inside the reading column. */
+#quarto-document-content {
+  min-width: 0;
+  line-height: 1.65;
+  overflow-wrap: break-word;
+}
+
+#quarto-document-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+#quarto-document-content table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+#quarto-document-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+#quarto-document-content a {
+  text-underline-offset: 0.15em;
+}
+
+#quarto-content :is(a, button, input, select, summary, table):focus-visible {
+  outline: 3px solid #005a9c;
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  #quarto-document-content {
+    font-size: 16px;
+  }
+
+  #quarto-document-content h1 {
+    font-size: 1.8em;
+  }
+
+  #quarto-document-content h2 {
+    font-size: 1.4em;
+  }
+
+  #quarto-document-content li {
+    margin-bottom: 0.5em;
+  }
+
+  #quarto-document-content .caption {
+    font-size: 0.9em;
+    line-height: 1.5;
+  }
+}
+
+/* Retained GitBook baseline styles. */
 .book .book-body .page-wrapper .page-inner {
   max-width: 1000px;
 }

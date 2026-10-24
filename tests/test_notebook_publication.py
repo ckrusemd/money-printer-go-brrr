@@ -135,7 +135,8 @@ class NotebookContractTests(unittest.TestCase):
         book.check()
         for name in book.chapters():
             nb = json.loads((book.ROOT / name).read_text())
-            self.assertIn('scripts/notebooks/bootstrap.R', ''.join(nb['cells'][0]['source']))
+            first_code = next(c for c in nb['cells'] if c['cell_type'] == 'code')
+            self.assertIn('scripts/notebooks/bootstrap.R', ''.join(first_code['source']))
 
     def test_build_trigger_includes_notebooks_and_canonical_configuration(self):
         workflow = (book.ROOT / '.github/workflows/deploy_bookdown.yml').read_text()

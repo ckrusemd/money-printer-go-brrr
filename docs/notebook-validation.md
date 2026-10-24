@@ -111,3 +111,21 @@ The existing 05:00 Europe/Copenhagen schedule and recovery protocol are retained
 Manual VS Code editor checks remain; the host Dev Containers extension is
 installed, and the exact-image container startup and kernel audits have passed.
 Legacy Rmd sources remain available as the verified comparison baseline.
+
+## Readability pass — 24 October 2026
+
+The home notebook now supplies its title through Quarto YAML metadata, avoiding
+an extra visible heading while retaining the sidebar label and legacy anchor.
+Quarto reading styles contain wide tables within the text column and improve
+mobile typography and keyboard focus. The data-status appendix presents the
+same availability records in a searchable, paginated DT table.
+
+Both changed notebooks were executed again in the pinned development container;
+the appendix used the recorded full-book provider inputs. The complete book was
+rendered from those outputs and the other ten previously executed production
+notebooks. All 12 pages passed asset/anchor validation and Chromium checks at
+375px and 1440px, with one page title each and no page-wide horizontal overflow.
+The appendix's search, page-size control and horizontal scrolling passed with
+outside browser requests blocked. The Python suite passed (164 tests, 15 skips),
+as did R source parsing and the locked dependency audit. This pass changes
+presentation; forecast and model calculations were not edited or rerun locally.
