@@ -57,7 +57,7 @@ dst_legacy_metadata <- function(x) {
 #' @export
 dst_legacy_series <- function(x,series_cols=NULL,code_labels=FALSE) {
   view <- dst_legacy_data(x,code_labels=code_labels)
-  alias <- rep(x$data$table_id,nrow(x$data))
+  alias <- x$data$table_id
   for (id in series_cols) alias <- paste(alias,view[[toupper(id)]],sep="_")
   pairs <- unique(data.frame(alias=alias,series_id=attr(view,"series_id")))
   if (anyDuplicated(pairs$alias)) stop("Legacy alias collision; include all varying dimensions in series_cols")

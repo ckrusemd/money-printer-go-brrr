@@ -91,4 +91,8 @@ test_that("curated concepts distinguish house categories and percent measures", 
   b <- dstcollect:::apply_measure_units(a)
   expect_true(all(b$data$unit[b$data$series_id==a$series$series_id[1]]=="percent"))
   expect_error(dst_legacy_series(a),"collision")
+  aliases <- dst_legacy_series(a,series_cols="AREA",code_labels=TRUE)
+  expect_equal(nrow(aliases),nrow(a$data))
+  expect_equal(length(attr(aliases,"canonical_series_id")),nrow(a$data))
+  expect_equal(length(unique(aliases$series)),2L)
 })
