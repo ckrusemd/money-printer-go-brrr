@@ -62,4 +62,3 @@ def localize(output):
         target = output / "scripts/vendor" / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
-
