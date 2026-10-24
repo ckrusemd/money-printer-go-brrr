@@ -4,9 +4,6 @@ LABEL org.opencontainers.image.source="https://github.com/ckrusemd/money-printer
 
 ARG QUARTO_VERSION=1.10.19
 ARG QUARTO_SHA256=7f0c4769e7f0e55f50d922f44b18db5118fb388d2b8fd27291fe1f8beafb43eb
-ARG PUBLICATION_CONTEXT=development
-LABEL org.money-printer.context=$PUBLICATION_CONTEXT
-ENV NOTEBOOK_IMAGE_CONTEXT=$PUBLICATION_CONTEXT
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RENV_CONFIG_REPOS_OVERRIDE=https://packagemanager.posit.co/cran/2026-10-14 \
@@ -87,5 +84,10 @@ RUN Rscript --vanilla -e 'IRkernel::installspec(user = FALSE, name = "money-r", 
     && useradd --create-home --non-unique --uid 1000 notebook \
     && mkdir -p /project/.cache \
     && chown -R notebook:notebook /project
+# Context metadata belongs after installation so internal source changes reuse
+# the pinned operating-system and external-library layers.
+ARG PUBLICATION_CONTEXT=development
+LABEL org.money-printer.context=$PUBLICATION_CONTEXT
+ENV NOTEBOOK_IMAGE_CONTEXT=$PUBLICATION_CONTEXT
 EXPOSE 8000
 CMD ["python3", "-m", "scripts.notebooks.book", "build"]

@@ -10,6 +10,8 @@ book:
     - index.ipynb
     - Chapters/00_ReleaseCalendar/1_ReleaseCalendar.ipynb
     - Chapters/01_Indicators/1_Indicators.ipynb
+    - Chapters/01_Indicators/Inflation.ipynb
+    - Chapters/01_Indicators/Employment.ipynb
     - Chapters/02_Housing/5_Housing_US.ipynb
     - Chapters/02_Housing/Housing_DK.ipynb
     - Chapters/03_InterestRates/InterestRates.ipynb
@@ -18,6 +20,7 @@ book:
     - Chapters/04_Markets/Bond_Gallery.ipynb
     - Chapters/04_Markets/Sector_Gallery.ipynb
     - Chapters/05_ETFs/ETFs.ipynb
+    - Chapters/07_Crypto/Crypto.ipynb
     - Chapters/00_ReleaseCalendar/Data_Status.ipynb
 bibliography: [book.bib, packages.bib]
 notebook-publication:
@@ -25,6 +28,8 @@ notebook-publication:
     index.ipynb: index
     Chapters/00_ReleaseCalendar/1_ReleaseCalendar.ipynb: economic-release-calendar
     Chapters/01_Indicators/1_Indicators.ipynb: leading-economic-indicators
+    Chapters/01_Indicators/Inflation.ipynb: inflation-and-purchasing-power
+    Chapters/01_Indicators/Employment.ipynb: employment-and-labour-markets
     Chapters/02_Housing/5_Housing_US.ipynb: united-states-housing-market
     Chapters/02_Housing/Housing_DK.ipynb: danish-housing-market
     Chapters/03_InterestRates/InterestRates.ipynb: interest-rates-and-yield-curves
@@ -33,6 +38,7 @@ notebook-publication:
     Chapters/04_Markets/Bond_Gallery.ipynb: bond-etf-chart-gallery
     Chapters/04_Markets/Sector_Gallery.ipynb: sector-etf-chart-gallery
     Chapters/05_ETFs/ETFs.ipynb: etf-tracking-and-analysis
+    Chapters/07_Crypto/Crypto.ipynb: bitcoin-and-crypto
     Chapters/00_ReleaseCalendar/Data_Status.ipynb: data-status
 jupyter: money-r
 execute:

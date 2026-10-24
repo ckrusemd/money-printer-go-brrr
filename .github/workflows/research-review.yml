@@ -1,0 +1,92 @@
+name: Weekly research model review
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Cheap hourly gate retries Sunday after 02:00 Europe/Copenhagen, with DST.
+    - cron: "43 * * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: weekly-research-review
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      due: ${{ steps.gate.outputs.due }}
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -m scripts.research_review gate
+      - id: image
+        if: steps.gate.outputs.due == 'true'
+        run: python3 -m scripts.notebooks.image resolve
+
+  review:
+    needs: gate
+    if: needs.gate.outputs.due == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    container:
+      image: ${{ needs.gate.outputs.image }}
+      options: --user root
+    env:
+      FRED_API: ${{ secrets.FRED_API }}
+      NOTEBOOK_REQUIRE_PIN: "true"
+      RESEARCH_WORKERS: "4"
+      BOOK_SNAPSHOT_MODE: record
+      BOOK_SNAPSHOT_DIR: .cache/review-inputs
+      BOOK_RUN_ID: review-${{ github.run_id }}-${{ github.run_attempt }}
+      BOOK_METRICS_FILE: .cache/review-metrics.csv
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Restore individual chronological fits
+        id: folds
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/research-models/fold-*.rds
+          key: research-folds-v1-${{ hashFiles('scripts/analysis/research_*.R', 'renv.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            research-folds-v1-${{ hashFiles('scripts/analysis/research_*.R', 'renv.lock') }}-
+      - name: Compare candidates against honest benchmarks
+        run: python3 -m scripts.research_review run
+      - name: Save completed individual fits, including after interruption
+        if: always()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/research-models/fold-*.rds
+          key: ${{ steps.folds.outputs.cache-primary-key }}
+      - name: Retain successful comparison and authenticated provenance
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: research-model-review
+          path: |
+            .cache/research-models/review.rds
+            .cache/research-models/scores.csv
+            .cache/research-models/summary.json
+            .cache/research-models/provenance.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 28
+      - name: Retain provider evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: research-review-inputs
+          path: |
+            .cache/review-inputs
+            .cache/review-metrics.csv
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14

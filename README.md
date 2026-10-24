@@ -37,7 +37,8 @@ comparison baseline; do not edit them or synchronize them over notebook edits.
 
 Main is protected. Create a working branch in VS Code, commit and publish that
 branch, then open a pull request and merge after its checks pass. Merged notebook
-changes enter the publication workflow; pull requests run offline checks.
+changes enter the publication workflow; pull requests run offline checks. The home-page pipeline check stages the real
+presentation with explicit synthetic test inputs; production has no fixture mode.
 To add a chapter, create
 an R notebook with the same bootstrap cell/kernel metadata, add its path to
 `book.chapters` in `_quarto.yml`, and optionally set a stable HTML filename in
@@ -53,7 +54,7 @@ published book.
 ## One environment for development and publication
 
 `Dockerfile` provides R 4.6.1, IRkernel 1.3.2, Quarto 1.10.19, and Jupyter tooling.
-`renv.lock` is the canonical R environment (230 packages, including Plotly from the
+`renv.lock` is the canonical R environment (234 packages, including Plotly from the
 same 2026-10-14 CRAN snapshot). `renv/publication.lock` is an identical compatibility
 copy for historical tooling; pruning kernel packages is no longer supported.
 `scripts/notebooks/requirements.lock` pins the complete Python execution stack.
@@ -121,8 +122,9 @@ only after a successful full render and validation.
 
 Market galleries use explicit shared preparation in
 `scripts/analysis/market_notebooks.R`; they do not need a preceding Markets kernel.
-Existing model methods and detailed static galleries are retained. Main market
-snapshots gain Plotly hover/zoom/date controls; DT and visNetwork outputs are
+The detailed static galleries are retained as exploratory views. The main
+research chapters use explicit closing prices, consumer CPI, chronological
+model comparisons, and Plotly hover/zoom/date controls. DT and visNetwork outputs are
 packaged with their JavaScript/CSS into standalone embedded widget frames.
 Quarto's notebook RequireJS/jQuery tags are replaced with checked local release
 files, so viewing the rendered book does not depend on their CDN.
@@ -141,6 +143,46 @@ provider failures stop publication; optional missing series appear in the final
 freshness appendix. Providers include FRED (`FRED_API`), Yahoo Finance, ECB,
 Statistics Denmark, and Finans Danmark. The Danish tax catalogue uses separately
 maintained dated snapshots and is not refreshed by the daily build.
+
+## Seven-theme research edition
+
+The morning brief links Danish housebuilding and forecasts, Danish/US housing
+relationships, inflation and purchasing power, employment, global equity indices,
+rates and yield curves, and BTC/ETH/SOL. The book publishes 15 notebooks, including
+the existing galleries, release calendar, tax catalogue and data-status appendix.
+Existing chapter URLs are preserved. New URLs are
+`inflation-and-purchasing-power.html`, `employment-and-labour-markets.html` and
+`bitcoin-and-crypto.html`.
+
+Read [research definitions and models](docs/research-methodology.md) before
+interpreting a forecast or cross-country comparison. In particular, construction
+producer prices are distinct from actual house prices; US annualized housing
+flows differ from Danish monthly counts; OECD valuation ratios are indices.
+Real DKK views use observed FX and Danish consumer CPI. Forecasts remain nominal
+and do not invent future CPI, FX, dividends, or crypto history.
+
+Daily renders recompute current observations and forecasts. The separate
+**Weekly research model review** workflow compares benchmark, ETS/drift, ARIMA
+and random-forest candidates, normally Sunday after **02:00 Europe/Copenhagen**.
+An hourly gate handles DST, retries failed Sunday runs, and avoids repeating a
+successful weekly run. Its successful artifact expires after 28 days. Daily
+publication authenticates the artifact's main-branch workflow/run, archive and
+member hashes. R additionally checks model signature and an eight-day age limit;
+without a compatible review, forecasts retain their simple benchmark and show
+that validated alternatives/bands are unavailable. Weekly review does not
+deploy or change source notebooks.
+
+Inside the exact project container, run a complete comparison locally with:
+
+```bash
+python -m scripts.research_review run
+```
+
+The comparison uses at most 60 rolling origins per target and caches individual
+fits by input/code/environment content. `RESEARCH_WORKERS=1` through `4` controls
+local parallelism (default 2); it does not change model definitions. The first
+review is substantially more expensive than a daily render. Provider snapshots,
+folds, scores and review results remain under Git-ignored `.cache/`.
 
 Manual `publish=false` runs retain the full candidate book and diagnostics without
 Pages deployment. Logs, executed notebooks, numeric captures, timing, and provider

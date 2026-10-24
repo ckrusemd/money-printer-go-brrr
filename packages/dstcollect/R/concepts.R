@@ -8,7 +8,8 @@ map_concepts <- function(x) {
 }
 
 apply_measure_units <- function(x) {
-  unit_codes <- c("m2"="m2","antal"="count","number"="count","indeks"="index",
+  unit_codes <- c("m2"="m2","m²"="m2","1.000 personer"="thousand_people",
+    "1000 personer"="thousand_people","personer"="people","antal"="count","number"="count","indeks"="index",
     "index"="index","pct."="percent","per cent"="percent","percent"="percent","%"="percent")
   codes <- unname(unit_codes[tolower(x$data$unit_label)])
   known <- !is.na(codes)

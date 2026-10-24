@@ -8,7 +8,8 @@ PAGES = (
     "united-states-housing-market", "danish-housing-market",
     "interest-rates-and-yield-curves", "equity-markets-and-the-sp-500",
     "market-chart-gallery", "bond-etf-chart-gallery", "sector-etf-chart-gallery",
-    "etf-tracking-and-analysis", "data-status",
+    "etf-tracking-and-analysis", "inflation-and-purchasing-power",
+    "employment-and-labour-markets", "bitcoin-and-crypto", "data-status",
 )
 
 

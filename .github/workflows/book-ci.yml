@@ -110,8 +110,10 @@ jobs:
       - name: Check book pipeline with a runner-owned checkout
         run: |
           mkdir -p "$RUNNER_TEMP/notebook-pipeline" "$GITHUB_WORKSPACE/.cache"
+          python3 -m scripts.notebooks.pipeline_fixture --output "$RUNNER_TEMP/notebook-pipeline/index.ipynb"
           docker run --rm --network none --read-only --tmpfs /tmp \
             --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" \
+            -v "$RUNNER_TEMP/notebook-pipeline/index.ipynb:/project/index.ipynb:ro" \
             -v "$RUNNER_TEMP/notebook-pipeline:/project/.cache" -w /project \
             "$BOOK_CI_IMAGE" -B -m scripts.notebooks.book build --chapter index.ipynb
 

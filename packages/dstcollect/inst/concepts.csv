@@ -30,3 +30,28 @@ PRIS114,ENHED,200,measure,period_change_percent,exact,1,StatBank PRIS114 TABLEIN
 PRIS114,ENHED,300,measure,year_change_percent,exact,1,StatBank PRIS114 TABLEINFO
 FOLK1A,OMRÅDE,000,geography,DK,exact,1,StatBank FOLK1A TABLEINFO nationwide; no boundary crosswalk
 FOLK1A,OMRÅDE,101,geography,DK_municipality_0101,exact,1,StatBank FOLK1A TABLEINFO Copenhagen; no historical boundary conversion
+BYGV90,BYGFASE,1,construction_phase,permitted,exact,2,StatBank BYGV90 TABLEINFO
+BYGV90,BYGFASE,2,construction_phase,started,exact,2,StatBank BYGV90 TABLEINFO
+BYGV90,BYGFASE,3,construction_phase,completed,exact,2,StatBank BYGV90 TABLEINFO
+BYGV90,BYGFASE,4,construction_phase,under_construction,exact,2,StatBank BYGV90 TABLEINFO
+BYGV99,BYGFASE,1,construction_phase,permitted,exact,2,StatBank BYGV99 TABLEINFO
+BYGV99,BYGFASE,2,construction_phase,started,exact,2,StatBank BYGV99 TABLEINFO
+BYGV99,BYGFASE,3,construction_phase,completed,exact,2,StatBank BYGV99 TABLEINFO
+BYGV99,BYGFASE,4,construction_phase,under_construction,exact,2,StatBank BYGV99 TABLEINFO
+BYGV90,ANVENDELSE,120,dwelling_type,detached_house,exact,2,StatBank BYGV90 TABLEINFO
+BYGV90,ANVENDELSE,130,dwelling_type,terraced_linked_semidetached_house,exact,2,StatBank BYGV90 TABLEINFO
+BYGV90,ANVENDELSE,140,dwelling_type,apartment_building,exact,2,StatBank BYGV90 TABLEINFO
+BYGV99,ANVENDELSE,10000,dwelling_type,all_residential,exact,2,StatBank BYGV99 TABLEINFO
+BYGV99,ANVENDELSE,10300,dwelling_type,single_family_residential,exact,2,StatBank BYGV99 TABLEINFO
+BYGV99,ANVENDELSE,10400,dwelling_type,multi_dwelling_residential,exact,2,StatBank BYGV99 TABLEINFO
+BYGV99,SÆSON,SÆSON,seasonal_adjustment,seasonally_adjusted,exact,2,StatBank BYGV99 TABLEINFO
+BYGV99,BYGHERRE,TOT,builder_type,total,exact,2,StatBank BYGV99 TABLEINFO
+PRIS01,VAREGR,000000,price_index,consumer_price_index_total,exact,2,StatBank PRIS01 TABLEINFO
+PRIS01,ENHED,100,measure,index_level,exact,2,StatBank PRIS01 TABLEINFO
+LBESK103,BRANCHE1020,A-V,industry,DB25_all_industries,exact,2,StatBank LBESK103 TABLEINFO
+AKU100K,BESKSTATUS,BESTOT,labour_status,employed,exact,2,StatBank AKU100K TABLEINFO
+AKU100K,BESKSTATUS,AKUL,labour_status,unemployed,exact,2,StatBank AKU100K TABLEINFO
+AKU100K,BESKSTATUS,UARBST,labour_status,outside_labour_force,exact,2,StatBank AKU100K TABLEINFO
+AKU101K,BESKSTATUS,BFK,labour_status,employment_rate,exact,2,StatBank AKU101K TABLEINFO
+AKU101K,BESKSTATUS,LPCT,labour_status,unemployment_rate,exact,2,StatBank AKU101K TABLEINFO
+AKU101K,BESKSTATUS,EFK,labour_status,participation_rate,exact,2,StatBank AKU101K TABLEINFO

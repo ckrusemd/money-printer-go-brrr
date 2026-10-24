@@ -54,6 +54,10 @@ def check(root=ROOT, require_clean=True):
         if nb.metadata.kernelspec.name != "money-r" or nb.metadata.language_info.version != expected:
             raise ValueError(f"Wrong project kernel or R version: {name}")
         for c in nb.cells:
+            if c.cell_type == "code":
+                options = re.findall(r"^#\| ([A-Za-z][A-Za-z0-9_-]*):", c.source, re.M)
+                if len(options) != len(set(options)):
+                    raise ValueError(f"Duplicate Quarto cell option: {name}:{c.id}")
             if require_clean and c.cell_type == "code" and (c.outputs or c.execution_count is not None):
                 raise ValueError(f"Clear notebook outputs before committing: {name}:{c.id}")
             if c.cell_type == "markdown" and "`r " in c.source:
