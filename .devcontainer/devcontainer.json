@@ -1,0 +1,22 @@
+{
+  "name": "Money Printer · R notebooks",
+  "build": {"dockerfile": "../Dockerfile", "context": ".."},
+  "workspaceMount": "source=${localWorkspaceFolder},target=/project,type=bind",
+  "workspaceFolder": "/project",
+  "overrideCommand": true,
+  "remoteUser": "notebook",
+  "updateRemoteUserUID": true,
+  "forwardPorts": [8000],
+  "runArgs": ["--env-file", "${localWorkspaceFolder}/.env"],
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-toolsai.jupyter", "ms-python.python", "quarto.quarto"],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/notebook-python/bin/python",
+        "jupyter.notebookFileRoot": "${workspaceFolder}",
+        "files.exclude": {"**/.ipynb_checkpoints": true}
+      }
+    }
+  },
+  "postStartCommand": "python -m scripts.notebooks.environment"
+}

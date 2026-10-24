@@ -38,7 +38,7 @@ class REnvironmentTests(unittest.TestCase):
         selection = workflow.split("      - name: Select or build an image matching the candidate lock\n")[1].split("\n      - name:")[0]
         self.assertIn('as.character(getRversion()) == lock$R$Version', selection)
         self.assertIn('utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version)', selection)
-        self.assertIn('docker build --tag "$BOOK_CI_IMAGE" .', selection)
+        self.assertIn('docker build --build-arg PUBLICATION_CONTEXT="$context_hash" --tag "$BOOK_CI_IMAGE" .', selection)
         self.assertNotIn("sleep", selection)
 
     def test_every_docker_context_input_changes_image_identity(self):

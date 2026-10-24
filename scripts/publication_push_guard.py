@@ -18,6 +18,7 @@ IMAGE_INPUTS = frozenset({
     "renv/settings.json", "renv/activate.R", ".Rprofile",
     ".github/workflows/build-container.yml",
     "scripts/publication_image_key.py",
+    "scripts/notebooks/requirements.lock",
 })
 FETCH_TIMEOUT_SECONDS = 35
 

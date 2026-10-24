@@ -14,6 +14,7 @@ on:
       - .Rprofile
       - .github/workflows/build-container.yml
       - scripts/publication_image_key.py
+      - scripts/notebooks/requirements.lock
 
 permissions:
   contents: read
@@ -48,10 +49,12 @@ jobs:
         id: context
         run: echo "digest=$(python3 scripts/publication_image_key.py)" >> "$GITHUB_OUTPUT"
       - name: Build and publish image
+        id: image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           push: true
+          build-args: PUBLICATION_CONTEXT=${{ steps.context.outputs.digest }}
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
@@ -61,5 +64,27 @@ jobs:
       - name: Smoke test published image
         run: >-
           docker run --rm --network none --workdir /tmp
-          ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          Rscript --vanilla -e 'stopifnot(as.character(getRversion()) == "4.6.1", requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE), rmarkdown::pandoc_version() >= package_version("2.11"))'
+          --entrypoint Rscript ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          --vanilla -e 'stopifnot(as.character(getRversion()) == "4.6.1", requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE), rmarkdown::pandoc_version() >= package_version("2.11"))'
+
+      - name: Smoke test R notebook execution and widget rendering
+        run: |
+          mkdir -p "$RUNNER_TEMP/notebook-smoke"
+          docker run --rm --network none --entrypoint python3 \
+            -v "$GITHUB_WORKSPACE:/project:ro" -v "$RUNNER_TEMP/notebook-smoke:/evidence" -w /project \
+            ${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }} -m scripts.notebooks.smoke --output /evidence
+      - name: Check widget interactions in Chromium
+        run: |
+          python3 -m venv "$RUNNER_TEMP/notebook-browser"
+          "$RUNNER_TEMP/notebook-browser/bin/pip" install playwright==1.64.1
+          "$RUNNER_TEMP/notebook-browser/bin/playwright" install --with-deps chromium
+          "$RUNNER_TEMP/notebook-browser/bin/python" -m scripts.notebooks.browser_smoke "$RUNNER_TEMP/notebook-smoke"
+      - name: Verify notebook execution as the VS Code user
+        run: |
+          docker run --rm --network none --read-only --tmpfs /tmp --user notebook \
+            --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
+            ${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }} -B -m scripts.notebooks.smoke
+      - name: Record immutable image for promotion
+        run: |
+          echo 'Validated image: ${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Pin this digest with python -m scripts.notebooks.image pin IMAGE@sha256:DIGEST, then commit the devcontainer configuration.' >> "$GITHUB_STEP_SUMMARY"

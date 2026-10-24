@@ -1,9 +1,12 @@
-FROM rocker/r-ver:4.6.1@sha256:4e6e6696ff54a86625c7f80046478e67014a2184e942b85eeff43db7b992d93e
+FROM rocker/r-ver:4.6.1@sha256:bafb3b9a72791eeeb810f0bc0472e74c7f4939b20b46c96cb7ebc6838b6a25ef
 
 LABEL org.opencontainers.image.source="https://github.com/ckrusemd/money-printer-go-brrr"
 
-ARG PANDOC_VERSION=3.1.11.1
-ARG PANDOC_SHA256=ab0ac0aa1c3f9b23243d14e43023e06cbce51a52420aba17d27bd0d9c28f73ac
+ARG QUARTO_VERSION=1.10.19
+ARG QUARTO_SHA256=7f0c4769e7f0e55f50d922f44b18db5118fb388d2b8fd27291fe1f8beafb43eb
+ARG PUBLICATION_CONTEXT=development
+LABEL org.money-printer.context=$PUBLICATION_CONTEXT
+ENV NOTEBOOK_IMAGE_CONTEXT=$PUBLICATION_CONTEXT
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RENV_CONFIG_REPOS_OVERRIDE=https://packagemanager.posit.co/cran/2026-10-14 \
@@ -16,6 +19,8 @@ RUN apt-get update \
         curl \
         time \
         python3 \
+        python3-venv \
+        python3-dev \
         git \
         libgit2-dev \
         libx11-dev \
@@ -42,15 +47,15 @@ RUN apt-get update \
         build-essential \
         pkg-config \
     && curl --fail --location --silent --show-error \
-        "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb" \
-        --output /tmp/pandoc.deb \
-    && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum --check --strict \
-    && apt-get install --yes --no-install-recommends /tmp/pandoc.deb \
-    && rm -f /tmp/pandoc.deb \
+        "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb" \
+        --output /tmp/quarto.deb \
+    && echo "${QUARTO_SHA256}  /tmp/quarto.deb" | sha256sum --check --strict \
+    && apt-get install --yes --no-install-recommends /tmp/quarto.deb \
+    && rm -f /tmp/quarto.deb \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /project
-COPY renv/publication.lock renv/publication.lock
+COPY renv.lock renv.lock
 COPY renv/settings.json renv/settings.json
 COPY renv/activate.R renv/activate.R
 
@@ -59,7 +64,23 @@ COPY renv/activate.R renv/activate.R
 # Ignore upstream optional Remotes (dkstat suggests geodk/dawaR). Explicit
 # GitHub records remain pinned and all strong dependencies remain in the lock.
 RUN mkdir -p /opt/publication-library \
-    && Rscript --vanilla -e 'Sys.setenv(RENV_CONFIG_INSTALL_REMOTES = "FALSE"); install.packages("renv", repos = Sys.getenv("RENV_CONFIG_REPOS_OVERRIDE"), lib = Sys.getenv("R_LIBS_USER")); stopifnot(utils::packageVersion("renv") == "1.3.1"); renv::restore(lockfile = "renv/publication.lock", library = Sys.getenv("R_LIBS_USER"), prompt = FALSE)' \
-    && Rscript --vanilla -e 'lock <- renv::lockfile_read("renv/publication.lock"); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version)); stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("xml2", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE))'
+    && Rscript --vanilla -e 'Sys.setenv(RENV_CONFIG_INSTALL_REMOTES = "FALSE"); install.packages("renv", repos = Sys.getenv("RENV_CONFIG_REPOS_OVERRIDE"), lib = Sys.getenv("R_LIBS_USER")); stopifnot(utils::packageVersion("renv") == "1.3.1"); renv::restore(lockfile = "renv.lock", library = Sys.getenv("R_LIBS_USER"), prompt = FALSE)' \
+    && Rscript --vanilla -e 'lock <- renv::lockfile_read("renv.lock"); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version)); stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("xml2", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE))'
 
-CMD ["Rscript", "--vanilla"]
+# One Python runtime and one registered R kernel for editors and CI.
+COPY scripts/notebooks/requirements.lock /tmp/notebook-requirements.lock
+RUN python3 -m venv /opt/notebook-python \
+    && /opt/notebook-python/bin/pip install --no-cache-dir --no-deps -r /tmp/notebook-requirements.lock \
+    && /opt/notebook-python/bin/pip check
+ENV PATH=/opt/notebook-python/bin:/opt/quarto/bin:$PATH \
+    QUARTO_PYTHON=/opt/notebook-python/bin/python \
+    RSTUDIO_PANDOC=/opt/quarto/bin/tools/x86_64 \
+    JUPYTER_DATA_DIR=/usr/local/share/jupyter
+RUN Rscript --vanilla -e 'IRkernel::installspec(user = FALSE, name = "money-r", displayname = "Money Printer R 4.6.1")' \
+    && python3 -c 'import json; from pathlib import Path; p = Path("/usr/local/share/jupyter/kernels/money-r/kernel.json"); spec = json.loads(p.read_text()); spec["argv"].insert(1, "--vanilla"); p.write_text(json.dumps(spec))' \
+    && chmod 755 /usr/local/share/jupyter \
+    && useradd --create-home --non-unique --uid 1000 notebook \
+    && mkdir -p /project/.cache \
+    && chown -R notebook:notebook /project
+EXPOSE 8000
+CMD ["python3", "-m", "scripts.notebooks.book", "build"]

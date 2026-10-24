@@ -1,306 +1,192 @@
 # Money Printer Go BRRR
 
-> Since 1971, Money Printer Has Gone BRRR. Let's Make the Most of It.
+Macroeconomic research on interest rates, US/Danish housing, markets, and ETFs,
+published as an interactive [HTML book](https://ckrusemd.github.io/money-printer-go-brrr/).
 
-A collection of macroeconomic analysis notebooks covering interest rates, housing markets, equity indices, and ETFs — published as a [bookdown site](https://ckrusemd.github.io/money-printer-go-brrr/).
+## Edit notebooks in VS Code
 
-## Project Structure
+The `.ipynb` files are the editable source of truth. `_quarto.yml` defines the
+published chapters. Each published notebook runs independently with the project's
+**Money Printer R 4.6.1** kernel. Rmd files remain only as a temporary numerical
+comparison baseline; do not edit them or synchronize them over notebook edits.
 
-```
-├── index.Rmd                     # Bookdown entry point
-├── _bookdown.yml                 # Published chapter order
-├── money_theme.R                 # Shared ggplot2 theme
-├── scripts/
-│   ├── book_runtime.R            # Shared source retrieval, derived cache, timing
-│   ├── book-style.css            # Accessible links and responsive book layout
-│   └── check_bookdown_output.R   # Rendered page and chart-image checks
-├── tests/                        # Runtime fixtures and investment catalogue tests
-├── Chapters/
-│   ├── 00_ReleaseCalendar/       # Economic release calendar
-│   ├── 01_Indicators/            # Leading & lagging indicators
-│   ├── 02_Housing/               # US & Danish housing markets
-│   ├── 03_InterestRates/         # Interest rates & yield curves
-│   ├── 04_Markets/               # Market snapshots and detailed chart galleries
-│   ├── 05_ETFs/                  # ETF analysis
-│   ├── 06_Currency/              # Unpublished chapter draft
-│   └── 07_Crypto/                # Unpublished chapter draft
-├── vignettes/                    # Standalone analysis notebooks
-├── datacollection/               # ETL pipeline & modeling
-│   ├── 01_etl.ipynb              # Data ingestion (FRED, Yahoo, DST, etc.)
-│   ├── 02_models.ipynb           # Modeling & analytics
-│   └── database_benchmark.ipynb  # Storage benchmarks
-└── knowledgegraph/               # Network analysis & dashboard
-    └── app/                      # Dash analytics dashboard
-```
+1. Install Docker and the VS Code **Dev Containers** extension.
+2. Create `.env` in the repository root from `.env.example` if it does not
+   already exist. Set `FRED_API=your_key_here` without quotes and keep the file
+   private (`chmod 600 .env` on Linux). The devcontainer loads this Git-ignored
+   file at startup; it is excluded from the image build. Recreate the container
+   after changing the key. CI obtains the same variable from its GitHub secret.
+3. Open this checkout and select **Dev Containers: Reopen in Container**.
+4. Open a published notebook and choose **Money Printer R 4.6.1**. Restart the
+   kernel and run all cells, or edit/run individual cells as usual.
+5. Preview a chapter from the container terminal:
 
-## Data Sources
+   ```bash
+   python -m scripts.notebooks.book preview --chapter Chapters/04_Markets/Markets.ipynb
+   ```
 
-- [FRED](https://fred.stlouisfed.org/) (Federal Reserve Economic Data)
-- [Yahoo Finance](https://finance.yahoo.com/)
-- [Statistics Denmark (DST)](https://www.dst.dk/)
-- [FinansDanmark](https://finansdanmark.dk/)
+   Trust this project in VS Code to allow widget JavaScript.
+   Open the forwarded port 8000. Run the command again after editing to recompute
+   the preview. Use the browser preview to check the published widget controls.
+6. Before committing, clear execution outputs and validate the source notebooks:
 
-## Setup
+   ```bash
+   python -m scripts.notebooks.book clean
+   python -m scripts.notebooks.book check
+   ```
 
-### Prerequisites
+Commit and push notebook changes normally. Relevant main-branch pushes enter the
+publication workflow; pull requests run offline checks. To add a chapter, create
+an R notebook with the same bootstrap cell/kernel metadata, add its path to
+`book.chapters` in `_quarto.yml`, and optionally set a stable HTML filename in
+`notebook-publication.page-names`. Put the data-status appendix last.
 
-- R 4.6.1 (the locked publication version) with [renv](https://rstudio.github.io/renv/)
-- Python 3 with Jupyter (for ETL and dashboard)
-- A [FRED API key](https://fred.stlouisfed.org/docs/api/api_key.html)
+The bootstrap verifies the installed R version and every locked package before
+performing calculations. Do not install packages from notebook cells. Add a new
+package deliberately to the canonical environment and rebuild/promote the image.
+Disabled legacy experiments remain non-executable Markdown examples in the
+editor; their publication metadata keeps originally hidden examples out of the
+published book.
 
-### Quick Start
+## One environment for development and publication
 
-```bash
-# Clone
-git clone https://github.com/ckrusemd/money-printer-go-brrr.git
-cd money-printer-go-brrr
+`Dockerfile` provides R 4.6.1, IRkernel 1.3.2, Quarto 1.10.19, and Jupyter tooling.
+`renv.lock` is the canonical R environment (230 packages, including Plotly from the
+same 2026-10-14 CRAN snapshot). `renv/publication.lock` is an identical compatibility
+copy for historical tooling; pruning kernel packages is no longer supported.
+`scripts/notebooks/requirements.lock` pins the complete Python execution stack.
+Quarto and the R base image have fixed checksums/digests.
 
-# Supply FRED credentials in the process environment (do not commit credentials)
-export FRED_API=your_key_here
-
-# Restore R dependencies
-RENV_CONFIG_INSTALL_REMOTES=FALSE Rscript -e "renv::restore()"
-
-# Build the book
-Rscript --vanilla -e "bookdown::render_book('index.Rmd', output_format = 'bookdown::gitbook')"
-```
-
-Dependency restoration is an explicit setup step. Rendering uses the installed,
-locked dependencies and must not restore the environment or install packages
-from inside a chapter.
-The restore setting ignores upstream optional `Remotes` outside the lock (such
-as `dkstat`'s geodata suggestions); explicitly locked GitHub packages and their
-strong dependencies are still restored.
-Both locks use the 14 October 2026 CRAN snapshot. The research lock includes
-229 packages; `renv/publication.lock` retains 223 identical
-root records and omits only the dynamically tested notebook/kernel and obsolete
-package-loader dependencies: `IRdisplay`, `IRkernel`, `pacman`, `pbdZMQ`, `repr`
-and `uuid`. CI checks both the identical-record subset and its mandatory
-dependency closure; it does not treat a static closure alone as pruning proof.
-`Rscript --vanilla` does not automatically read `.Renviron`; export `FRED_API`
-before rendering, as above.
-
-Refresh both locks deliberately with the target R version and renv installed:
-`Rscript --vanilla scripts/refresh_r_locks.R YYYY-MM-DD`. Build and validate
-the resulting publication image before promotion; rendering never upgrades packages.
-The hosted [scheduler setup](docs/hosted-scheduler.md) provides 05:00 Copenhagen
-dispatches and independent recovery invocations without keeping runners waiting.
-
-### Book runtime and freshness
-
-The first hidden setup chunk in `index.Rmd` sources `scripts/book_runtime.R`
-once, before loading chapters. `money_theme.R` loads it only if `book_fred`
-is missing, so repeated theme loads preserve the render's source cache.
-
-- `book_fred(series_id, ...)` forwards observation requests to FRED.
-- `book_ecb_data(key, ...)` records the original ECB parsed observations.
-- `book_yahoo(ticker, ...)` returns an xts price history like
-  `quantmod::getSymbols(ticker, env = NULL)`; it does not assign symbols.
-- `book_dst(...)` forwards requests to Statistics Denmark.
-- `book_load_packages(...)` loads installed dependencies and fails if one is
-  missing; it never installs packages.
-- `book_date()` gives the build's fixed analysis date, optionally set with
-  `BOOK_AS_OF=YYYY-MM-DD`.
-- `book_cache_derived(namespace, inputs, compute, packages = character(), code = NULL)`
-  calls the zero-argument `compute` function on a miss. Keys include input
-  content, computation code, declared package versions, R version, and RNG
-  state. On a hit it restores the RNG state that followed the original
-  computation. Include every external input in `inputs` and helper definitions
-  in `code` when they affect a result.
-
-`BOOK_SNAPSHOT_MODE` defaults to `live`: retrieve current essential data and
-deduplicate identical requests within the render. `record` also saves source
-responses and a manifest; `replay` reads those snapshots for reproducible,
-offline validation and fails on missing requests. Replay is for validation,
-not scheduled publication. Live retrieval failures must not fall back to
-old snapshots. Derived cache hits reuse calculations only after their input
-content matches.
-
-`BOOK_SNAPSHOT_DIR`, `BOOK_DERIVED_DIR`, and `BOOK_METRICS_FILE` default to
-`.cache/book-inputs`, `.cache/book-derived`, and `.cache/book-metrics.csv`.
-Keep benchmark runs isolated and use the same recorded inputs and `BOOK_AS_OF`
-for cold/warm comparisons. The optimization target is at least a 30% reduction
-in warm full-book runtime while preserving methods and chart coverage;
-measure it from completed renders rather than cache-hit counts alone.
-
-The homepage distinguishes compilation time in `Europe/Copenhagen` from
-observation dates, release lags, revisions, and carried-forward market prices.
-Its [data-status appendix](https://ckrusemd.github.io/money-printer-go-brrr/data-status.html)
-lists provider retrieval times, latest observation dates, and failed optional
-requests for the edition. The manifest records request parameters without secrets.
-The Danish tax tables below are dated source snapshots.
-
-### Validation
+The devcontainer initially builds from the same Dockerfile for bootstrap. A local
+candidate has been built and validated; **no GHCR digest has been promoted yet**.
+Publication deliberately refuses to substitute an unpinned image. To finish
+promotion:
 
 ```bash
-# Offline runtime fixtures: retrieval failures, cache keys, and RNG behavior
-Rscript --vanilla tests/test_book_runtime.R
+# On a machine with Docker access, build and validate a candidate.
+context_hash=$(python scripts/publication_image_key.py)
+docker build --build-arg PUBLICATION_CONTEXT="$context_hash" -t money-notebook-candidate .
+docker run --rm --network none --entrypoint python3 \
+  -v "$PWD:/project:ro" -w /project money-notebook-candidate -m scripts.notebooks.smoke
+```
 
-# Python fixture suite (no external data needed)
-python3 -m unittest discover -s tests -p 'test_*.py'
+The **Build R publication container** workflow builds/publishes a candidate and
+reports its digest after smoke checks. Pin that real digest locally:
 
-# Check shared R syntax
-Rscript --vanilla -e "invisible(parse(file = 'money_theme.R')); invisible(parse(file = 'scripts/book_runtime.R'))"
+```bash
+python -m scripts.notebooks.image pin ghcr.io/ckrusemd/money-printer-go-brrr-r@sha256:REAL_DIGEST
+```
 
-# Reject unavailable or undeclared publication packages before fetching data
+This verifies the image context fingerprint, installed R packages, and R notebook
+smoke test, then replaces the bootstrap build configuration with that immutable
+image reference. Commit the devcontainer configuration. CI and VS Code then use
+the **same image digest**. Never invent a digest or promote a tag as a digest.
+Changes to locks or the Dockerfile require a new candidate and promotion.
+
+Refresh the R environment explicitly with the target R installed:
+`Rscript --vanilla scripts/refresh_r_locks.R YYYY-MM-DD`.
+
+## Build and morning publication
+
+Inside the environment:
+
+```bash
+python -m scripts.notebooks.book build
+```
+
+The runner executes each chapter in a **fresh R kernel**, from the repository
+root, and writes executed copies under `.cache/notebook-runs/`. It then assembles
+those copies with Quarto execution disabled. Calculations run once; rendering
+never modifies the tracked notebooks or installs packages. `_book/` is replaced
+only after a successful full render and validation.
+
+Market galleries use explicit shared preparation in
+`scripts/analysis/market_notebooks.R`; they do not need a preceding Markets kernel.
+Existing model methods and detailed static galleries are retained. Main market
+snapshots gain Plotly hover/zoom/date controls; DT and visNetwork outputs are
+packaged with their JavaScript/CSS into standalone embedded widget frames.
+Quarto's notebook RequireJS/jQuery tags are replaced with checked local release
+files, so viewing the rendered book does not depend on their CDN.
+
+The existing workflow identifier, GitHub Pages destination, and scheduler protocol
+are retained. Calculations start at **05:00 Europe/Copenhagen**, with the existing
+05:10/05:30 recovery calls and hourly watchdog. A completed deployment records the
+Copenhagen analysis date; failed calculations or deployment leave the previous
+edition available. See [scheduler operations](docs/hosted-scheduler.md).
+
+Each build uses a new input directory and fixed analysis date. Provider requests
+are reused across chapter kernels only within that invocation; they cannot reuse
+source responses from an earlier morning. Derived calculations can be reused
+when their input content, code, package versions, and RNG state match. Essential
+provider failures stop publication; optional missing series appear in the final
+freshness appendix. Providers include FRED (`FRED_API`), Yahoo Finance, ECB,
+Statistics Denmark, and Finans Danmark. The Danish tax catalogue uses separately
+maintained dated snapshots and is not refreshed by the daily build.
+
+Manual `publish=false` runs retain the full candidate book and diagnostics without
+Pages deployment. Logs, executed notebooks, numeric captures, timing, and provider
+snapshots are retained as workflow artifacts. Existing `benchmark=true` controls
+are explicitly **legacy Rmd benchmark/recovery**, not evidence of notebook speed.
+
+## Validation and parity
+
+```bash
+python -m unittest discover -s tests -p 'test_*.py'
+Rscript --vanilla scripts/check_sources.R
 Rscript --vanilla scripts/check_publication_dependencies.R
-
-# After a complete book render, check page titles, galleries, and chart images
-Rscript --vanilla scripts/check_bookdown_output.R
+Rscript --vanilla scripts/check_publication_closure.R
+Rscript --vanilla tests/test_notebook_runtime.R
+Rscript --vanilla tests/test_notebook_parity.R
+python -m scripts.notebooks.smoke
 ```
 
-Run R checks in the publication container if local locked packages are unavailable:
+Offline image smoke executes a real R kernel and renders a static figure, DT,
+Plotly, and visNetwork through Quarto. The full pipeline checks required legacy
+page URLs, anchors, image descriptions, and local dependencies. Completed builds
+include per-run receipts and duration metrics; the publication limit is 90 minutes.
+
+For reproducible validation, download a successful `book-provider-snapshots`
+artifact, then execute without network:
 
 ```bash
-sudo -n docker run --rm \
-  -v "$PWD:/project" -w /project \
-  ghcr.io/ckrusemd/money-printer-go-brrr-r:latest \
-  Rscript --vanilla tests/test_book_runtime.R
+python -m scripts.notebooks.book build --replay /path/to/recorded-inputs
+Rscript --vanilla scripts/notebooks/parity.R /path/to/legacy-results /path/to/notebook-run/results
 ```
 
-Gallery alternative text identifies panel order, units, and unavailable data.
-When editing charts, preserve the statistical settings, chart coverage, existing
-page URLs, and explicit anchor IDs, and keep descriptions accurate. Paired
-notebooks must be synchronized by the worker responsible for that handoff.
+Parity compares complete captured model/correlation tables in both directions
+with an elementwise absolute tolerance of `1e-8`, including correlation inputs.
+Use identical inputs and analysis dates. GHCR promotion and the first scheduled
+deployment remain unverified.
 
-For the full-book acceptance benchmark, download `book-provider-snapshots`
-from a successful validation run and prepare an isolated historical checkout:
+Container acceptance on 24 October 2026 now includes the canonical locked R and
+Python environments, 13 R fixture files, and 159 Python tests (15 skipped).
+The final image executed the home chapter through the actual book pipeline as
+the `notebook` user. Offline kernel/widget rendering also passed with a read-only
+image and source checkout; Chromium exercised DT filtering/sorting, Plotly date
+controls and zoom, and the network canvas. The earlier structural render covered
+all 12 published chapters without calculations. Full live execution of all 12
+chapters subsequently passed in 23.7 minutes, with 2.84 GB peak observed container
+memory under a 5 GiB limit. Replay without network or an API key passed in 15.4
+minutes; all captured predictions, metrics and correlation records matched the
+live run at absolute tolerance `1e-8`, and all 334 input files were unchanged.
+All 12 real pages and their widgets loaded in Chromium with outside requests
+blocked. Seven optional Yahoo symbols were unavailable and are listed in the
+data-status appendix. The isolated legacy Bookdown replay also completed, and its
+complete captured forecasts/metrics and both correlation input/output records
+matched the notebooks at absolute tolerance `1e-8`. Actual VS Code editor behavior,
+GHCR image promotion, and deployment remain pending.
+See [container acceptance evidence](docs/notebook-validation.md).
 
-```bash
-python3 scripts/prepare_benchmark_baseline.py --ref BASELINE_SHA --output .cache/benchmark-baseline
-Rscript --vanilla scripts/benchmark_book.R .cache/benchmark-baseline . .cache/benchmark-inputs .cache/book-benchmark
-```
+## Research outside the daily book
 
-Run this in the locked publication container with `--network none`. It primes
-both versions, interleaves three measured renders each, and checks complete
-model results at a tolerance of `1e-8`. Acceptance requires at least 30% lower
-median warm runtime and no increase in either median or maximum warm-run peak
-RSS, with every measured warm RSS value finite and positive. The summary reports
-both warm medians/maxima and warmup peaks separately; warmup peaks are diagnostic,
-not part of the warm-run acceptance gates. Historical ETF
-duplicate-correlation differences are reported separately from model parity.
-Use new, empty baseline and artifact directories; existing evidence is preserved.
+All 23 Rmd documents have notebook counterparts. Currency/crypto drafts and
+vignettes stay unpublished. `datacollection/` contains R-kernel ETL/modeling
+notebooks requiring separate local inputs; `knowledgegraph/` includes R analysis
+and a Python/DuckDB Dash app. Those research pipelines remain outside the daily
+publication migration. The dashboard's own Python requirements are separate from
+the notebook publication image; see its documentation.
 
-The dispatched benchmark separates eight render-only runs from two parallel
-full independent correlation audits, then aggregates their proofs with complete
-numeric parity and the runtime/RSS gates. Each render/audit job has its own
-six-hour limit. To recover completed renders without running **any** book again,
-dispatch with `benchmark=true`, `publish=false`, and
-`completed_benchmark_run_id=<original-run-id>`. The fixed-repository recovery
-checks immutable archive digests, source/image/input provenance, all eight
-successful runs, timing files and every required prediction domain. Partial
-evidence is rejected. Cancelled runs are eligible only when their complete
-render evidence passes those checks. The original run's digest-pinned image and
-recorded inputs override new tag/snapshot selections; the original `0e4d111`
-run additionally requires its exact original runner-log receipts. Recovery
-receipts, parity, per-namespace audit logs/reports and the aggregate acceptance
-report are retained as separate artifacts. No benchmark mode deploys.
-
-Mortgage-rate year/week observations are dated to ISO-week Mondays. The former
-Sunday-based `%U` parser shifted some dates and returned `NA` for valid week-53
-observations in 1998, 2009, 2015, and 2020. This is an intentional input-date
-correction: the historical benchmark adapter applies the same normalization
-before comparing unchanged statistical methods and complete prediction tables.
-The correlation audit separately proves that remaining input differences are
-only the exact duplicated ETF append and checks all pairs against the original
-three-horizon CCF calculation on corrected, deduplicated observations.
-
-### Data Pipeline
-
-```bash
-# Run ETL (populates DuckDB)
-jupyter notebook datacollection/01_etl.ipynb
-
-# Run models
-jupyter notebook datacollection/02_models.ipynb
-```
-
-### Danish investment-fund tax catalogue
-
-`data/positivliste_2026.csv` is the registered-2026 extract from
-[Skattestyrelsen's workbook](https://skat.dk/erhverv/ekapital/vaerdipapirer/beviser-og-aktier-i-investeringsforeninger-og-selskaber-ifpa).
-`data/investment_products_2026.csv` contains only products with a supported
-tax category, aktiesparekonto eligibility, and a Yahoo Finance ticker with
-price history. The book reads these snapshots without calling external APIs.
-
-To refresh, download separate ETF and investment-fund exports locally and run:
-
-```bash
-python3 scripts/build_investment_catalogue.py \
-  --etfs /path/to/etfs.csv \
-  --funds /path/to/investment-funds.csv
-python3 -m unittest discover -s tests -p 'test_investment_catalogue.py'
-```
-
-The source exports stay outside the repository. The script retrieves the
-current linked SKAT workbook by its visible link text and `.xlsx` URL
-(equivalent XPath: `//a[contains(normalize-space(.), 'Liste over aktiebaserede investeringsselskaber') and contains(@href, '.xlsx')]`),
-plus the [SKAT securities-classification list](https://info.skat.dk/data.aspx?oid=2460620),
-then writes dated CSV snapshots. Review changed source dates, classifications,
-and excluded-product counts before committing a refresh; the 2026 rules and
-worksheet selection must be updated for a new income year.
-
-### Knowledge Graph Dashboard
-
-```bash
-python -m pip install -r knowledgegraph/app/requirements.txt
-python knowledgegraph/app/run_app.py    # http://localhost:8051
-# Direct launch also works:
-python knowledgegraph/app/dashboard.py
-```
-
-Both entry points work from any working directory when invoked by their absolute
-path. The default database is `knowledgegraph/app/knowledge_graph.db`, resolved
-relative to the dashboard module. Set `KNOWLEDGE_GRAPH_DB_PATH` to use another
-existing DuckDB file; relative overrides also resolve from `knowledgegraph/app`.
-Connections are read-only, and starting the dashboard never creates or refreshes
-the database. Missing data displays a diagnostic message; an absent optional
-stock-relationships table leaves the other tabs available.
-
-The port defaults to **8051** (`KNOWLEDGE_GRAPH_PORT` overrides it). Debug mode is
-off by default; explicitly set `KNOWLEDGE_GRAPH_DEBUG=true` for development.
-Network layouts are deterministic (spring seed 42) and use a bounded 16-entry
-cache keyed by nodes, weighted edges, and layout, so changing node size reuses
-positions. The heatmap preserves measured zeros, fills missing reverse pairs
-only, leaves unavailable correlations blank, and uses aligned axes for the
-self-correlation diagonal; conflicting observed directions remain as recorded.
-These display fixes do not alter the database schema or stored values.
-
-Run dashboard regression tests with disposable fixture databases:
-
-```bash
-python -m unittest discover -s tests -p test_dashboard.py -v
-```
-
-Configuration tests run with the standard library. Database/rendering tests skip
-with an explicit reason if dashboard dependencies are unavailable.
-
-## CI/CD
-
-A GitHub Actions workflow renders the book in a prebuilt public GHCR
-container on every relevant push to `main` and on a daily schedule, then
-deploys it to GitHub Pages. Set the repository secret `FRED_API` for
-publication. The container workflow rebuilds only when the R lockfile or
-container definition changes. The output check verifies the home-page title,
-gallery pages, and referenced chart images before Pages upload.
-
-When a main push also changes a container-build input, a bounded preflight
-successfully defers rendering to the successful same-SHA container callback
-instead of pulling old `latest`. It compares the entire push range; an unusable
-comparison also defers conservatively. Content-only pushes and non-push events
-are unchanged. If main advances during the container build, the stale callback
-is rejected: dispatch **Build R publication container** on current main to
-recover. There is no automatic waiting, retry loop, or dependency fallback.
-
-For candidate-image validation, dispatch the book workflow with `publish=false`
-and `publication_tag=candidate-<commit-sha>`; only tags in
-`ghcr.io/ckrusemd/money-printer-go-brrr-r` are accepted. Use the same tag with
-`benchmark=true` and a successful validation `snapshot_run_id` to run the
-fixed-input comparison on CI rather than a memory-constrained local machine.
-The input defaults to `latest` and is ignored for publishing: normal builds use
-`latest`, while successful default-branch container-triggered builds use their
-exact commit tag. Candidate selection does not push an image or deploy Pages.
-
-## License
+The investment catalogue refresh tools, public CSV snapshots, shared plotting
+style, and historical benchmark/recovery evidence remain in the repository.
 
 This project is for personal/educational use.

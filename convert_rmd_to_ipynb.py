@@ -210,4 +210,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit("Legacy converter retired: notebooks are authoritative. See scripts/notebooks/README.md.")
