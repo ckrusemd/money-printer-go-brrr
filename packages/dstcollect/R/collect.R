@@ -128,7 +128,7 @@ decode_dataset <- function(meta,response,request_id,lang) {
   }
   out$data <- tibble::tibble(table_id=table,series_id=series_id,period_code=p$period_code,
     period_start=p$period_start,period_end=p$period_end,frequency=p$frequency,
-    value=as.numeric(values),source_status=as.character(status),unit=unit,
+    value=as.numeric(values),source_status=as.character(status),unit=unit,unit_label=unit,
     index_base=rep(NA_character_,length(unit)),request_id=request_id)
   out
 }

@@ -8,7 +8,7 @@ this is not a complete semantic crosswalk of the StatBank catalogue.
 Observed local acceptance:
 
 - `R CMD build` and `R CMD check --no-manual --no-build-vignettes`: passed.
-- Package fixtures: 44 assertions passed, no warnings or skips. They cover typed
+- Package fixtures: 47 assertions passed, no warnings or skips. They cover typed
   endpoint bundles, duplicate labels, leading-zero codes, chunk equivalence,
   missing/sparse observations, period boundaries, selectors, changing metadata,
   conflicting duplicates, curated measures, multi-row aliases and R-kernel rich
@@ -36,9 +36,9 @@ Observed local acceptance:
 
 The numerical replay preceded two subsequent fixes confined to the collector's
 multi-row alias allocation and the bundle's rich notebook representation, plus
-handling of invalid daily period strings. These do not alter the book's sampled
-monthly/quarterly series or its statistical code; their targeted fixtures and
-live examples were rerun.
+handling of invalid daily period strings and unit metadata normalization. These
+do not alter the book's sampled monthly/quarterly series or its statistical code;
+their targeted fixtures and live examples were rerun.
 
 New DST snapshots use the `dstcollect-1` request identity and retain complete
 bundles, including raw API responses. Old snapshots remain usable with their

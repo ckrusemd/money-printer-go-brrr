@@ -80,6 +80,8 @@ test_that("partial chunks, changed metadata and conflicting duplicates fail", {
   expect_error(dst_collect("TEST",list(AREA="*",Tid="*"),transport=changed),"changed")
   a <- dst_collect("TEST",list(AREA="*",Tid="*"),transport=f$transport);b <- a;b$data$value[1] <- -1
   expect_error(dst_bind(a,b),"Conflicting")
+  b <- a; b$data$index_base[1] <- "2015"
+  expect_error(dst_bind(a,b),"Conflicting")
   expect_equal(nrow(dst_bind(a,a)$data),nrow(a$data))
 })
 
@@ -100,4 +102,9 @@ test_that("curated concepts distinguish house categories and percent measures", 
   expect_equal(length(unique(aliases$series)),2L)
   expect_type(repr::repr_html(a),"character")
   expect_type(repr::repr_latex(a),"character")
+  a$data$unit <- a$data$unit_label <- NA_character_
+  expect_true(all(is.na(dstcollect:::apply_measure_units(a)$data$index_base)))
+  a$concepts <- a$concepts[FALSE,]
+  a$data$unit_label <- rep(c("Antal","Number"),length.out=nrow(a$data))
+  expect_true(all(dstcollect:::apply_measure_units(a)$data$unit=="count"))
 })

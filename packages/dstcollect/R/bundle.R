@@ -4,7 +4,7 @@ empty_bundle <- function() {
   structure(list(
     data = tibble::tibble(table_id=chr, series_id=chr, period_code=chr,
       period_start=date, period_end=date, frequency=chr, value=double(),
-      source_status=chr, unit=chr, index_base=chr, request_id=chr),
+      source_status=chr, unit=chr, unit_label=chr, index_base=chr, request_id=chr),
     series = tibble::tibble(table_id=chr, series_id=chr),
     series_dimensions = tibble::tibble(table_id=chr, series_id=chr,
       dimension_id=chr, category_code=chr),
@@ -60,7 +60,7 @@ dst_bind <- function(...) {
     dup <- which(duplicated(key)); first <- match(key[dup],key)
     equal <- function(a,b) (is.na(a) & is.na(b)) | (!is.na(a) & !is.na(b) & a==b)
     if (any(!equal(d$value[dup],d$value[first]) | !equal(d$source_status[dup],d$source_status[first]) |
-            !equal(d$unit[dup],d$unit[first])))
+            !equal(d$unit[dup],d$unit[first]) | !equal(d$index_base[dup],d$index_base[first])))
       stop("Conflicting observations for one series and period", call.=FALSE)
     out$data <- d[!duplicated(key),,drop=FALSE]
   }

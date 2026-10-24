@@ -33,10 +33,14 @@ Every function returns a `dst_bundle`: `data`, `series`, `series_dimensions`,
 Discovery results contain typed empty observation tables. `dst_bind(a, b)` joins
 bundles and rejects conflicting series/period values. `data` always contains
 table/series IDs, period code and Date boundaries, native frequency, numeric
-value, source status, unit, explicit index base (unknown unless stated in the
+value, source status, unit and original unit label, explicit index base (unknown unless stated in the
 unit), and request ID. Dictionaries and raw responses preserve source notes,
 flags, labels, update times and retrieval provenance. JSON-stat's synthetic
 metric dimension participates in series identity.
+
+Known Danish/English unit labels share codes (`count`, `m2`, `index`, `percent`),
+while `unit_label` preserves the source text. Unrecognized units retain their
+source label; the package does not guess conversions or equivalence.
 
 `dst_as_tibble(x, "codes")` or `"labels"` expands source dimensions for analysis.
 Use one language per analysis view: `dst_bind()` retains multilingual dictionaries,
