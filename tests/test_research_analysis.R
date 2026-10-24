@@ -59,4 +59,24 @@ z<-research_model_scores(perfect);stopifnot(z$eligible,is.na(z$MASE),is.na(z$rel
 # Before 30 matured errors, historical calibration remains visibly absent.
 small<-research_model_scores(head(records,30));stopifnot(is.na(small$coverage80))
 stopifnot(as.character(research_period_end(as.Date("2024-02-01"),"monthly"))=="2024-02-29")
+source("scripts/analysis/research_views.R")
+d<-list(observations=make("bitcoin",1:3,"USD",date=days[c(1,2,4)]),assets=research_assets())
+stopifnot(inherits(try(research_validate_data(d),silent=TRUE),"try-error"))
+d$observations<-make("bitcoin",1:4,"USD",date=days)
+stopifnot(research_validate_data(d))
+dates<-research_period_end(seq(as.Date("2026-01-01"),by="month",length.out=7),"monthly")
+d$observations<-research_rows("house",dates,1:7,"monthly","index","house")
+complete<-research_complete_quarters(d)$observations
+stopifnot(nrow(complete)==6L,max(complete$date)==as.Date("2026-06-30"))
+d$observations<-d$observations[-2,]
+stopifnot(nrow(research_complete_quarters(d)$observations)==3L)
+x<-data.frame(a=c("År","1997","2026"),b=c("Uge","36","42"),
+ c=c("Kort rente","3.99","2.82"),d=c("Lang rente","7.59","4.53"),
+ e=c("Kort euro rente",NA,"2.68"),f=c(NA,NA,"EUR carried from previous week"))
+m<-research_parse_mortgages(x)
+stopifnot(m$Year[1]==2026L,m$Week_start[1]==as.Date("2026-10-12"),m$Short_DKK[1]==2.82,
+ m$Note[1]=="EUR carried from previous week")
+p<-research_date_plot(plotly::ggplotly(ggplot2::ggplot(data.frame(date=days,value=1:4),
+  ggplot2::aes(date,value))+ggplot2::geom_line()))
+stopifnot(p$x$layout$xaxis$type=="date",identical(p$x$data[[1]]$x,as.character(days)))
 cat("Research definitions, currency conversion, calendar alignment and model gates passed\n")

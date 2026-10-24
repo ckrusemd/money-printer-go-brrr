@@ -4,6 +4,7 @@ source("scripts/analysis/research_views.R")
 args<-commandArgs(trailingOnly=TRUE)
 output<-if(length(args))args[1L] else ".cache/research-models"
 data<-research_data()
+research_validate_data(data)
 review<-research_review(data,output)
 stopifnot(nrow(review$records)>0L,nrow(review$scores)>0L)
 utils::write.csv(review$scores,file.path(output,"scores.csv"),row.names=FALSE)

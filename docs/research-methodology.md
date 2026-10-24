@@ -73,7 +73,8 @@ after its last completed close. No future exchange holiday dates are fabricated.
 Candidates are a seasonal-naive construction benchmark or unchanged-price asset
 benchmark, ETS for construction/log drift for assets, bounded automatic ARIMA,
 and a 100-tree random forest. Forest features are fixed: lagged construction
-levels, season and available permits/starts; or asset log momentum and volatility.
+levels, season and corresponding permits/starts where available (the selected
+floor-area aggregate uses its own lags and season); or asset log momentum and volatility.
 Asset forest targets are forward log returns, not future absolute levels.
 Every supervised target must mature by its training origin. All preprocessing
 and scale denominators use training observations only. The minimum initial
