@@ -41,7 +41,7 @@ Observed acceptance results:
 | Input immutability after legacy replay | All 334 snapshot file SHA-256 hashes still unchanged |
 | Promoted registry image Python suite | 163 tests run, 15 skipped, no failures, offline/read-only as `notebook` |
 | Promoted image selection | Actual CI selector passed locally; four fixtures cover digest priority, dependency changes, candidate builds and wrong labels |
-| VS Code Dev Containers tooling | Started the pinned configuration as `notebook` at `/project`; startup environment audit passed |
+| VS Code Dev Containers tooling | Started the pinned configuration as `notebook` at `/project`; startup audit passed; container image ID equals the pulled registry image ID |
 
 Container testing exposed and fixed equivalent R version strings being rejected
 (`1.2-5` versus `1.2.5`), the shared Jupyter data directory being private to root,
@@ -74,6 +74,10 @@ was preserved under `.lock.before-notebook-20261024T081957`; Docker recreated th
 lock under the desktop user's ownership. Default Buildx access then passed.
 An existing desktop/VS Code session may still need a new login to inherit the
 Docker group that was added during setup.
+
+Automatic devcontainer UID rewriting is disabled: the image's `notebook` user
+already matches this desktop's UID 1000. This prevents Dev Containers from adding
+a UID-adjustment image layer and preserves the actual promoted image identity.
 
 Logs and a machine-readable receipt are retained locally under
 `.cache/notebook-acceptance/`; widget HTML is under

@@ -4,7 +4,7 @@
   "workspaceFolder": "/project",
   "overrideCommand": true,
   "remoteUser": "notebook",
-  "updateRemoteUserUID": true,
+  "updateRemoteUserUID": false,
   "forwardPorts": [
     8000
   ],
