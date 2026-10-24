@@ -140,6 +140,9 @@ jobs:
         github.event.workflow_run.event != 'pull_request'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
     outputs:
       as_of: ${{ needs.publication-image.outputs.as_of }}
     container:
@@ -203,6 +206,10 @@ jobs:
           key: ${{ runner.os }}-book-derived-v1-${{ hashFiles('renv/publication.lock', 'scripts/book_runtime.R', 'scripts/analysis/*.R') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             ${{ runner.os }}-book-derived-v1-${{ hashFiles('renv/publication.lock', 'scripts/book_runtime.R', 'scripts/analysis/*.R') }}-
+      - name: Restore authenticated weekly model review from main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -m scripts.research_review restore
       - name: Record current inputs and render R notebook book
         shell: bash
         run: |

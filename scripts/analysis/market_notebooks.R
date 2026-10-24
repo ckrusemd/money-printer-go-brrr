@@ -24,14 +24,15 @@ book_load_packages(fredr,
 # Call book_market_setup() explicitly; source responses and prepared data are reused only within a build.
 book_prepare_market_data <- function() {
 options(repr.plot.width = 10, repr.plot.height = 7, repr.plot.res = 120)
-# Indexed to 2015
-df_PRIS114 = book_dst(table = "PRIS114",
-                     VAREGR = "00 Nettoprisindeks i alt",
-                     ENHED = "Indeks",
+# Consumer CPI; PRIS01 replaces the archived PRIS111. Net prices exclude
+# indirect taxes and are unsuitable for a consumer purchasing-power deflator.
+df_PRIS114 = book_dst(table = "PRIS01",
+                     VAREGR = "000000",
+                     ENHED = "100",
                      Tid = "*") %>%
   dplyr::mutate(TID=as.Date(TID)) %>%
   arrange(TID) %>%
-  dplyr::mutate(Index=value/100) %>%
+  dplyr::mutate(Index=value/value[TID==as.Date("2015-01-01")],value=100*Index) %>%
   tidyr::complete(TID=seq.Date(from=min(TID,na.rm=T),to=book_date(),by="1 day")) %>%
   tidyr::fill(TID,.direction = "down")  %>%
   tidyr::fill(value,.direction = "down")   %>%

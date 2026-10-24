@@ -864,6 +864,25 @@
       "Repository": "CRAN",
       "Source": "Repository"
     },
+    "cellranger": {
+      "Package": "cellranger",
+      "Version": "1.1.0",
+      "Depends": "R (>= 3.0.0)",
+      "Imports": [
+        "rematch",
+        "tibble"
+      ],
+      "Suggests": [
+        "covr",
+        "testthat (>= 1.0.0)",
+        "knitr",
+        "rmarkdown"
+      ],
+      "License": "MIT + file LICENSE",
+      "NeedsCompilation": "no",
+      "Repository": "CRAN",
+      "Source": "Repository"
+    },
     "cli": {
       "Package": "cli",
       "Version": "3.6.6",
@@ -3944,6 +3963,20 @@
       "Repository": "CRAN",
       "Source": "Repository"
     },
+    "pxR": {
+      "Package": "pxR",
+      "Version": "0.42.8",
+      "Depends": [
+        "stringr",
+        "reshape2",
+        "jsonlite",
+        "plyr"
+      ],
+      "License": "GPL-3",
+      "NeedsCompilation": "no",
+      "Repository": "CRAN",
+      "Source": "Repository"
+    },
     "quadprog": {
       "Package": "quadprog",
       "Version": "1.5-8",
@@ -4160,6 +4193,31 @@
       "Repository": "CRAN",
       "Source": "Repository"
     },
+    "readxl": {
+      "Package": "readxl",
+      "Version": "1.5.0.1",
+      "Depends": "R (>= 4.1)",
+      "Imports": [
+        "cellranger",
+        "tibble (>= 2.0.1)",
+        "utils"
+      ],
+      "LinkingTo": [
+        "cpp11 (>= 0.5.5)",
+        "progress"
+      ],
+      "Suggests": [
+        "covr",
+        "knitr",
+        "rmarkdown",
+        "testthat (>= 3.1.6)",
+        "withr"
+      ],
+      "License": "MIT + file LICENSE",
+      "NeedsCompilation": "yes",
+      "Repository": "CRAN",
+      "Source": "Repository"
+    },
     "recipes": {
       "Package": "recipes",
       "Version": "1.4.0",
@@ -4239,6 +4297,18 @@
         "Formula"
       ],
       "License": "GPL-3",
+      "NeedsCompilation": "no",
+      "Repository": "CRAN",
+      "Source": "Repository"
+    },
+    "rematch": {
+      "Package": "rematch",
+      "Version": "2.0.0",
+      "Suggests": [
+        "covr",
+        "testthat"
+      ],
+      "License": "MIT + file LICENSE",
       "NeedsCompilation": "no",
       "Repository": "CRAN",
       "Source": "Repository"
