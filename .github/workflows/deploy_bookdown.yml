@@ -16,7 +16,7 @@ on:
         type: boolean
         default: true
       benchmark:
-        description: "Replay baseline/optimized benchmark only; never deploy"
+        description: "Legacy Rmd benchmark recovery only; never deploy (not notebook performance)"
         type: boolean
         default: false
       publication_tag:
@@ -42,6 +42,10 @@ on:
     paths:
       - "**.R"
       - "**.Rmd"
+      - "**.ipynb"
+      - "_quarto.yml"
+      - ".devcontainer/devcontainer.json"
+      - "scripts/notebooks/**"
       - "data/**"
       - "_bookdown.yml"
       - "book.bib"
@@ -107,7 +111,11 @@ jobs:
                  else os.environ["DEFAULT_PUBLICATION_TAG"])
           if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", tag):
               raise SystemExit("Invalid publication tag: supply a Docker tag, not a repository, digest, or URL")
-          image = "ghcr.io/ckrusemd/money-printer-go-brrr-r:" + tag
+          if os.environ["ALLOW_PUBLICATION_TAG"] == "true":
+              image = "ghcr.io/ckrusemd/money-printer-go-brrr-r:" + tag
+          else:
+              from scripts.notebooks.image import pinned
+              image = pinned()
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write("image=" + image + "\n")
           print("Publication image: " + image)
@@ -142,6 +150,7 @@ jobs:
       BOOK_DERIVED_DIR: .cache/book-derived
       BOOK_METRICS_FILE: .cache/book-metrics.csv
       BOOK_RESULTS_DIR: .cache/book-results
+      NOTEBOOK_REQUIRE_PIN: "true"
       BOOK_VALIDATE_ONLY: ${{ github.event_name == 'workflow_dispatch' && !inputs.publish }}
       BOOK_AS_OF: ${{ needs.publication-image.outputs.as_of }}
     steps:
@@ -152,8 +161,8 @@ jobs:
       - name: Check repository configuration
         run: |
           test -f renv/publication.lock
-          test -f _bookdown.yml
-          test -f index.Rmd
+          test -f _quarto.yml
+          test -f index.ipynb
           test -f scripts/book_runtime.R
           test -n "$FRED_API"
       - name: Verify locked render dependencies
@@ -176,11 +185,14 @@ jobs:
           required <- c("bookdown", "rmarkdown", "fredr", "dkstat", "digest", "xml2")
           stopifnot(all(vapply(required, requireNamespace, logical(1), quietly = TRUE)))
           RS
+      - name: Verify notebook kernel environment
+        run: python3 -m scripts.notebooks.environment
       - name: Validate R sources
         run: |
           Rscript --vanilla scripts/check_sources.R
           Rscript --vanilla scripts/check_publication_dependencies.R
           Rscript --vanilla scripts/check_publication_closure.R
+          python3 -m scripts.notebooks.book check
       - name: Restore derived analysis cache
         id: derived
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -189,7 +201,7 @@ jobs:
           key: ${{ runner.os }}-book-derived-v1-${{ hashFiles('renv/publication.lock', 'scripts/book_runtime.R', 'scripts/analysis/*.R') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             ${{ runner.os }}-book-derived-v1-${{ hashFiles('renv/publication.lock', 'scripts/book_runtime.R', 'scripts/analysis/*.R') }}-
-      - name: Record current inputs and render Bookdown
+      - name: Record current inputs and render R notebook book
         shell: bash
         run: |
           set -euo pipefail
@@ -199,15 +211,19 @@ jobs:
           start_time=$(date +%s)
           if test -x /usr/bin/time; then
             /usr/bin/time -f 'elapsed_seconds,max_rss_kb\n%e,%M' -o .cache/book-render-time.csv \
-              Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")' 2>&1 | tee render.log
+              python3 -m scripts.notebooks.book build 2>&1 | tee render.log
           else
-            Rscript --vanilla -e 'bookdown::render_book("index.Rmd", output_dir = "_book")' 2>&1 | tee render.log
+            python3 -m scripts.notebooks.book build 2>&1 | tee render.log
             elapsed=$(( $(date +%s) - start_time ))
             printf 'elapsed_seconds,max_rss_kb\n%s,NA\n' "$elapsed" > .cache/book-render-time.csv
           fi
           cat .cache/book-render-time.csv >> "$GITHUB_STEP_SUMMARY"
+      - name: Collect current provider snapshots for diagnostics
+        if: always()
+        run: python3 -m scripts.notebooks.collect
+
       - name: Check rendered book
-        run: Rscript --vanilla scripts/check_bookdown_output.R
+        run: python3 -c 'from scripts.notebooks.validate import validate; validate("_book")'
       - name: Save successful derived analysis cache
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -224,6 +240,12 @@ jobs:
             .cache/book-metrics.csv
             .cache/book-dependency-audit.csv
             .cache/book-results
+            .cache/notebook-runs/*/receipt.json
+            .cache/notebook-runs/*/metrics.csv
+            .cache/notebook-runs/*/results
+            .cache/notebook-runs/*/book/*.ipynb
+            .cache/notebook-runs/*/book/_quarto.yml
+            .cache/notebook-last-run.json
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14

@@ -9,7 +9,7 @@ import unittest
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-APPROVED = {"IRdisplay", "IRkernel", "pacman", "pbdZMQ", "repr", "uuid"}
+APPROVED = set()
 
 
 class PublicationLockSubsetTests(unittest.TestCase):
@@ -30,7 +30,7 @@ class PublicationLockSubsetTests(unittest.TestCase):
         cls.root = json.loads((REPOSITORY / "renv.lock").read_text(encoding="utf-8"))
         cls.publication = json.loads((REPOSITORY / "renv/publication.lock").read_text(encoding="utf-8"))
 
-    def test_real_lock_omits_exactly_six_and_preserves_all_records_and_r_metadata(self):
+    def test_publication_compatibility_lock_preserves_every_record_and_r_metadata(self):
         self.assertEqual(self.validate(self.root, self.publication), APPROVED)
         self.assertEqual(len(self.root["Packages"]) - len(self.publication["Packages"]), len(APPROVED))
         self.assertEqual(self.publication["R"], self.root["R"])
@@ -38,7 +38,7 @@ class PublicationLockSubsetTests(unittest.TestCase):
             with self.subTest(package=name):
                 self.assertEqual(record, self.root["Packages"][name])
 
-    def test_full_lock_and_each_approved_omission_are_allowed(self):
+    def test_canonical_lock_requires_no_omissions(self):
         self.assertEqual(self.validate(self.root, self.root), set())
         for name in APPROVED:
             with self.subTest(package=name):

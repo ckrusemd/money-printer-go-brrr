@@ -65,7 +65,7 @@ class PublicationPushGuardTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/build-container.yml").read_text()
         paths = workflow.split("    paths:\n", 1)[1].split("\n\n", 1)[0]
         declared = {line.strip()[2:].strip("\"'") for line in paths.splitlines() if line.strip().startswith("- ")}
-        self.assertEqual(len(guard.IMAGE_INPUTS), 9)
+        self.assertEqual(len(guard.IMAGE_INPUTS), 10)
         self.assertEqual(guard.IMAGE_INPUTS, declared)
 
     def test_every_image_input_defers(self):

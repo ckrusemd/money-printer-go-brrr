@@ -112,3 +112,6 @@ renv/staging/
 renv/cellar/
 renv/sandbox/
 renv/python/
+
+# Notebook publication staging
+.quarto/

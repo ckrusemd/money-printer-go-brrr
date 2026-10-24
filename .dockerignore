@@ -1,9 +1,10 @@
-# The image only restores the locked R environment. Keep the build context
-# minimal so changes to analyses, notebook outputs, and data never slow or
-# invalidate the dependency-image build cache.
+# Dependency image only: never copy notebooks, local inputs, or credentials.
 **
 !Dockerfile
+!renv.lock
 !renv/
-!renv/publication.lock
 !renv/activate.R
 !renv/settings.json
+!scripts/
+!scripts/notebooks/
+!scripts/notebooks/requirements.lock

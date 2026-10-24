@@ -40,12 +40,22 @@ check_rmd_syntax <- function(path) {
 }
 
 check_sources <- function(root = ".") {
-  files <- list.files(root, "\\.(R|Rmd)$", recursive = TRUE, full.names = TRUE,
+  files <- list.files(root, "\\.(R|Rmd|ipynb)$", recursive = TRUE, full.names = TRUE,
                       ignore.case = TRUE)
   files <- files[!grepl("/(\\.git|\\.cache|_book|renv/library|renv/cache|renv/staging)/", files)]
   if (!length(files)) stop("No R sources found in ", root)
   for (file in files) {
-    if (grepl("\\.Rmd$", file, ignore.case = TRUE)) check_rmd_syntax(file)
+    if (grepl("\\.ipynb$", file, ignore.case = TRUE)) {
+      notebook <- jsonlite::read_json(file)
+      if (!identical(tolower(notebook$metadata$kernelspec$language), "r")) next
+      for (i in seq_along(notebook$cells)) {
+        cell <- notebook$cells[[i]]
+        if (!identical(cell$cell_type, "code")) next
+        tryCatch(parse(text = paste0(unlist(cell$source), collapse = "")), error = function(e) {
+          stop(file, " cell ", i, ": ", conditionMessage(e), call. = FALSE)
+        })
+      }
+    } else if (grepl("\\.Rmd$", file, ignore.case = TRUE)) check_rmd_syntax(file)
     else tryCatch(parse(file = file, keep.source = FALSE), error = function(e) {
       stop(file, ": ", conditionMessage(e), call. = FALSE)
     })

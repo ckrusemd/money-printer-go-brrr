@@ -20,6 +20,17 @@ if (!exists(".book_runtime", envir = .GlobalEnv, inherits = FALSE)) {
   if (!nzchar(as_of)) as_of <- as.character(as.Date(Sys.time(), tz = "Europe/Copenhagen"))
   .book_runtime$as_of <- as.Date(as_of)
   if (is.na(.book_runtime$as_of)) stop("BOOK_AS_OF must be an ISO date")
+  # Independent chapter kernels share only responses from this invocation.
+  run_id <- Sys.getenv("BOOK_RUN_ID", "")
+  .book_runtime$run_id <- run_id
+  if (.book_runtime$mode == "record" && nzchar(run_id) && file.exists(manifest_path)) {
+    previous <- readRDS(manifest_path)
+    if (!identical(previous$run_id, run_id) || !identical(previous$as_of, .book_runtime$as_of)) {
+      stop("Refusing source responses from a different notebook build")
+    }
+    .book_runtime$manifest <- previous$requests
+    .book_runtime$failures <- previous$failures
+  }
   options(timeout = 30)
 }
 
@@ -330,6 +341,7 @@ book_load_packages <- function(...) {
 book_write_manifest <- function() {
   if (.book_runtime$mode == "record") {
     book_save_rds(list(schema_version = 1L, as_of = book_date(),
+                       run_id = .book_runtime$run_id,
                        requests = .book_runtime$manifest, failures = .book_runtime$failures),
                    file.path(.book_runtime$snapshots, "manifest.rds"))
   }
@@ -337,6 +349,11 @@ book_write_manifest <- function() {
 }
 
 book_source_status <- function() {
+  if (.book_runtime$mode == "replay") {
+    manifest <- book_replay_manifest()
+    .book_runtime$manifest <- manifest$requests
+    .book_runtime$failures <- manifest$failures
+  }
   describe <- function(parameters) {
     value <- parameters$series_id
     if (is.null(value)) value <- parameters$Symbols

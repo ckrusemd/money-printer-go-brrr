@@ -47,12 +47,21 @@ class PublicationImageTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(output, "")
 
-    def test_publish_ignores_candidate_and_preserves_default_or_commit_tag(self):
-        for default in ("latest", "b" * 40):
-            with self.subTest(default=default):
-                result, output = self.resolve("other/repository:invalid", allow=False, default=default)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(output, "image=" + REPOSITORY + default + "\n")
+    def test_publish_requires_promoted_digest_and_ignores_candidate(self):
+        # Bootstrap configurations cannot accidentally deploy an unvalidated image.
+        from scripts.notebooks.image import pinned
+        try:
+            expected = pinned()
+        except ValueError:
+            expected = None
+        result, output = self.resolve("candidate-fixture", allow=False)
+        if expected is None:
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Publication is not promoted", result.stderr)
+            self.assertEqual(output, "")
+        else:
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(output, "image=" + expected + "\n")
 
     def test_workflow_limits_override_and_wires_both_consumers(self):
         self.assertIn("ALLOW_PUBLICATION_TAG: ${{ github.event_name == 'workflow_dispatch' && (inputs.benchmark || !inputs.publish) }}", self.workflow)

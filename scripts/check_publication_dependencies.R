@@ -1,6 +1,6 @@
 # Audit declared publication packages before a live render, without API calls.
 publication_dependencies <- function() {
-  packages <- c("bookdown", "rmarkdown", "knitr", "renv")
+  packages <- c("bookdown", "rmarkdown", "knitr", "renv", "IRkernel", "IRdisplay", "repr", "plotly")
   visit <- function(expression, declarations = FALSE) {
     if (!is.call(expression) && !is.expression(expression) && !is.pairlist(expression)) return()
     if (is.call(expression)) {
@@ -11,7 +11,12 @@ publication_dependencies <- function() {
       if (declarations && is.symbol(head) &&
           as.character(head) %in% c("book_load_packages", "library")) {
         args <- as.list(expression)[-1L]
-        if (as.character(head) == "library") args <- args[1L]
+        if (as.character(head) == "library") {
+          # library(package, character.only=TRUE) loads a runtime argument;
+          # the symbol "package" is not a literal dependency declaration.
+          dynamic <- !is.null(args$character.only) && identical(args$character.only, TRUE)
+          args <- if (dynamic) list() else args[1L]
+        }
         for (argument in args) {
           if (is.symbol(argument) || is.character(argument)) packages <<- c(packages, as.character(argument))
         }
@@ -24,15 +29,18 @@ publication_dependencies <- function() {
       if (!identical(children[[i]], quote(expr = ))) visit(children[[i]], declarations)
     }
   }
-  paths <- sub("^\\s*-\\s*", "", grep("\\.Rmd$", readLines("_bookdown.yml"), value = TRUE))
+  paths <- sub("^\\s*-\\s*", "", grep("\\.ipynb$", readLines("_quarto.yml"), value = TRUE))
   for (path in paths) {
-    code <- tempfile(fileext = ".R")
-    knitr::purl(path, output = code, quiet = TRUE, documentation = 0L)
-    visit(parse(code), TRUE)
-    unlink(code)
+    notebook <- jsonlite::read_json(path)
+    for (cell in notebook$cells) {
+      if (identical(cell$cell_type, "code")) {
+        visit(parse(text = paste0(unlist(cell$source), collapse = "")), TRUE)
+      }
+    }
   }
   for (path in c("money_theme.R", "scripts/book_runtime.R",
-                 list.files("scripts/analysis", "\\.R$", full.names = TRUE))) visit(parse(path))
+                 "scripts/notebooks/bootstrap.R",
+                 list.files("scripts/analysis", "\\.R$", full.names = TRUE))) visit(parse(path), TRUE)
   sort(unique(packages))
 }
 

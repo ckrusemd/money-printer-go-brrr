@@ -1,71 +1,46 @@
-# Copilot instructions for this repository
+# Repository instructions
 
-## Build, run, and validation commands
+The publication source of truth is `.ipynb` with the `money-r` IRkernel. Never
+regenerate notebook edits from Rmd. `_quarto.yml` declares the published chapters;
+currency/crypto drafts, vignettes, ETL, and the knowledge-graph pipeline remain
+outside the daily book. Legacy Rmd files are retained for parity acceptance only.
 
-### Bookdown site (repository root)
-- Restore R environment: `Rscript -e "renv::restore()"`
-- Build the full book (CI renders `index.Rmd`): `Rscript --vanilla -e "bookdown::render_book('index.Rmd', output_format = 'bookdown::gitbook')"`
-- The initial hidden setup in `index.Rmd` initializes the shared runtime before chapters. Chapters and galleries can depend on earlier setup and objects; a standalone `rmarkdown::render()` is not an equivalent full-book validation.
+Use the VS Code devcontainer and its pinned image for development and CI. The
+initial bootstrap configuration builds the Dockerfile; production is blocked
+until a real validated image digest is pinned with `scripts.notebooks.image`.
+`renv.lock` is canonical; the compatibility publication lock must be identical.
+Never restore/install packages from notebooks or during rendering.
 
-### Data collection and modeling notebooks (`datacollection/`)
-- Run ETL notebook: `jupyter notebook datacollection/01_etl.ipynb`
-- Run modeling notebook: `jupyter notebook datacollection/02_models.ipynb`
-- Run storage benchmark notebook: `jupyter notebook datacollection/database_benchmark.ipynb`
+Commands inside the image:
+- `python -m scripts.notebooks.book build`
+- `python -m scripts.notebooks.book preview --chapter PATH.ipynb`
+- `python -m scripts.notebooks.book clean` (explicit author action before commit)
+- `python -m scripts.notebooks.book check`
+- `python -m scripts.notebooks.smoke`
+- `python -m unittest discover -s tests -p 'test_*.py'`
+- `Rscript --vanilla scripts/check_sources.R`
+- `Rscript --vanilla scripts/check_publication_dependencies.R`
+- `Rscript --vanilla scripts/check_publication_closure.R`
 
-### Knowledge graph dashboard (`knowledgegraph/app/`)
-- Install Python dependencies: `cd knowledgegraph/app && pip install -r requirements.txt`
-- Build the dashboard database: `cd knowledgegraph/app && jupyter notebook create_database.ipynb`
-- Run the dashboard directly: `cd knowledgegraph/app && python dashboard.py`
-- Alternate launcher with preflight checks: `cd knowledgegraph/app && python run_app.py`
+Each chapter must run from a fresh kernel using its bootstrap and explicit shared
+helpers. Build execution writes only scratch copies; Quarto assembles already
+executed notebooks. Retain descriptive figure alt text, existing page URLs and
+anchors, statistical methods, price definitions, RNG behavior, and chart coverage.
+Market preparation/helpers live in `scripts/analysis/market_notebooks.R`.
 
-### Tests and lint
-- Offline runtime fixtures: `Rscript --vanilla tests/test_book_runtime.R`.
-- Python fixture suite: `python3 -m unittest discover -s tests -p 'test_*.py'`.
-- Catalogue fixtures only: `python3 -m unittest discover -s tests -p 'test_investment_catalogue.py'`.
-- Shared R syntax: `Rscript --vanilla -e "invisible(parse(file = 'money_theme.R')); invisible(parse(file = 'scripts/book_runtime.R'))"`.
-- After a complete render: `Rscript --vanilla scripts/check_bookdown_output.R` verifies required pages, the home title, the tax anchor, and local chart-image references.
-- If locked R packages are unavailable locally, run R checks in `ghcr.io/ckrusemd/money-printer-go-brrr-r:latest` with the repository mounted at `/project`; see README for the Docker command.
+Use shared `book_*` data wrappers and content-keyed derived caches. Current inputs
+are mandatory for publication; replay is validation only. A new build gets a new
+source response directory, fixed Copenhagen analysis date, and per-chapter numeric
+captures. Essential retrieval failures must stop publication. The last notebook
+aggregates provenance and optional-source failures across all chapter kernels.
 
-## High-level architecture
+Export `FRED_API` in the process environment; do not inspect or write credentials.
+Scheduled runs start at 05:00 Copenhagen. Preserve the hosted dispatch contract,
+due/completion gate, serialized publication, recovery behavior, and Pages target.
+The legacy benchmark/recovery inputs must never be presented as notebook runtime
+acceptance. Full notebook acceptance compares numeric captures to legacy results
+with identical recorded inputs at `1e-8` tolerance.
 
-### 1) Book publication layer
-- `index.Rmd` is the bookdown entry point.
-- `_bookdown.yml` explicitly lists published chapter files in order; currency and crypto drafts are not currently included. Change published scope only when requested.
-- `scripts/book_runtime.R` owns source retrieval, derived caching, the fixed analysis date, and timing hooks; the initial hidden chunk in `index.Rmd` sources it once.
-- `scripts/book-style.css` supplies responsive GitBook layout and visible keyboard focus. Maintain readable chart aspect ratios and existing URLs/anchor IDs.
-- `.github/workflows/deploy_bookdown.yml` is the deployment pipeline: render book, upload `_book/`, deploy to GitHub Pages.
-
-### 2) Data ingestion + modeling layer (`datacollection/`)
-- `01_etl.ipynb` collects data from multiple sources (FRED, Yahoo, DST, FinansDanmark, housing files) and writes to DuckDB (`data/financial_data.duckdb`, table `financial_data`).
-- `02_models.ipynb` reads from a read-only DuckDB copy, runs modeling/analysis, and writes artifacts (parquet outputs plus plots/tables/report assets).
-- `database_benchmark.ipynb` benchmarks storage/query performance across DuckDB, SQLite, Parquet, and CSV.
-
-### 3) Reporting utility layer (`datacollection/*.R`)
-- `save_plot.R` and `save_table.R` standardize artifact persistence and numbering.
-- `generate_report.R` turns plot/table objects into PowerPoint slides using a PowerPoint template.
-- `powerpoint_with_annotations.R` is an alternate slide generator that can annotate table/image content before slide creation.
-
-### 4) Knowledge graph layer (`knowledgegraph/`)
-- `KnowledgeGraph_FRED_Analysis.ipynb` produces network/correlation exports.
-- `knowledgegraph/app/create_database.ipynb` ingests CSV exports into `knowledge_graph.db`, creating tables (`nodes`, `edges`, `correlations`, `leadership`, `stock_relationships`, `metadata`) and views used by the app.
-- `knowledgegraph/app/dashboard.py` is a Dash app that loads all data at startup and serves tabbed visual analytics.
-
-## Repository-specific conventions
-
-- `renv.lock` defines the publication dependencies. Restore explicitly during setup or container creation, never dynamically during a render; do not add packages as an optimization shortcut.
-- Chapter and vignette content is maintained as paired `.Rmd` + `.ipynb` files; keep both in sync when making structural edits.
-- FRED credentials are expected through the `FRED_API` environment variable.
-  Export `FRED_API` before `Rscript --vanilla`, which does not automatically
-  read `.Renviron`; ordinary interactive sessions can use a local `.Renviron`.
-  GitHub Actions injects the repository secret directly and never writes it to disk.
-- Shared R visuals commonly source `money_theme.R`; preserve this styling hook in chapter updates.
-- The theme guards runtime loading with `exists("book_fred", mode = "function")`; repeated theme loads must not replace observation caches.
-- Use `book_fred(series_id, ...)`, `book_yahoo(ticker, ...)` (returns xts directly), and `book_dst(...)` for shared source retrieval; use `book_load_packages(...)` to load existing dependencies and `book_date()` for rolling analysis windows.
-- `book_cache_derived(namespace, inputs, compute, packages = character(), code = NULL)` takes a zero-argument function. Include all result-affecting input content and helper code in its key, declare package dependencies, and preserve statistical methods and RNG behavior.
-- Live publication must retrieve essential data and fail on retrieval errors. `BOOK_SNAPSHOT_MODE=record`/`replay` supports reproducible fixtures and benchmarking; replay snapshots are not fresh publication data.
-- Compare complete cold/warm renders using identical inputs and `BOOK_AS_OF`. Target at least 30% lower warm runtime without reducing chart coverage or changing statistical methods; report measured results.
-- Every market/gallery chart needs descriptive `fig.alt` text covering units and panel meaning. Describe computed data accurately; the current market extraction selects Yahoo opening prices, not adjusted closes.
-- Output artifact convention in `datacollection` is date-partitioned directories with sequential names:
-  - plots: `output/YYYY_MM_DD/plots/plotNNN.png`
-  - tables: `output/YYYY_MM_DD/tables/tableNNN.rds`
-- `dashboard.py` is the source of truth for dashboard runtime settings and currently binds to port `8051`; keep README/run commands aligned if changing ports.
+Research paths and the separate Dash app remain supported; dashboard port is
+8051, debug is off by default, and database connections are read-only. Do not add
+research input requirements to daily publication without a separate request.

@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUTS = (".dockerignore", "Dockerfile", "renv/activate.R",
-          "renv/publication.lock", "renv/settings.json")
+          "renv.lock", "renv/settings.json", "scripts/notebooks/requirements.lock")
 
 
 def image_key(root=ROOT):
