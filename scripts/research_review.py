@@ -67,8 +67,9 @@ def gate():
 
 
 def record(directory):
+    from scripts.notebooks.book import source_commit
     summary = json.loads((directory / "summary.json").read_text())
-    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    sha = source_commit()
     if not re.fullmatch(r"[0-9a-f]{40}", sha) or summary.get("schema") != 1:
         raise ValueError("Invalid review source or summary")
     receipt = {"schema": 1, "repository": REPOSITORY, "workflow": WORKFLOW,

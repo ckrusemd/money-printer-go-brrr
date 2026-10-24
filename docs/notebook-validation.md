@@ -1,5 +1,45 @@
 # Notebook container acceptance — 24 October 2026
 
+## Seven-theme research expansion
+
+[PR #74](https://github.com/ckrusemd/money-printer-go-brrr/pull/74) expands publication
+from 12 to 15 notebooks. The verified environment is R 4.6.1, Quarto 1.10.19,
+234 unchanged-or-explicitly-added external package records, and internal
+`dstcollect` 0.1.1. Its immutable image is
+`ghcr.io/ckrusemd/money-printer-go-brrr-r@sha256:73a723fe04021bb09a2f4f9d34436ce6abdfcbbdf730e222e466cc097cfca097`.
+The [candidate publication run](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/40114079071)
+passed before the image was independently downloaded, audited and pinned locally.
+
+Observed acceptance for the 2026-10-24 analytical edition:
+
+| Check | Result |
+| --- | --- |
+| Source and environment | All 15 clean notebooks, locked package/kernel audit, R syntax, dependency closure and internal-source fingerprint passed |
+| Offline CI | 169 Python tests, 15 root R fixture files and 47 internal-package assertions; no failures. Optional dashboard/Pandoc checks are skipped in the R-image Python suite; separate dashboard/graph and reader jobs exercise their fixtures |
+| Full model review | 14,736 held-out prediction rows across four candidates and 15 targets; overlapping origins are not independent samples |
+| Current forecasts | 67 horizons; 56 benchmark selections and 11 alternatives passing the configured skill gates; finite/nonnegative forecasts, nested ranges and at least 30 calibration errors verified |
+| Live notebook execution | All 15 notebooks executed using recorded public inputs; the optional Yale CAPE source was unavailable |
+| Pinned-image replay | All 15 notebooks executed without network access or an API key. Ten saved correlation/forecast/review results matched live results at absolute tolerance `1e-8` |
+| Final assembly | All 15 HTML pages passed local-reference, asset, anchor and image-description validation. Presentation metadata was repaired and re-rendered from executed outputs after verifying executable R was unchanged; value-chart positioning was checked separately |
+| Chromium | All 15 pages and 71 widgets loaded with outside requests blocked; no JavaScript errors or document overflow at 375px. Home filtering, real-DKK selection and actual calendar range controls passed |
+| Existing content | Legacy URLs, the Danish tax catalogue, static galleries and original Rmd comparison sources retained |
+
+Local detailed evidence is under Git-ignored `.cache/research/` and
+`.cache/notebook-runs/`. Receipts distinguish original execution, metadata-only
+render recovery and subsequent presentation refinement. Recorded provider inputs
+and numeric outputs are retained. Earlier generated staging and derived caches
+were compacted into `.cache/research/prior-*.tar.*` archives to accommodate the
+new image; source notebooks and private environment files were preserved.
+
+These checks establish execution and reproducibility, not future predictive
+performance. Danish construction experiments use revised observations and a
+reporting gap, not historical Danish vintages. Index growth excludes dividends;
+ACWI and gold remain explicitly labelled proxies. CAPE availability and missing
+calibration are visible rather than fabricated. See
+[research definitions](research-methodology.md) for the comparison rules.
+
+## Earlier 12-chapter migration evidence
+
 The corrected Dockerfile built successfully and was loaded locally as
 `money-notebook-candidate:latest`. Its immutable local image ID is
 `sha256:012a9e0e66f0ef39970b0ab79d932d424940b35cec1d8cb11d076133f4e6d2f5`.
