@@ -55,5 +55,14 @@ digest; branch candidates do not replace the production latest tag or deploy.
 
 Detailed logs, paired source responses, execution outputs and receipts are kept
 locally under `.cache/dstcollect/` and `.cache/notebook-runs/`. They are ignored by
-Git. The rollout still requires a validated registry image, matching VS Code pin,
-and passing protected-branch checks before merging.
+Git.
+
+The [candidate container workflow](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/40105248437)
+passed its R, kernel/render, browser-widget and non-root checks. Its immutable
+image is
+`ghcr.io/ckrusemd/money-printer-go-brrr-r@sha256:a7de643904f24521c508b4cffbe694247091593092a5f829badb719c65c86b07`.
+The dependency-context fingerprint is
+`df4896640049a1ef57fc3eff5c5cfc630800ae21a55bccb9293d818f3f993002`.
+That exact image was downloaded locally and passed environment and real
+kernel/widget/Quarto smoke verification before pinning the devcontainer to it.
+Protected-branch checks must pass before merge.

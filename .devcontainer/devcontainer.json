@@ -29,5 +29,5 @@
     }
   },
   "postStartCommand": "python -m scripts.notebooks.environment",
-  "image": "ghcr.io/ckrusemd/money-printer-go-brrr-r@sha256:1fcecffcfdb0135077130e9973fcfdd036c4c8342871e1a380c08366c8f24d6a"
+  "image": "ghcr.io/ckrusemd/money-printer-go-brrr-r@sha256:a7de643904f24521c508b4cffbe694247091593092a5f829badb719c65c86b07"
 }
