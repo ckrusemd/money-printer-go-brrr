@@ -145,7 +145,9 @@ class PublicationImageTests(unittest.TestCase):
 
         diagnostic = step("Retain diagnostic provider snapshots on failure")
         self.assertIn("if: failure()\n", diagnostic)
-        self.assertIn("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", diagnostic)
+        # Require an immutable upstream pin while allowing action upgrades.
+        self.assertRegex(diagnostic,
+                         r"(?m)^\s*uses: actions/upload-artifact@[0-9a-f]{40}(?:[ \t]+#[^\n]*)?$")
         self.assertIn("name: book-provider-snapshots-debug\n", diagnostic)
         self.assertIn("path: .cache/book-inputs\n", diagnostic)
         self.assertIn("include-hidden-files: true", diagnostic)
