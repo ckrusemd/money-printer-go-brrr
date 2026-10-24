@@ -1,0 +1,14 @@
+Package: dstcollect
+Title: Metadata-Preserving Statistics Denmark Collection
+Version: 0.1.0
+Authors@R: person("Christian", "Kruse", role = c("aut", "cre"), email = "45234249+ckrusemd@users.noreply.github.com")
+Description: Collect StatBank subjects, tables, metadata and observations through
+    the official API into a common bundle. Preserve source identities and
+    provide explicit, versioned analytical concept mappings and bounded queries.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports: httr2, jsonlite, tibble, digest
+Suggests: testthat, repr
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.1

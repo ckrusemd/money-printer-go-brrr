@@ -5,7 +5,7 @@ import re
 import tempfile
 import unittest
 
-from scripts.publication_image_key import INPUTS, image_key
+from scripts.publication_image_key import INPUTS, image_key, input_paths
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -44,12 +44,12 @@ class REnvironmentTests(unittest.TestCase):
     def test_every_docker_context_input_changes_image_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             scratch = Path(directory)
-            for name in INPUTS:
+            for name in input_paths(ROOT):
                 (scratch / name).parent.mkdir(parents=True, exist_ok=True)
                 (scratch / name).write_bytes((ROOT / name).read_bytes())
             original = image_key(scratch)
             self.assertEqual(original, image_key(ROOT))
-            for name in INPUTS:
+            for name in input_paths(ROOT):
                 path = scratch / name
                 contents = path.read_bytes()
                 path.write_bytes(contents + b"\n")

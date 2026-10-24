@@ -85,7 +85,9 @@ book_save_rds <- function(value, path) {
 }
 
 book_latest_observation <- function(value) {
-  dates <- if (is.data.frame(value)) {
+  dates <- if (inherits(value,"dst_bundle")) {
+    as.character(value$data$period_start)
+  } else if (is.data.frame(value)) {
     field <- intersect(c("date", "Date", "TID", "timestamp", "obstime"), names(value))
     if (length(field)) as.character(value[[field[1L]]]) else character()
   } else if (inherits(value, "xts")) {
@@ -242,19 +244,43 @@ book_yahoo <- function(ticker, ..., env = NULL, attempts = 3L) {
   }, attempts = attempts)
 }
 
-book_dst <- function(...) {
-  parameters <- list(...)
+book_dst_bundle <- function(table, query, lang="da") {
+  parameters <- list(table=table, query=query, lang=lang, model="dstcollect-1")
   book_fetch("Statistics Denmark", parameters, function() {
-    httr::with_config(httr::timeout(30), do.call(dkstat::dst_get_data, parameters))
+    meta <- dstcollect::dst_metadata(table,lang=lang)
+    # Compatibility boundary only: resolve old exact labels to stable codes.
+    for (id in names(query)) {
+      categories <- meta$categories[toupper(meta$categories$dimension_id)==toupper(id),]
+      query[[id]] <- vapply(as.character(query[[id]]),function(value) {
+        if (value %in% categories$category_code || value=="*") return(value)
+        matches <- categories$category_code[categories$label==value |
+          paste(categories$category_code,categories$label)==value]
+        if (length(matches)!=1L) stop("Unknown or ambiguous legacy DST selection: ",id,"=",value)
+        matches[[1L]]
+      },character(1))
+    }
+    dstcollect::dst_collect(table,selection=query,lang=lang,metadata=meta)
   })
+}
+
+book_dst <- function(table, ..., lang="da", presentation=c("legacy","labels")) {
+  presentation <- match.arg(presentation); query <- list(...)
+  bundle <- book_dst_bundle(table,query,lang)
+  out <- dstcollect::dst_legacy_data(bundle,names(query),code_labels=presentation=="legacy")
+  attr(out,"series_id") <- NULL
+  out
 }
 
 book_dst_metadata <- function(...) {
   parameters <- list(...)
-  book_fetch("Statistics Denmark metadata", parameters, function() {
-    httr::with_config(httr::timeout(30), do.call(dkstat::dst_meta, parameters))
+  parameters$model <- "dstcollect-1"
+  bundle <- book_fetch("Statistics Denmark metadata", parameters, function() {
+    dstcollect::dst_metadata(parameters$table,lang=parameters$lang %or_dst% "da")
   })
+  dstcollect::dst_legacy_metadata(bundle)
 }
+
+`%or_dst%` <- function(x,y) if (is.null(x)) y else x
 
 book_workbook <- function(url, ...) {
   parameters <- c(list(url = url), list(...))

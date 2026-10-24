@@ -9,6 +9,7 @@ from scripts.publication_image_key import image_key
 
 
 def audit(root=ROOT):
+    from scripts.internal_packages import audit as audit_internal
     expected = image_key(root)
     actual = os.environ.get("NOTEBOOK_IMAGE_CONTEXT")
     bootstrap = actual == "development" and os.environ.get("NOTEBOOK_REQUIRE_PIN") != "true"
@@ -27,6 +28,7 @@ def audit(root=ROOT):
     kernel = KernelSpecManager().get_kernel_spec("money-r")
     if "--vanilla" not in kernel.argv:
         raise ValueError("The project R kernel must start with --vanilla")
+    audit_internal(root)
 
 
 if __name__ == "__main__":

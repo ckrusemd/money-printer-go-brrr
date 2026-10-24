@@ -88,6 +88,23 @@ Changes to locks or the Dockerfile require a new candidate and promotion.
 Refresh the R environment explicitly with the target R installed:
 `Rscript --vanilla scripts/refresh_r_locks.R YYYY-MM-DD`.
 
+## Statistics Denmark helper
+
+The internal [dstcollect R package](packages/dstcollect/README.md) collects
+StatBank discovery, metadata and observations into one data-and-metadata bundle.
+Use `library(dstcollect)` in the pinned container and start with the
+[example R notebook](packages/dstcollect/examples/collection.ipynb). Its source
+codes, Date boundaries, units and curated concept mappings remain separate from
+display labels. Large selections are automatically split into bounded requests.
+
+The book uses compatibility views to preserve its existing calculations. The
+collection notebook also uses the package while keeping its database aliases;
+the package itself never writes to a database. Package source and mapping edits
+require a new container, just like external dependency changes. For a candidate
+branch, run `gh workflow run build-container.yml --ref BRANCH -f candidate=true`,
+wait for validation, then pin the reported digest before merging. A branch
+candidate does not replace the production `latest` tag or deploy the book.
+
 ## Build and morning publication
 
 Inside the environment:

@@ -27,7 +27,7 @@ class PublicationPushGuardTests(unittest.TestCase):
         self.git("config", "user.email", "fixture@example.test")
         self.git("config", "commit.gpgsign", "false")
         for path in sorted(guard.IMAGE_INPUTS | {"index.Rmd"}):
-            self.write(path, "Original " + path + "\n")
+            self.write(path.replace("**", "R/helper.R"), "Original " + path + "\n")
         self.before = self.commit()
 
     def git(self, *arguments):
@@ -65,18 +65,18 @@ class PublicationPushGuardTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/build-container.yml").read_text()
         paths = workflow.split("    paths:\n", 1)[1].split("\n\n", 1)[0]
         declared = {line.strip()[2:].strip("\"'") for line in paths.splitlines() if line.strip().startswith("- ")}
-        self.assertEqual(len(guard.IMAGE_INPUTS), 10)
+        self.assertEqual(len(guard.IMAGE_INPUTS), 12)
         self.assertEqual(guard.IMAGE_INPUTS, declared)
 
     def test_every_image_input_defers(self):
         before = self.before
         for path in sorted(guard.IMAGE_INPUTS):
             with self.subTest(path=path):
-                self.write(path, "Changed " + path + "\n")
+                self.write(path.replace("**", "R/helper.R"), "Changed " + path + "\n")
                 after = self.commit()
                 decision = self.decide(self.event(before, after))
                 self.assertFalse(decision.render_allowed)
-                self.assertIn(path, decision.reason)
+                self.assertIn(path.replace("**", "R/helper.R"), decision.reason)
                 before = after
 
     def test_content_only_push_and_empty_diff_allow_render(self):
@@ -97,7 +97,7 @@ class PublicationPushGuardTests(unittest.TestCase):
         before = self.before
         for path in sorted(guard.IMAGE_INPUTS):
             with self.subTest(path=path):
-                (self.repository / path).unlink()
+                (self.repository / path.replace("**", "R/helper.R")).unlink()
                 after = self.commit()
                 self.assertFalse(self.decide(self.event(before, after)).render_allowed)
                 before = after

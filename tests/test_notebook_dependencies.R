@@ -6,18 +6,24 @@ lock <- jsonlite::read_json("renv.lock")
 bundled <- rownames(installed.packages(priority=c("base", "recommended")))
 stopifnot(!"package" %in% packages,
           all(c("IRkernel", "IRdisplay", "repr", "plotly", "DT", "visNetwork") %in% packages),
-          all(packages %in% c(names(lock$Packages), bundled)))
+          all(packages %in% c(names(lock$Packages), bundled, "dstcollect")))
+stopifnot("dstcollect" %in% packages,
+          all(c("httr2","jsonlite","tibble","digest") %in% packages),
+          requireNamespace("dstcollect",quietly=TRUE))
 cat("Notebook dependency declarations are all locked\n")
 
 # R normalizes separators in versions (Formula 1.2-5 prints as 1.2.5).
 # Equivalent locked versions must pass; actual dependency drift must still fail.
 local({
   audit <- normalizePath("scripts/notebooks/environment.R")
+  internal <- normalizePath("packages/dstcollect/DESCRIPTION")
   previous <- getwd()
   temporary <- tempfile("notebook-environment-")
   dir.create(temporary)
   on.exit({ setwd(previous); unlink(temporary, recursive = TRUE) })
   setwd(temporary)
+  dir.create("packages/dstcollect",recursive=TRUE)
+  file.copy(internal,"packages/dstcollect/DESCRIPTION")
   installed <- as.character(utils::packageVersion("Formula"))
   equivalent <- sub("^(.*)\\.([0-9]+)$", "\\1-\\2", installed)
   stopifnot(package_version(equivalent) == package_version(installed))
