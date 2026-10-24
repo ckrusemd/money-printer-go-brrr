@@ -35,8 +35,10 @@ comparison baseline; do not edit them or synchronize them over notebook edits.
    python -m scripts.notebooks.book check
    ```
 
-Commit and push notebook changes normally. Relevant main-branch pushes enter the
-publication workflow; pull requests run offline checks. To add a chapter, create
+Main is protected. Create a working branch in VS Code, commit and publish that
+branch, then open a pull request and merge after its checks pass. Merged notebook
+changes enter the publication workflow; pull requests run offline checks.
+To add a chapter, create
 an R notebook with the same bootstrap cell/kernel metadata, add its path to
 `book.chapters` in `_quarto.yml`, and optionally set a stable HTML filename in
 `notebook-publication.page-names`. Put the data-status appendix last.
@@ -177,6 +179,12 @@ complete captured forecasts/metrics and both correlation input/output records
 matched the notebooks at absolute tolerance `1e-8`. The published GHCR image also
 passed clean-runner checks. Actual VS Code editor behavior remains a manual check.
 See [container acceptance evidence](docs/notebook-validation.md).
+
+The [first hosted notebook publication](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/40094633934)
+subsequently passed in 25.9 minutes and deployed all 12 chapters. Browser checks
+passed on the public pages and all 31 widget frames. A repeat scheduled call
+correctly skipped a duplicate build. After the rollout fixes, the promoted-image
+Python suite passed with 164 tests run and 15 skipped.
 
 ## Research outside the daily book
 
