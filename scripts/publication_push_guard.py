@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+from fnmatch import fnmatchcase
 
 
 # Keep exactly synchronized with build-container.yml's push.paths (fixture tested).
@@ -19,6 +20,7 @@ IMAGE_INPUTS = frozenset({
     ".github/workflows/build-container.yml",
     "scripts/publication_image_key.py",
     "scripts/notebooks/requirements.lock",
+    "scripts/internal_packages.py", "packages/dstcollect/**",
 })
 FETCH_TIMEOUT_SECONDS = 35
 
@@ -72,7 +74,7 @@ def decide_push_render(event_name, event, repository):
         return PushDecision(False, "Cannot " + phase + " (" + type(error).__name__ +
                             "); defer rendering to the container workflow.")
     paths = {os.fsdecode(path) for path in diff.stdout.split(b"\0") if path}
-    changed = sorted(paths & IMAGE_INPUTS)
+    changed = sorted(path for path in paths if any(fnmatchcase(path, pattern) for pattern in IMAGE_INPUTS))
     if changed:
         return PushDecision(False, "Container image inputs changed: " + ", ".join(changed) +
                             "; defer rendering to the successful same-SHA container callback.")

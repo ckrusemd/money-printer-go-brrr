@@ -51,6 +51,8 @@ on:
       - "book.bib"
       - "packages.bib"
       - "scripts/book-style.css"
+      - "packages/dstcollect/**"
+      - "scripts/internal_packages.py"
       - ".github/workflows/deploy_bookdown.yml"
   schedule:
     # Off-hour recovery watchdog; hosted scheduler supplies 05:00 local calls.

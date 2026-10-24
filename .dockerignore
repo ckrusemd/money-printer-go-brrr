@@ -8,3 +8,7 @@
 !scripts/
 !scripts/notebooks/
 !scripts/notebooks/requirements.lock
+!scripts/internal_packages.py
+!packages/
+!packages/dstcollect/
+!packages/dstcollect/**

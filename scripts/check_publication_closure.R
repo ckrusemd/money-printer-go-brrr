@@ -48,7 +48,9 @@ audit_publication_closure <- function(root, publication, roots,
 check_publication_closure <- function(root_file = "renv.lock",
                                       publication_file = "renv/publication.lock") {
   source("scripts/check_publication_dependencies.R", local = TRUE)
-  roots <- publication_dependencies()
+  # The internal package is fingerprinted/installed from this checkout; its
+  # Imports are already included by publication_dependencies().
+  roots <- setdiff(publication_dependencies(),"dstcollect")
   root <- renv::lockfile_read(root_file)
   publication <- renv::lockfile_read(publication_file)
   closure <- audit_publication_closure(root, publication, roots)

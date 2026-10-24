@@ -14,6 +14,8 @@ on:
       - .Rprofile
       - .github/workflows/build-container.yml
       - scripts/publication_image_key.py
+      - scripts/internal_packages.py
+      - "packages/dstcollect/**"
       - scripts/notebooks/requirements.lock
 
 permissions:
@@ -65,7 +67,7 @@ jobs:
         run: >-
           docker run --rm --network none --workdir /tmp
           --entrypoint Rscript ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          --vanilla -e 'stopifnot(as.character(getRversion()) == "4.6.1", requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE), rmarkdown::pandoc_version() >= package_version("2.11"))'
+          --vanilla -e 'stopifnot(as.character(getRversion()) == "4.6.1", requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dstcollect", quietly = TRUE), rmarkdown::pandoc_version() >= package_version("2.11"))'
 
       - name: Smoke test R notebook execution and widget rendering
         run: |

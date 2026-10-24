@@ -1,6 +1,8 @@
 # Audit declared publication packages before a live render, without API calls.
 publication_dependencies <- function() {
   packages <- c("bookdown", "rmarkdown", "knitr", "renv", "IRkernel", "IRdisplay", "repr", "plotly")
+  internal <- read.dcf("packages/dstcollect/DESCRIPTION")
+  packages <- c(packages,trimws(unlist(strsplit(internal[1L,"Imports"],","))))
   visit <- function(expression, declarations = FALSE) {
     if (!is.call(expression) && !is.expression(expression) && !is.pairlist(expression)) return()
     if (is.call(expression)) {
@@ -48,11 +50,15 @@ check_publication_dependencies <- function() {
   packages <- publication_dependencies()
   lock <- renv::lockfile_read("renv/publication.lock")
   standard <- rownames(installed.packages(priority = c("base", "recommended")))
-  unrecorded <- setdiff(packages, c(names(lock$Packages), standard))
+  unrecorded <- setdiff(packages, c(names(lock$Packages), standard, "dstcollect"))
   missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]
   if (length(unrecorded) || length(missing)) {
     stop("Publication dependency audit failed. Unrecorded: ", paste(unrecorded, collapse = ", "),
          "; missing: ", paste(missing, collapse = ", "))
+  }
+  if ("dstcollect" %in% packages) {
+    expected <- read.dcf("packages/dstcollect/DESCRIPTION")[1L,"Version"]
+    stopifnot(utils::packageVersion("dstcollect") == package_version(expected))
   }
   cat("Audited", length(packages), "declared publication dependencies\n")
   invisible(packages)

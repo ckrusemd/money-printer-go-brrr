@@ -90,6 +90,8 @@ jobs:
             --entrypoint /bin/bash -v "$GITHUB_WORKSPACE:/project:ro" \
             -v "$RUNNER_TEMP/notebook-smoke:/evidence" -w /project \
             "$BOOK_CI_IMAGE" -euo pipefail -c '
+              python3 scripts/internal_packages.py audit
+              Rscript --vanilla -e 'testthat::test_local("packages/dstcollect", stop_on_failure = TRUE)'
               Rscript --vanilla scripts/check_sources.R
               Rscript --vanilla scripts/check_publication_dependencies.R
               Rscript --vanilla scripts/check_publication_closure.R

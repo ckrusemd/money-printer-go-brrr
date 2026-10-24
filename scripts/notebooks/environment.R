@@ -9,5 +9,8 @@ local({
     }
   }
   stopifnot(requireNamespace("IRkernel"), requireNamespace("IRdisplay"),
-            requireNamespace("plotly"), requireNamespace("htmlwidgets"))
+            requireNamespace("plotly"), requireNamespace("htmlwidgets"),
+            requireNamespace("dstcollect"))
+  description <- read.dcf("packages/dstcollect/DESCRIPTION")
+  stopifnot(utils::packageVersion("dstcollect") == package_version(description[1L,"Version"]))
 })

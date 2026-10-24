@@ -67,6 +67,11 @@ RUN mkdir -p /opt/publication-library \
     && Rscript --vanilla -e 'Sys.setenv(RENV_CONFIG_INSTALL_REMOTES = "FALSE"); install.packages("renv", repos = Sys.getenv("RENV_CONFIG_REPOS_OVERRIDE"), lib = Sys.getenv("R_LIBS_USER")); stopifnot(utils::packageVersion("renv") == "1.3.1"); renv::restore(lockfile = "renv.lock", library = Sys.getenv("R_LIBS_USER"), prompt = FALSE)' \
     && Rscript --vanilla -e 'lock <- renv::lockfile_read("renv.lock"); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version)); stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("xml2", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dkstat", quietly = TRUE))'
 
+# Internal sources are installed separately from the unchanged external lock.
+COPY packages/dstcollect /project/packages/dstcollect
+COPY scripts/internal_packages.py /project/scripts/internal_packages.py
+RUN python3 scripts/internal_packages.py install
+
 # One Python runtime and one registered R kernel for editors and CI.
 COPY scripts/notebooks/requirements.lock /tmp/notebook-requirements.lock
 RUN python3 -m venv /opt/notebook-python \
