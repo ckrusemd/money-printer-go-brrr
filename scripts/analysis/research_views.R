@@ -126,9 +126,10 @@ research_value_chart <- function(data,ids,title="Historical growth and purchasin
   }
   buttons<-lapply(names(options),function(mode)list(method="update",label=options[[mode]],
     args=list(list(visible=trace_modes==mode),list(yaxis=list(title=options[[mode]])))))
-  plotly::layout(plot,title=list(text=title,font=list(size=16)),yaxis=list(title="Index, selected start=100"),
-    xaxis=list(rangeslider=list(visible=TRUE)),updatemenus=list(list(buttons=buttons,x=0,y=1.2)),
-    margin=list(t=95),legend=list(orientation="h",y=-.3))
+  plotly::layout(plot,title=list(text=title,font=list(size=16),x=0,y=.98,xanchor="left",yanchor="top"),
+    yaxis=list(title="Index, selected start=100"),xaxis=list(rangeslider=list(visible=TRUE)),
+    updatemenus=list(list(buttons=buttons,x=0,y=1.16,xanchor="left",yanchor="bottom")),
+    margin=list(t=135,b=110),legend=list(orientation="h",y=-.3))
 }
 
 research_forecast_table <- function(ctx,ids) {
