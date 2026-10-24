@@ -178,6 +178,12 @@ matched the notebooks at absolute tolerance `1e-8`. The published GHCR image als
 passed clean-runner checks. Actual VS Code editor behavior remains a manual check.
 See [container acceptance evidence](docs/notebook-validation.md).
 
+The [first hosted notebook publication](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/40094633934)
+subsequently passed in 25.9 minutes and deployed all 12 chapters. Browser checks
+passed on the public pages and all 31 widget frames. A repeat scheduled call
+correctly skipped a duplicate build. After the rollout fixes, the promoted-image
+Python suite passed with 164 tests run and 15 skipped.
+
 ## Research outside the daily book
 
 All 23 Rmd documents have notebook counterparts. Currency/crypto drafts and

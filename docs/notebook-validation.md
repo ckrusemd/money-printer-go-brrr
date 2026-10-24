@@ -43,6 +43,10 @@ Observed acceptance results:
 | Promoted image selection | Actual CI selector passed locally; four fixtures cover digest priority, dependency changes, candidate builds and wrong labels |
 | VS Code Dev Containers tooling | Started the pinned configuration as `notebook` at `/project`; startup audit passed; container image ID equals the pulled registry image ID |
 | Container checkout ownership regression | Scoped Git trust reads a foreign-owned checkout; the root/read-only home-chapter pipeline passes with only its run cache writable |
+| Final promoted-image Python suite after rollout fixes | 164 tests run, 15 skipped, no failures, offline/read-only as `notebook` |
+| Hosted notebook publication | All 12 chapters executed, rendered, validated and deployed; 1553.59 seconds; publication journal updated |
+| Published-site browser checks | All 12 pages and 31 widget frames loaded with outside requests blocked; six market date controls, zoom, tax anchor and interest-rate figures passed |
+| Repeat scheduled delivery after publication | Preflight passed; build, deployment and state write skipped; no duplicate calculation |
 
 Container testing exposed and fixed equivalent R version strings being rejected
 (`1.2-5` versus `1.2.5`), the shared Jupyter data directory being private to root,
@@ -94,7 +98,16 @@ Logs and a machine-readable receipt are retained locally under
 committed. The `.env` file is private and Git-ignored, and is passed to Docker at
 runtime rather than copied into the image.
 
-The first notebook Pages deployment follows the digest-pinning merge. Manual
-VS Code editor checks remain; the host Dev Containers extension is now installed.
-Legacy Rmd sources remain available as the comparison baseline until final
-acceptance.
+The [first successful hosted notebook publication](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/40094633934)
+deployed the 24 October edition from source commit
+`72388d26c493f55b379179607df20b70a09f5582`. Its complete 12-chapter receipt records
+1553.59 seconds (25.9 minutes). The timing wrapper reported a maximum RSS of
+2,152,636 KiB; this is a different measure from the local cgroup peak above.
+The public book and its controls passed browser checks after deployment.
+A [repeat scheduled-delivery check](https://github.com/ckrusemd/money-printer-go-brrr/actions/runs/40096676880)
+correctly skipped calculation and deployment for the already-completed date.
+The existing 05:00 Europe/Copenhagen schedule and recovery protocol are retained.
+
+Manual VS Code editor checks remain; the host Dev Containers extension is
+installed, and the exact-image container startup and kernel audits have passed.
+Legacy Rmd sources remain available as the verified comparison baseline.
