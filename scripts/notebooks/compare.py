@@ -52,9 +52,14 @@ def compare(reference, root=ROOT):
             target = baseline / ".cache/research-models/review.rds"
             target.parent.mkdir(parents=True)
             shutil.copy2(review, target)
+        # Recompute derived preparation/forecasts instead of reusing candidate results.
+        replay_inputs = baseline / ".cache/replay-inputs"
+        shutil.copytree(inputs, replay_inputs)
+        for name in ("research-prepared.rds", "research-forecasts.rds"):
+            (replay_inputs / name).unlink(missing_ok=True)
         env = {k: v for k, v in os.environ.items() if k != "FRED_API"}
         env["BOOK_AS_OF"] = receipt["as_of"]
-        subprocess.run(["python3", "-m", "scripts.notebooks.book", "build", "--replay", str(inputs)],
+        subprocess.run(["python3", "-m", "scripts.notebooks.book", "build", "--replay", str(replay_inputs)],
                        cwd=baseline, env=env, check=True)
         baseline_receipt = json.loads((baseline / ".cache/notebook-last-run.json").read_text())
         results = Path(baseline_receipt["directory"]) / "results"
