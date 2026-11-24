@@ -44,6 +44,9 @@ def validate(directory):
             plot = frames.nth(1).content_frame
             plot.locator(".js-plotly-plot .main-svg").first.wait_for()
             assert plot.locator(".js-plotly-plot").evaluate("el => el._fullLayout.xaxis.rangeslider.visible")
+            selector = plot.locator(".js-plotly-plot").evaluate("el => el._fullLayout.xaxis.rangeselector")
+            assert len(selector["buttons"]) == 1, "Date control was lost during theming"
+            assert selector["bgcolor"] == "#20314e" and selector["font"]["color"] == "#d9e2f1"
             before = plot.locator(".js-plotly-plot").evaluate("el => el._fullLayout.xaxis.range.slice()")
             plot.locator('[data-title="Zoom in"]').click()
             after = plot.locator(".js-plotly-plot").evaluate("el => el._fullLayout.xaxis.range.slice()")

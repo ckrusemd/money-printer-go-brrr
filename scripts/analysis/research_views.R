@@ -94,7 +94,7 @@ research_chart <- function(data,ids,title,transform=c("level","growth","index"),
     rows[[length(rows)+1L]]<-data.frame(date=x$date,value=value,label=research_plot_label(id,x$label[1]),
       unit=if(transform=="level")x$unit else if(transform=="growth")"percent" else "index, first observation=100")
   }
-  if(!length(rows))return(ggplot2::ggplot()+ggplot2::theme_void()+ggplot2::labs(title=title,subtitle="Source unavailable"))
+  if(!length(rows))return(ggplot2::ggplot()+theme_money_void()+ggplot2::labs(title=title,subtitle="Source unavailable"))
   d<-do.call(rbind,rows)
   p<-ggplot2::ggplot(d,ggplot2::aes(date,value,color=label))+ggplot2::geom_line(linewidth=.6,na.rm=TRUE)+
     theme_money_printer_go_brrr(11)+ggplot2::labs(title=title,x=NULL,y=NULL,color=NULL,

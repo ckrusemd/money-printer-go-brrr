@@ -235,7 +235,7 @@ draw_plots = function(data,lines=NA) {
   if (nrow(data) == 0 || !any(is.finite(data$index))) {
     return(
       ggplot() +
-        theme_void() +
+        theme_money_void() +
         labs(title = "Market data unavailable",
              subtitle = "No usable price history was returned for this ticker")
     )
@@ -313,7 +313,7 @@ safe_indicator <- function(minimum_observations, calculation) {
 
 if (sum(is.finite(indicator_index)) < 200) {
   p2b <- ggplot() +
-    theme_void() +
+    theme_money_void() +
     labs(subtitle = "Indicators unavailable: insufficient price history")
 } else {
   p2b <- indicator_data %>%
@@ -406,7 +406,7 @@ p6 = temp_df %>%
 
 if (!any(is.finite(temp_df$index[temp_df$series_id == "USDDKK=X"]))) {
   p6 <- ggplot() +
-    theme_void() +
+    theme_money_void() +
     annotate("text", x = 0, y = 0,
              label = "FX comparison data unavailable for this chart", size = 3.5) +
     labs(subtitle = "DKK")
@@ -510,7 +510,7 @@ draw_market_snapshot <- function(symbol_, currency_, label_) {
   if (nrow(prices) == 0) {
     return(
       ggplot() +
-        theme_void() +
+        theme_money_void() +
         labs(title = label_,
              subtitle = "Price data unavailable")
     )

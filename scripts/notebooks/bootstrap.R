@@ -18,6 +18,7 @@ suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(lubridate))
 suppressPackageStartupMessages(library(scales))
 source("money_theme.R")
+book_dark_geom_defaults()
 options(scipen = 999, repr.plot.width = 10, repr.plot.height = 7, repr.plot.res = 120)
 if (.book_runtime$mode != "replay") {
   key <- Sys.getenv("FRED_API")
@@ -30,7 +31,12 @@ repr_html.htmlwidget <- function(obj, ...) {
   # Theme presentation only: traces, observations and numerical captures stay intact.
   if (inherits(obj, "plotly")) {
     obj <- plotly::layout(obj, paper_bgcolor = "#121a2e", plot_bgcolor = "#17223a",
-                         font = list(color = "#d9e2f1"))
+                         font = list(color = "#d9e2f1"),
+                         hoverlabel = list(bgcolor = "#20314e", font = list(color = "#d9e2f1")),
+                         margin = list(t = 100),
+                         xaxis = list(rangeselector = list(bgcolor = "#20314e",
+                           activecolor = "#30405c", bordercolor = "#607594",
+                           font = list(color = "#d9e2f1"))))
     for (axis in unique(c("xaxis", "yaxis", grep("^[xy]axis", names(obj$x$layout), value = TRUE)))) {
       obj$x$layout[[axis]]$gridcolor <- "#30405c"
       obj$x$layout[[axis]]$zerolinecolor <- "#607594"
