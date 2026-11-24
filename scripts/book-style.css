@@ -195,3 +195,5 @@ table.dataTable tbody tr:hover { background-color: #20314e; }
 .hero-banner .btn-outline-light:hover, .hero-banner .btn-outline-light:focus-visible {
   color: #0b1020; background-color: #d9e2f1;
 }
+
+.hero-banner .btn-primary { color: #0b1020; background-color: #39d0b5; border-color: #39d0b5; }
