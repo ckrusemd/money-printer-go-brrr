@@ -151,7 +151,7 @@
 
 /* Shared by the book and self-contained widget frames. */
 :root { color-scheme: dark; }
-body { background-color: #0b1020; color: #d9e2f1; }
+body { background-color: #0b1020 !important; color: #d9e2f1; }
 a { color: #66e3ca; }
 :is(a, button, input, select, summary):focus-visible {
   outline: 3px solid #f4b860; outline-offset: 3px;
@@ -188,4 +188,4 @@ table.dataTable tbody tr:hover { background-color: #20314e; }
   background: #20314e !important; border: 1px solid #66e3ca !important; color: #f6f8fc !important;
 }
 .dataTables_wrapper .dataTables_paginate .paginate_button.disabled { color: #aab8cc !important; }
-.vis-network { background-color: #121a2e; }
+.vis-network { background-color: #121a2e !important; }
