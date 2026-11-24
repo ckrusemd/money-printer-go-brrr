@@ -10,28 +10,28 @@ theme_money_printer_go_brrr <- function(base_size) {
   return(
     theme(
       line =               element_line(
-        colour = "black", size = base_line_size,
+        colour = "#d9e2f1", size = base_line_size,
         linetype = 1, lineend = "butt"
       ),
       rect =               element_rect(
-        fill = "white", colour = "black",
+        fill = "#121a2e", colour = "#d9e2f1",
         size = base_rect_size, linetype = 1
       ),
       text =               element_text(
         family = base_family, face = "plain",
-        colour = "black", size = base_size,
+        colour = "#d9e2f1", size = base_size,
         lineheight = 0.9, hjust = 0.5, vjust = 0.5, angle = 0,
         margin = margin(), debug = FALSE
       ),
       axis.line =          element_blank(),
       axis.line.x =        NULL,
       axis.line.y =        NULL,
-      axis.text =          element_text(size = rel(0.8), colour = "grey30"),
+      axis.text =          element_text(size = rel(0.8), colour = "#aab8cc"),
       axis.text.x =        element_text(margin = margin(t = 0.8 * half_line / 2), vjust = 1, angle = 45, hjust=1),
       axis.text.x.top =    element_text(margin = margin(b = 0.8 * half_line / 2), vjust = 0, angle = 45, hjust=0),
       axis.text.y =        element_text(margin = margin(r = 0.8 * half_line / 2), hjust = 1),
       axis.text.y.right =  element_text(margin = margin(l = 0.8 * half_line / 2), hjust = 0),
-      axis.ticks =         element_line(colour = "grey20"),
+      axis.ticks =         element_line(colour = "#607594"),
       axis.ticks.length =  unit(half_line / 2, "pt"),
       axis.ticks.length.x = NULL,
       axis.ticks.length.x.top = NULL,
@@ -62,7 +62,7 @@ theme_money_printer_go_brrr <- function(base_size) {
       legend.spacing.x =    NULL,
       legend.spacing.y =    NULL,
       legend.margin =      margin(half_line, half_line, half_line, half_line),
-      legend.key       = element_rect(fill = "white", colour = NA),
+      legend.key       = element_rect(fill = "#121a2e", colour = NA),
       legend.key.size =    unit(1.2, "lines"),
       legend.key.height =  NULL,
       legend.key.width =   NULL,
@@ -77,17 +77,17 @@ theme_money_printer_go_brrr <- function(base_size) {
       legend.box.margin =  margin(0, 0, 0, 0, "cm"),
       legend.box.background = element_blank(),
       legend.box.spacing = unit(2 * half_line, "pt"),
-      panel.background = element_rect(fill = "white", colour = NA),
-      panel.border     = element_rect(fill = NA, colour = "grey20"),
-      panel.grid = element_line(colour = "grey92"),
+      panel.background = element_rect(fill = "#121a2e", colour = NA),
+      panel.border     = element_rect(fill = NA, colour = "#607594"),
+      panel.grid = element_line(colour = "#30405c"),
       panel.grid.minor = element_line(size = rel(0.5)),
       panel.spacing =      unit(half_line, "pt"),
       panel.spacing.x =    NULL,
       panel.spacing.y =    NULL,
       panel.ontop    =     FALSE,
-      strip.background = element_rect(fill = "grey85", colour = "grey20"),
+      strip.background = element_rect(fill = "#20314e", colour = "#607594"),
       strip.text =         element_text(
-        colour = "grey10",
+        colour = "#d9e2f1",
         size = rel(0.8),
         margin = margin(0.8 * half_line, 0.8 * half_line, 0.8 * half_line, 0.8 * half_line)
       ),
@@ -99,7 +99,7 @@ theme_money_printer_go_brrr <- function(base_size) {
       strip.placement.y =  NULL,
       strip.switch.pad.grid = unit(half_line / 2, "pt"),
       strip.switch.pad.wrap = unit(half_line / 2, "pt"),
-      plot.background =    element_rect(colour = "white"),
+      plot.background =    element_rect(fill = "#121a2e", colour = "#121a2e"),
       plot.title =         element_text( # font size "large"
         size = rel(1.2),
         hjust = 0, vjust = 1,

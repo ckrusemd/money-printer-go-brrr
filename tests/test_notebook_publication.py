@@ -250,7 +250,7 @@ class NotebookContractTests(unittest.TestCase):
         import shutil
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for name in ['_quarto.yml', 'renv.lock', 'scripts/book-style.css', 'book.bib', 'packages.bib', *book.chapters()]:
+            for name in ['_quarto.yml', 'renv.lock', 'scripts/book-style.css', 'scripts/book-theme.scss', 'book.bib', 'packages.bib', *book.chapters()]:
                 target = root/name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(book.ROOT/name, target)

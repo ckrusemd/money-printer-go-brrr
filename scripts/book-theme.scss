@@ -1,0 +1,12 @@
+/*-- scss:defaults --*/
+$body-bg: #0b1020;
+$body-color: #d9e2f1;
+$primary: #39d0b5;
+$link-color: #66e3ca;
+$headings-color: #f6f8fc;
+$font-family-sans-serif: "Inter", "Avenir Next", "Segoe UI", sans-serif;
+$font-family-monospace: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+/*-- scss:rules --*/
+.navbar, #quarto-sidebar { background-color: #0b1020; }
+.sidebar nav[role=doc-toc] ul > li > a.active { color: $link-color !important; }

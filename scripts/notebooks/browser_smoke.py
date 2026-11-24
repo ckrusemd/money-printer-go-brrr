@@ -50,6 +50,10 @@ def validate(directory):
             assert before != after, "Plotly zoom did not change the axis range"
             graph = frames.nth(2).content_frame
             graph.locator("canvas").wait_for()
+            # Frame documents must carry the theme themselves, including on Pages.
+            for frame in (table, plot, graph):
+                assert frame.locator("body").evaluate("el => getComputedStyle(el).backgroundColor") == "rgb(11, 16, 32)"
+            assert plot.locator(".js-plotly-plot").evaluate("el => el._fullLayout.paper_bgcolor") == "#121a2e"
             assert not errors, errors
             browser.close()
     finally:

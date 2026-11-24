@@ -1,7 +1,7 @@
 # Money Printer Go BRRR
 
 Macroeconomic research on interest rates, US/Danish housing, markets, and ETFs,
-published as an interactive [HTML book](https://ckrusemd.github.io/money-printer-go-brrr/).
+published as a dark interactive [HTML book](https://ckrusemd.github.io/money-printer-go-brrr/).
 
 ## Edit notebooks in VS Code
 
