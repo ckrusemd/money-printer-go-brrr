@@ -1,3 +1,5 @@
+if (!exists("book_fred", mode = "function")) source("scripts/book_runtime.R")
+
 theme_money_printer_go_brrr <- function(base_size) {
 
   base_family = ""
@@ -124,12 +126,10 @@ theme_money_printer_go_brrr <- function(base_size) {
   )
 }
 
-print_danish_time = function() {
-  time = lubridate::with_tz(Sys.time(), "CET")
-
-  paste0( strftime(time,tz="CET",format="%A %b")," ",scales::ordinal_format()(lubridate::day(time))," ",strftime(time,tz="CET",format="%Y %H:%M")," ",lubridate::tz(time))
+print_danish_time = function(time = Sys.time()) {
+  format(time, tz = "Europe/Copenhagen", format = "%A %b %d %Y %H:%M %Z")
 }
 
 timestamp_caption = function() {
-  return(paste0("Figure generated ",print_danish_time()," (github.com/ckrusemd/i-like-the-stock)"))
+  return(paste0("Figure generated ",print_danish_time()," (github.com/ckrusemd/money-printer-go-brrr)"))
 }

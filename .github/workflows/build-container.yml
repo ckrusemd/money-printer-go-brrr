@@ -2,16 +2,26 @@ name: Build R publication container
 
 on:
   workflow_dispatch:
+    inputs:
+      candidate:
+        description: "Manually publish and validate a branch image before promoting its digest"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
       - Dockerfile
       - .dockerignore
       - renv.lock
+      - renv/publication.lock
       - renv/settings.json
       - renv/activate.R
       - .Rprofile
       - .github/workflows/build-container.yml
+      - scripts/publication_image_key.py
+      - scripts/internal_packages.py
+      - "packages/dstcollect/**"
+      - scripts/notebooks/requirements.lock
 
 permissions:
   contents: read
@@ -25,34 +35,63 @@ env:
 
 jobs:
   publish:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || (github.event_name == 'workflow_dispatch' && inputs.candidate)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Fingerprint the publication Docker context
+        id: context
+        run: echo "digest=$(python3 scripts/publication_image_key.py)" >> "$GITHUB_OUTPUT"
       - name: Build and publish image
-        uses: docker/build-push-action@v7
+        id: image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: true
+          build-args: PUBLICATION_CONTEXT=${{ steps.context.outputs.digest }}
           tags: |
-            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'latest' || format('candidate-{0}', github.sha) }}
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:context-${{ steps.context.outputs.digest }}
           cache-from: type=gha,scope=money-printer-r
           cache-to: type=gha,mode=max,scope=money-printer-r
       - name: Smoke test published image
         run: >-
-          docker run --rm
-          ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          Rscript --vanilla -e 'stopifnot(requireNamespace("bookdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE))'
+          docker run --rm --network none --workdir /tmp
+          --entrypoint Rscript ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          --vanilla -e 'stopifnot(as.character(getRversion()) == "4.6.1", requireNamespace("bookdown", quietly = TRUE), requireNamespace("rmarkdown", quietly = TRUE), requireNamespace("fredr", quietly = TRUE), requireNamespace("dstcollect", quietly = TRUE), rmarkdown::pandoc_version() >= package_version("2.11"))'
+
+      - name: Smoke test R notebook execution and widget rendering
+        run: |
+          mkdir -p "$RUNNER_TEMP/notebook-smoke"
+          docker run --rm --network none --entrypoint python3 \
+            -v "$GITHUB_WORKSPACE:/project:ro" -v "$RUNNER_TEMP/notebook-smoke:/evidence" -w /project \
+            ${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }} -m scripts.notebooks.smoke --output /evidence
+      - name: Check widget interactions in Chromium
+        run: |
+          python3 -m venv "$RUNNER_TEMP/notebook-browser"
+          "$RUNNER_TEMP/notebook-browser/bin/pip" install playwright==1.64.1
+          "$RUNNER_TEMP/notebook-browser/bin/playwright" install --with-deps chromium
+          "$RUNNER_TEMP/notebook-browser/bin/python" -m scripts.notebooks.browser_smoke "$RUNNER_TEMP/notebook-smoke"
+      - name: Verify notebook execution as the VS Code user
+        run: |
+          docker run --rm --network none --read-only --tmpfs /tmp --user notebook \
+            --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
+            ${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }} -B -m scripts.notebooks.smoke
+      - name: Record immutable image for promotion
+        run: |
+          echo 'Validated image: ${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Pin this digest with python -m scripts.notebooks.image pin IMAGE@sha256:DIGEST, then commit the devcontainer configuration.' >> "$GITHUB_STEP_SUMMARY"

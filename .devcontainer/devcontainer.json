@@ -1,0 +1,33 @@
+{
+  "name": "Money Printer \u00b7 R notebooks",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/project,type=bind",
+  "workspaceFolder": "/project",
+  "overrideCommand": true,
+  "remoteUser": "notebook",
+  "updateRemoteUserUID": false,
+  "forwardPorts": [
+    8000
+  ],
+  "runArgs": [
+    "--env-file",
+    "${localWorkspaceFolder}/.env"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-toolsai.jupyter",
+        "ms-python.python",
+        "quarto.quarto"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/notebook-python/bin/python",
+        "jupyter.notebookFileRoot": "${workspaceFolder}",
+        "files.exclude": {
+          "**/.ipynb_checkpoints": true
+        }
+      }
+    }
+  },
+  "postStartCommand": "python -m scripts.notebooks.environment",
+  "image": "ghcr.io/ckrusemd/money-printer-go-brrr-r@sha256:73a723fe04021bb09a2f4f9d34436ce6abdfcbbdf730e222e466cc097cfca097"
+}
