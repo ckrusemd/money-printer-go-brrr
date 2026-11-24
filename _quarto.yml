@@ -49,7 +49,7 @@ execute:
   error: false
 format:
   html:
-    theme: cosmo
+    theme: [darkly, scripts/book-theme.scss]
     css: scripts/book-style.css
     toc: true
     number-sections: false

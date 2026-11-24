@@ -195,7 +195,7 @@ def build(root=ROOT, chapter=None, replay=None, preview=False):
     try:
         receipt["source_sha"] = source_commit(root)
         # Read-only source assets are copied; personal inputs and credentials never enter staging.
-        for name in ("scripts/book-style.css", "book.bib", "packages.bib"):
+        for name in ("scripts/book-style.css", "scripts/book-theme.scss", "book.bib", "packages.bib"):
             target = stage / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(root / name, target)

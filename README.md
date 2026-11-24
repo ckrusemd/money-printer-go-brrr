@@ -1,7 +1,7 @@
 # Money Printer Go BRRR
 
 Macroeconomic research on interest rates, US/Danish housing, markets, and ETFs,
-published as an interactive [HTML book](https://ckrusemd.github.io/money-printer-go-brrr/).
+published as a dark interactive [HTML book](https://ckrusemd.github.io/money-printer-go-brrr/).
 
 ## Edit notebooks in VS Code
 
@@ -185,7 +185,12 @@ review is substantially more expensive than a daily render. Provider snapshots,
 folds, scores and review results remain under Git-ignored `.cache/`.
 
 Manual `publish=false` runs retain the full candidate book and diagnostics without
-Pages deployment. Logs, executed notebooks, numeric captures, timing, and provider
+Pages deployment. Set `notebook_compare_ref` to a full baseline commit SHA to also
+rebuild that baseline from the candidate's recorded provider inputs without an API
+key. Both versions must use the same locked environment. The comparison recomputes
+baseline preparation and forecasts, checks every saved numerical capture at absolute
+tolerance `1e-8`, and retains its result under `book-render-evidence`. It never runs
+during production publication. Logs, executed notebooks, numeric captures, timing, and provider
 snapshots are retained as workflow artifacts. Existing `benchmark=true` controls
 are explicitly **legacy Rmd benchmark/recovery**, not evidence of notebook speed.
 

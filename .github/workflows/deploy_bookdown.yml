@@ -19,6 +19,10 @@ on:
         description: "Legacy Rmd benchmark recovery only; never deploy (not notebook performance)"
         type: boolean
         default: false
+      notebook_compare_ref:
+        description: "Optional full baseline SHA for numerical replay comparison; publish=false only"
+        type: string
+        default: ""
       publication_tag:
         description: "Tag in the fixed publication GHCR repository; validation/benchmark only"
         type: string
@@ -46,6 +50,8 @@ on:
       - "_quarto.yml"
       - ".devcontainer/devcontainer.json"
       - "scripts/notebooks/**"
+      - "scripts/book-style.css"
+      - "scripts/book-theme.scss"
       - "data/**"
       - "_bookdown.yml"
       - "book.bib"
@@ -233,6 +239,11 @@ jobs:
 
       - name: Check rendered book
         run: python3 -c 'from scripts.notebooks.validate import validate; validate("_book")'
+      - name: Compare notebook calculations with baseline on identical inputs
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish && inputs.notebook_compare_ref != ''
+        env:
+          NOTEBOOK_COMPARE_REF: ${{ inputs.notebook_compare_ref }}
+        run: python3 -m scripts.notebooks.compare "$NOTEBOOK_COMPARE_REF"
       - name: Save successful derived analysis cache
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -255,6 +266,7 @@ jobs:
             .cache/notebook-runs/*/book/*.ipynb
             .cache/notebook-runs/*/book/_quarto.yml
             .cache/notebook-last-run.json
+            .cache/notebook-comparison
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14

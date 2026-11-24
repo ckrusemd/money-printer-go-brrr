@@ -6,8 +6,8 @@
   margin: 22px 0 30px;
 }
 .research-card {
-  background: #f7fafc;
-  border: 1px solid #d6e1ea;
+  background: #121a2e;
+  border: 1px solid #30405c;
   border-radius: 8px;
   padding: 16px;
   font-variant-numeric: tabular-nums;
@@ -15,16 +15,16 @@
 #quarto-document-content .research-card h3 {
   margin: 0 0 10px;
   font-size: 0.95rem;
-  color: #324b62;
+  color: #d9e2f1;
 }
 .research-card p { margin: 6px 0; font-size: 0.85rem; }
 .research-card .research-card-value {
   font-size: 1.8rem;
   line-height: 1.2;
   font-weight: 650;
-  color: #183b56;
+  color: #66e3ca;
 }
-.research-card .research-card-date { color: #516374; font-size: 0.8rem; }
+.research-card .research-card-date { color: #aab8cc; font-size: 0.8rem; }
 @media (max-width: 460px) {
   .research-brief { grid-template-columns: 1fr; }
 }
@@ -57,7 +57,7 @@
 }
 
 #quarto-content :is(a, button, input, select, summary, table):focus-visible {
-  outline: 3px solid #005a9c;
+  outline: 3px solid #f4b860;
   outline-offset: 3px;
 }
 
@@ -107,7 +107,7 @@
 .book a:focus-visible,
 .book button:focus-visible,
 .book input:focus-visible {
-  outline: 3px solid #005a9c;
+  outline: 3px solid #f4b860;
   outline-offset: 3px;
 }
 
@@ -148,3 +148,52 @@
     line-height: 1.5;
   }
 }
+
+/* Shared by the book and self-contained widget frames. */
+:root { color-scheme: dark; }
+body { background-color: #0b1020 !important; color: #d9e2f1;
+  font-family: "Inter", "Avenir Next", "Segoe UI", sans-serif; }
+a { color: #66e3ca; }
+:is(a, button, input, select, summary):focus-visible {
+  outline: 3px solid #f4b860; outline-offset: 3px;
+}
+.hero-banner {
+  margin: 1.5rem 0 2.5rem; padding: clamp(1.5rem, 5vw, 4rem);
+  border: 1px solid #30405c; border-radius: 1rem;
+  background: linear-gradient(135deg, #17223a, #0e172a);
+}
+.hero-kicker { color: #f4b860; letter-spacing: .12em; font-size: .8rem; }
+.hero-banner h1 { color: #f6f8fc; font-size: clamp(2.3rem, 6vw, 4.8rem); line-height: 1.05; }
+.chapter-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem; margin: 1.5rem 0 2rem;
+}
+.chapter-card { padding: 1.25rem; border: 1px solid #30405c; border-radius: .75rem; background: #121a2e; }
+.chapter-card h3 { margin-top: 0; font-size: 1.1rem; }
+.chapter-card p { color: #aab8cc; }
+.chapter-card:focus-within, .chapter-card:hover { border-color: #66e3ca; }
+pre, div.sourceCode { background-color: #121a2e; color: #d9e2f1; }
+/* Widget documents do not inherit the parent page's CSS. */
+.dataTables_wrapper, .dataTables_wrapper :is(.dataTables_info, .dataTables_filter, .dataTables_length, .dataTables_paginate) {
+  color: #d9e2f1 !important;
+}
+table.dataTable, table.dataTable tbody tr { background-color: #121a2e; color: #d9e2f1; }
+table.dataTable :is(th, td) { border-color: #30405c !important; }
+table.dataTable tbody tr:nth-child(even) { background-color: #17223a; }
+table.dataTable tbody tr:hover { background-color: #20314e; }
+.dataTables_wrapper :is(input, select), .dt-button {
+  background: #17223a !important; color: #d9e2f1 !important; border: 1px solid #607594 !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button { color: #d9e2f1 !important; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: #20314e !important; border: 1px solid #66e3ca !important; color: #f6f8fc !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled { color: #aab8cc !important; }
+.vis-network { background-color: #121a2e !important; }
+
+.hero-banner .btn-outline-light { color: #d9e2f1; border-color: #aab8cc; }
+.hero-banner .btn-outline-light:hover, .hero-banner .btn-outline-light:focus-visible {
+  color: #0b1020; background-color: #d9e2f1;
+}
+
+.hero-banner .btn-primary { color: #0b1020; background-color: #39d0b5; border-color: #39d0b5; }
