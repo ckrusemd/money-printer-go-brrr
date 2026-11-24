@@ -1,5 +1,18 @@
 if (!exists("book_fred", mode = "function")) source("scripts/book_runtime.R")
 
+# Only unmapped defaults change; explicit and scale-mapped series colours remain intact.
+book_dark_geom_defaults <- function() {
+  for (geom in c("line", "path", "point", "segment", "hline", "vline", "abline", "text")) {
+    ggplot2::update_geom_defaults(geom, list(colour = "#d9e2f1"))
+  }
+}
+
+theme_money_void <- function() {
+  ggplot2::theme_void() + ggplot2::theme(
+    plot.background = ggplot2::element_rect(fill = "#121a2e", colour = NA),
+    text = ggplot2::element_text(colour = "#d9e2f1"))
+}
+
 theme_money_printer_go_brrr <- function(base_size) {
 
   base_family = ""

@@ -18,6 +18,7 @@ suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(lubridate))
 suppressPackageStartupMessages(library(scales))
 source("money_theme.R")
+book_dark_geom_defaults()
 options(scipen = 999, repr.plot.width = 10, repr.plot.height = 7, repr.plot.res = 120)
 if (.book_runtime$mode != "replay") {
   key <- Sys.getenv("FRED_API")
@@ -29,11 +30,23 @@ if (.book_runtime$mode != "replay") {
 repr_html.htmlwidget <- function(obj, ...) {
   # Theme presentation only: traces, observations and numerical captures stay intact.
   if (inherits(obj, "plotly")) {
-    obj <- plotly::layout(obj, paper_bgcolor = "#121a2e", plot_bgcolor = "#17223a",
-                         font = list(color = "#d9e2f1"))
+    # Resolve queued layout updates before styling; do not replace button lists.
+    obj <- plotly::plotly_build(obj)
+    obj$x$layout$paper_bgcolor <- "#121a2e"
+    obj$x$layout$plot_bgcolor <- "#17223a"
+    obj$x$layout$font$color <- "#d9e2f1"
+    obj$x$layout$hoverlabel$bgcolor <- "#20314e"
+    obj$x$layout$hoverlabel$font$color <- "#d9e2f1"
+    obj$x$layout$margin$t <- max(c(100, obj$x$layout$margin$t), na.rm = TRUE)
     for (axis in unique(c("xaxis", "yaxis", grep("^[xy]axis", names(obj$x$layout), value = TRUE)))) {
       obj$x$layout[[axis]]$gridcolor <- "#30405c"
       obj$x$layout[[axis]]$zerolinecolor <- "#607594"
+      if (!is.null(obj$x$layout[[axis]]$rangeselector)) {
+        obj$x$layout[[axis]]$rangeselector$bgcolor <- "#20314e"
+        obj$x$layout[[axis]]$rangeselector$activecolor <- "#30405c"
+        obj$x$layout[[axis]]$rangeselector$bordercolor <- "#607594"
+        obj$x$layout[[axis]]$rangeselector$font$color <- "#d9e2f1"
+      }
     }
   }
   if (inherits(obj, "visNetwork")) {
