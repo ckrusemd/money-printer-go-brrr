@@ -34,7 +34,12 @@ eval(snapshot[[1L]])
 df_tickers_yahoo <- data.frame(ticker = "FIXTURE",
   date = seq.Date(book_date() - 365, book_date(), length.out = 50), price = seq_len(50))
 stopifnot(inherits(draw_market_snapshot("MISSING", "USD", "Unavailable"), "ggplot"))
-plotly::layout(draw_market_snapshot("FIXTURE", "USD", "Offline market snapshot"),
+date_definitions <- parse("scripts/analysis/research_views.R")
+date_plot <- Filter(function(x) is.call(x) && identical(x[[1L]], as.name("<-")) &&
+                    identical(x[[2L]], as.name("research_date_plot")), date_definitions)
+stopifnot(length(date_plot) == 1L)
+eval(date_plot[[1L]])
+plotly::layout(research_date_plot(draw_market_snapshot("FIXTURE", "USD", "Offline market snapshot")),
   xaxis = list(rangeselector = list(buttons = list(list(step = "all", label = "All")))))'''),
                     nbformat.v4.new_code_cell('visNetwork::visNetwork(data.frame(id=1:2), data.frame(from=1, to=2))')]
         source = stage / "source.ipynb"
