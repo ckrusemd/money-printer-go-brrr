@@ -50,6 +50,8 @@ on:
       - "_quarto.yml"
       - ".devcontainer/devcontainer.json"
       - "scripts/notebooks/**"
+      - "scripts/book-style.css"
+      - "scripts/book-theme.scss"
       - "data/**"
       - "_bookdown.yml"
       - "book.bib"
