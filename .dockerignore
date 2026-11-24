@@ -1,12 +1,14 @@
-.git
-.github
-_book
-renv/library
-renv/staging
-*.ipynb
-*.html
-*.pdf
-*.png
-*.jpg
-*.jpeg
-*.log
+# Dependency image only: never copy notebooks, local inputs, or credentials.
+**
+!Dockerfile
+!renv.lock
+!renv/
+!renv/activate.R
+!renv/settings.json
+!scripts/
+!scripts/notebooks/
+!scripts/notebooks/requirements.lock
+!scripts/internal_packages.py
+!packages/
+!packages/dstcollect/
+!packages/dstcollect/**

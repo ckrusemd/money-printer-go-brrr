@@ -1,0 +1,166 @@
+name: Offline book and dashboard checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-book:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BOOK_CI_IMAGE: money-printer-book-ci
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Use Python 3.12 for notebook tooling
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install locked notebook tooling
+        run: python3 -m pip install --no-deps -r scripts/notebooks/requirements.lock
+      - name: Validate Python sources and all no-secret tests
+        run: |
+          python3 -m compileall -q scripts tests knowledgegraph/app
+          python3 -m scripts.notebooks.book check
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Check publication lock is an approved identical-record subset
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          def validate_publication_lock(root, publication):
+              # Canonical R environment: development and CI retain every record.
+              approved_omissions = set()
+              if publication["R"] != root["R"]:
+                  raise ValueError("Publication R metadata differs from root lock")
+              original = root["Packages"]
+              retained = publication["Packages"]
+              extra = set(retained) - set(original)
+              if extra:
+                  raise ValueError("Extra publication records: " + ", ".join(sorted(extra)))
+              omitted = set(original) - set(retained)
+              unapproved = omitted - approved_omissions
+              if unapproved:
+                  raise ValueError("Unapproved publication omissions: " + ", ".join(sorted(unapproved)))
+              changed = {name for name in retained if retained[name] != original[name]}
+              if changed:
+                  raise ValueError("Changed publication records: " + ", ".join(sorted(changed)))
+              return omitted
+
+          root = json.loads(Path("renv.lock").read_text())
+          publication = json.loads(Path("renv/publication.lock").read_text())
+          omitted = validate_publication_lock(root, publication)
+          print(f"Preserved {len(publication['Packages'])} identical root records; approved omissions: {', '.join(sorted(omitted))}")
+          PY
+      - name: Select or build an image matching the candidate lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository=ghcr.io/ckrusemd/money-printer-go-brrr-r
+          context_hash=$(python3 scripts/publication_image_key.py)
+          pinned_image=$(python3 -m scripts.notebooks.image resolve 2>/dev/null || true)
+          if test -n "$pinned_image" && docker pull "$pinned_image" &&
+              test "$(docker inspect --format '{{index .Config.Labels "org.money-printer.context"}}' "$pinned_image")" = "$context_hash"; then
+            # Ordinary notebook edits test the exact VS Code/publication digest.
+            docker tag "$pinned_image" "$BOOK_CI_IMAGE"
+          elif docker pull "$repository:context-$context_hash"; then
+            docker tag "$repository:context-$context_hash" "$BOOK_CI_IMAGE"
+          else
+            # Missing candidate context: build rather than silently testing a
+            # different Dockerfile/base image/system-library configuration.
+            docker build --build-arg PUBLICATION_CONTEXT="$context_hash" --tag "$BOOK_CI_IMAGE" .
+          fi
+          test "$(docker inspect --format '{{index .Config.Labels "org.money-printer.context"}}' "$BOOK_CI_IMAGE")" = "$context_hash"
+          docker run --rm --network none --read-only --tmpfs /tmp \
+              -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
+              --entrypoint Rscript "$BOOK_CI_IMAGE" --vanilla -e 'lock <- renv::lockfile_read("renv/publication.lock"); stopifnot(as.character(getRversion()) == lock$R$Version); for (p in names(lock$Packages)) stopifnot(utils::packageVersion(p) == package_version(lock$Packages[[p]]$Version))'
+      - name: Parse sources and discover every R fixture without network
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/notebook-smoke"
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --entrypoint /bin/bash -v "$GITHUB_WORKSPACE:/project:ro" \
+            -v "$RUNNER_TEMP/notebook-smoke:/evidence" -w /project \
+            "$BOOK_CI_IMAGE" -euo pipefail -c '
+              python3 scripts/internal_packages.py audit
+              Rscript --vanilla scripts/check_internal_packages.R
+              Rscript --vanilla scripts/check_sources.R
+              Rscript --vanilla scripts/check_publication_dependencies.R
+              Rscript --vanilla scripts/check_publication_closure.R
+              tests=(tests/test_*.R)
+              test -f "${tests[0]}"
+              for fixture in "${tests[@]}"; do
+                Rscript --vanilla "$fixture"
+              done
+              python3 -B -m unittest tests.test_research_paths
+              python3 -B -m scripts.notebooks.smoke --output /evidence
+            '
+          docker run --rm --network none --read-only --tmpfs /tmp --user notebook \
+            --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
+            "$BOOK_CI_IMAGE" -B -m scripts.notebooks.smoke
+
+      - name: Check book pipeline with a runner-owned checkout
+        run: |
+          mkdir -p "$RUNNER_TEMP/notebook-pipeline" "$GITHUB_WORKSPACE/.cache"
+          python3 -m scripts.notebooks.pipeline_fixture --output "$RUNNER_TEMP/notebook-pipeline/index.ipynb"
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" \
+            -v "$RUNNER_TEMP/notebook-pipeline/index.ipynb:/project/index.ipynb:ro" \
+            -v "$RUNNER_TEMP/notebook-pipeline:/project/.cache" -w /project \
+            "$BOOK_CI_IMAGE" -B -m scripts.notebooks.book build --chapter index.ipynb
+
+      - name: Check widget interactions without external browser requests
+        run: |
+          python3 -m venv "$RUNNER_TEMP/notebook-browser"
+          "$RUNNER_TEMP/notebook-browser/bin/pip" install playwright==1.64.1
+          "$RUNNER_TEMP/notebook-browser/bin/playwright" install --with-deps chromium
+          "$RUNNER_TEMP/notebook-browser/bin/python" -m scripts.notebooks.browser_smoke "$RUNNER_TEMP/notebook-smoke"
+
+      - name: Run market reader fixtures and reject skipped tests
+        shell: bash
+        run: |
+          docker run --rm -i --network none --read-only --tmpfs /tmp \
+            --entrypoint python3 -v "$GITHUB_WORKSPACE:/project:ro" -w /project \
+            "$BOOK_CI_IMAGE" -B - <<'PY'
+          import sys
+          import unittest
+          suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_reader_output.MarketReaderFixtures")
+          assert suite.countTestCases() > 0, "No market reader fixtures discovered"
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)
+          PY
+
+  dashboard-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Use Python 3.11 for the pinned dashboard wheels
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: knowledgegraph/app/requirements.txt
+      - name: Install existing dashboard requirements
+        run: python -m pip install -r knowledgegraph/app/requirements.txt
+      - name: Run dashboard fixtures and reject skipped tests
+        run: |
+          python - <<'PY'
+          import sys
+          import unittest
+          import dash, plotly, pandas, numpy, duckdb, networkx, scipy, sklearn
+          suite = unittest.defaultTestLoader.discover("tests", pattern="test_dashboard.py")
+          suite.addTests(unittest.defaultTestLoader.loadTestsFromName("tests.test_research_paths.GraphNotebookFixtureTests"))
+          assert suite.countTestCases() > 0, "No dashboard tests discovered"
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)
+          PY

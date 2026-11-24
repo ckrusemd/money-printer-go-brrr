@@ -21,6 +21,7 @@ vignettes/*.pdf
 # knitr / R Markdown cache & temp
 *_cache/
 /cache/
+/.cache/
 *.utf8.md
 *.knit.md
 
@@ -32,6 +33,18 @@ Renviron.site
 .env
 .env.*
 !.env.example
+
+# Credentials, certificates, and local configuration
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.crt
+*.cer
+credentials*.json
+service-account*.json
+config.local.*
 
 # Bookdown output
 _book/
@@ -74,6 +87,9 @@ knowledgegraph/2025_*/
 # Python
 __pycache__/
 *.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
 
 # Corporate / internal templates
 nn_template.pptx
@@ -96,3 +112,6 @@ renv/staging/
 renv/cellar/
 renv/sandbox/
 renv/python/
+
+# Notebook publication staging
+.quarto/

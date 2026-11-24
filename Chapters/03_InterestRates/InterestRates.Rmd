@@ -1,19 +1,12 @@
----
-title: "Interest Rates"
-author: "Christian Kruse"
-date: "`r Sys.Date()`"
-output: html_document
----
-
-```{r  include=FALSE}
+```{r  include=FALSE, fig.alt = "Market and macro data: chart of the series described in this section"}
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE)
 options(scipen=999)
 ```
 
-```{r}
+```{r, fig.alt = "Market and macro data: chart of the series described in this section"}
 
-if (!require(pacman)) { install.packages("pacman") }
-pacman::p_load(fredr,
+if (!exists("book_load_packages", mode = "function")) source("scripts/book_runtime.R")
+book_load_packages(fredr,
                dplyr,
                tidyr,
                lubridate,
@@ -21,14 +14,12 @@ pacman::p_load(fredr,
                partykit,
                ggplot2,
                pROC,
-               gganimate,
                devtools,
                httr,
                DT,
                ecb,
                httr,
                visNetwork,
-               dkstat,
                data.table,
                glue,
                openxlsx,
@@ -38,43 +29,40 @@ pacman::p_load(fredr,
                PlayerRatings,
                quantmod,
                rvest,
-               ggrepel,update = T)
+               ggrepel)
 source(file = "money_theme.R")
+if (!exists("yield_fit_rf", mode = "function")) {
+  source(file = "scripts/analysis/yield_models.R")
+}
 ```
 
-# Interest Rates
+# Interest Rates and Yield Curves
 
 
-```{r }
-readRenviron(path = "Renviron.site")
-fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
+```{r , fig.alt = "Interest Rates and Yield Curves: chart of the series described in this section"}
+if (file.exists("Renviron.site")) readRenviron(path = "Renviron.site")
+if (.book_runtime$mode != "replay") fredr::fredr_set_key(key = Sys.getenv("FRED_API"))
+
+get_ecb_data <- function(key, attempts = 4) {
+  book_ecb_data(key = key, attempts = attempts)
+}
 
 ```
 
 
-# test ECB
+## ECB data availability {#test-ecb}
 
-```{r ecb1}
-ecb::get_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))
+```{r ecb1, fig.alt = "ECB data availability: chart of the series described in this section"}
+get_ecb_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))
 ```
 
 
-# normal
-```{r }
-df_yieldcurve = 
-  fredr(series_id = "DGS1") %>% 
-  bind_rows(fredr(series_id = "DGS2")) %>% 
-  bind_rows(fredr(series_id = "DGS3")) %>% 
-  bind_rows(fredr(series_id = "DGS5")) %>% 
-  bind_rows(fredr(series_id = "DGS7")) %>% 
-  bind_rows(fredr(series_id = "DGS10")) %>% 
-  bind_rows(fredr(series_id = "DGS20")) %>% 
-  bind_rows(fredr(series_id = "DGS30")) %>% 
-  bind_rows(fredr(series_id = "DGS1MO")) %>% 
-  bind_rows(fredr(series_id = "DGS3MO")) %>% 
-  bind_rows(fredr(series_id = "DGS6MO")) %>% 
-  bind_rows(fredr(series_id = "DFF")) %>% 
-  bind_rows(fredr(series_id = "MORTGAGE30US"))
+## Treasury yield data {#normal}
+```{r , fig.alt = "Treasury yield data: chart of the series described in this section"}
+df_yieldcurve = fredr_cached_many(c(
+  "DGS1", "DGS2", "DGS3", "DGS5", "DGS7", "DGS10", "DGS20",
+  "DGS30", "DGS1MO", "DGS3MO", "DGS6MO", "DFF", "MORTGAGE30US"
+))
 
 order_ = c("DFF",
            "DGS1MO",
@@ -90,36 +78,36 @@ order_ = c("DFF",
            "DGS30",
            "MORTGAGE30US")
 
-df_yieldcurve = 
-  df_yieldcurve %>% 
-  dplyr::select(date,series_id,value) %>% 
-  dplyr::mutate(series_id=factor(series_id,levels=order_)) %>% 
-  spread(series_id,value) %>% 
-  arrange(desc(date)) %>% 
-  tidyr::fill(c(2:ncol(.)),.direction="up") %>% 
-  # na.omit() %>% 
-  # top_n(n=1,wt=date) %>% 
-  gather(series_id,value,c(2:ncol(.))) %>% 
-  ungroup() %>% 
-  dplyr::mutate(series_id=factor(series_id,levels=order_)) %>% 
+df_yieldcurve =
+  df_yieldcurve %>%
+  dplyr::select(date,series_id,value) %>%
+  dplyr::mutate(series_id=factor(series_id,levels=order_)) %>%
+  spread(series_id,value) %>%
+  arrange(desc(date)) %>%
+  tidyr::fill(c(2:ncol(.)),.direction="up") %>%
+  # na.omit() %>%
+  # top_n(n=1,wt=date) %>%
+  gather(series_id,value,c(2:ncol(.))) %>%
+  ungroup() %>%
+  dplyr::mutate(series_id=factor(series_id,levels=order_)) %>%
   dplyr::mutate(time=ifelse(series_id=="DFF",0,
                             ifelse(substr(series_id,1,8)=="MORTGAGE",
                                    365*30,
                                    ifelse(substr(series_id,5,6)=="MO",
                                           30*as.integer(substr(series_id,4,4)),
-                                          365*as.integer(substr(series_id,4,5)))))) 
+                                          365*as.integer(substr(series_id,4,5))))))
 ```
 
 ## Treasury Bonds
 
-```{r unloadrf}
+```{r unloadrf, fig.alt = "Treasury Bonds: chart of the series described in this section"}
 unloadNamespace("randomForest")
-df_yieldcurve %>% 
-  dplyr::mutate(value=value/100) %>% 
+df_yieldcurve %>%
+  dplyr::mutate(value=value/100) %>%
   ggplot(.,aes(x=date,y=value)) +
   geom_line(aes(group=series_id,color=series_id)) +
   scale_x_date(date_breaks = "5 year",date_labels = "%Y") +
-  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.025)) + 
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.025)) +
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="All Yields",
        x="Date",
@@ -130,15 +118,15 @@ df_yieldcurve %>%
 
 ## Since 2001
 
-```{r }
+```{r , fig.alt = "Since 2001: chart of the series described in this section"}
 
-df_yieldcurve %>% 
-  filter(date>ymd("2001-01-01")) %>% 
-  dplyr::mutate(value=value/100) %>% 
+df_yieldcurve %>%
+  filter(date>ymd("2001-01-01")) %>%
+  dplyr::mutate(value=value/100) %>%
   ggplot(.,aes(x=date,y=value)) +
   geom_line(aes(group=series_id,color=series_id)) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
-  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.005)) + 
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.005)) +
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="All Yields",
        x="Date",
@@ -146,18 +134,18 @@ df_yieldcurve %>%
        caption = timestamp_caption())
 ```
 
-### Previous 12 Months
+## Previous 12 Months
 
-```{r }
+```{r , fig.alt = "Previous 12 Months: chart of the series described in this section"}
 
-df_yieldcurve %>% 
-  filter(date>=Sys.Date()-years(1)) %>% 
-  dplyr::mutate(value=value/100) %>% 
+df_yieldcurve %>%
+  filter(date>=book_date()-years(1)) %>%
+  dplyr::mutate(value=value/100) %>%
   ggplot(.,aes(x=date,y=value)) +
   geom_line(aes(group=series_id,color=series_id)) +
   theme(legend.position="bottom") +
   scale_x_date(date_breaks = "1 months",date_labels = "%Y %b") +
-  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.005)) + 
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.005)) +
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="All Yields (Last Year)",
        x="Date",
@@ -169,9 +157,9 @@ df_yieldcurve %>%
 
 ## Yield Curve
 
-```{r }
+```{r , fig.alt = "Yield Curve: chart of the series described in this section"}
 
-df_yieldcurve %>% 
+df_yieldcurve %>%
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,
                                'FEDFUNDS'='0',
                                'DGS1MO'='1',
@@ -184,13 +172,13 @@ df_yieldcurve %>%
                                'DGS7'='84',
                                'DGS10'='120',
                                'DGS20'='240',
-                               'DGS30'='360')))) %>% 
-  filter(date == max(date)) %>% 
+                               'DGS30'='360')))) %>%
+  filter(date == max(date)) %>%
   ggplot(.,aes(x=series_id,y=value)) +
   geom_point() +
   geom_line() +
   scale_x_continuous(labels = c('FEDFUNDS','DGS1MO','DGS3MO','DGS6MO','DGS1','DGS2','DGS3','DGS5','DGS7','DGS10','DGS20','DGS30'),breaks = c(0,1,3,6,12,24,36,60,84,120,240,360)) +
-  scale_y_continuous(limits=c(0,NA),expand=c(0,0),breaks = seq(0,10,by=0.25))  + 
+  scale_y_continuous(limits=c(0,NA),expand=c(0,0),breaks = seq(0,10,by=0.25))  +
   # geom_text(aes(label=paste0(value,"%")),vjust=-1,size=3) +
   geom_text_repel(aes(label=paste0(value,"%")),size=3) +
   theme_money_printer_go_brrr(base_size=12) +
@@ -203,22 +191,22 @@ df_yieldcurve %>%
 
 ## Treasury Bonds Spreads
 
-### DFF to All
+## DFF to All
 
-```{r }
+```{r , fig.alt = "DFF to All: chart of the series described in this section"}
 
-df_yieldcurve %>% 
-  filter(date>ymd("1975-01-01")) %>% 
-  dplyr::select(-time) %>% 
-  # filter(series_id %in% c("DGS10","DGS2")) %>% 
-  spread(series_id,value) %>% 
-  gather(series_id,value,DGS1MO:MORTGAGE30US) %>% 
-  dplyr::mutate(spread=(value-DFF)/100) %>% 
+df_yieldcurve %>%
+  filter(date>ymd("1975-01-01")) %>%
+  dplyr::select(-time) %>%
+  # filter(series_id %in% c("DGS10","DGS2")) %>%
+  spread(series_id,value) %>%
+  gather(series_id,value,DGS1MO:MORTGAGE30US) %>%
+  dplyr::mutate(spread=(value-DFF)/100) %>%
   ggplot(.,aes(x=date,y=spread,color=series_id)) +
   geom_line() +
-  geom_hline(yintercept = 0) + 
+  geom_hline(yintercept = 0) +
   scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
-  scale_y_continuous(labels = scales::percent) + 
+  scale_y_continuous(labels = scales::percent) +
   theme_money_printer_go_brrr(base_size=12) +
   geom_hline(yintercept = c(-0.0025,-0.005,-0.0075,-0.01),linetype=2,color="gray60") +
   labs(title="Spread: DFF to ALL",
@@ -228,20 +216,20 @@ df_yieldcurve %>%
 
 ```
 
-```{r }
+```{r , fig.alt = "DFF to All: chart of the series described in this section"}
 
-df_yieldcurve %>% 
-  filter(date>Sys.Date()-years(1)) %>% 
-  dplyr::select(-time) %>% 
-  # filter(series_id %in% c("DGS10","DGS2")) %>% 
-  spread(series_id,value) %>% 
-  gather(series_id,value,DGS1MO:MORTGAGE30US) %>% 
-  dplyr::mutate(spread=(value-DFF)/100) %>% 
+df_yieldcurve %>%
+  filter(date>book_date()-years(1)) %>%
+  dplyr::select(-time) %>%
+  # filter(series_id %in% c("DGS10","DGS2")) %>%
+  spread(series_id,value) %>%
+  gather(series_id,value,DGS1MO:MORTGAGE30US) %>%
+  dplyr::mutate(spread=(value-DFF)/100) %>%
   ggplot(.,aes(x=date,y=spread,color=series_id)) +
   geom_line() +
-  geom_hline(yintercept = 0) + 
+  geom_hline(yintercept = 0) +
   scale_x_date(date_breaks = "2 months",date_labels = "%Y-%b") +
-  scale_y_continuous(labels = scales::percent) + 
+  scale_y_continuous(labels = scales::percent) +
   theme_money_printer_go_brrr(base_size=12) +
   geom_hline(yintercept = c(-0.0025,-0.005,-0.0075,-0.01),linetype=2,color="gray60") +
   labs(title="Spread: DFF to ALL",
@@ -251,58 +239,58 @@ df_yieldcurve %>%
 
 ```
 
-### 2-Year to 10-Year T-Bond
+## 2-Year to 10-Year T-Bond
 
-```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') , fig.alt = "2-Year to 10-Year T-Bond: chart of the series described in this section"}
 
-df_yieldcurve %>% 
-  filter(date>ymd("1975-01-01")) %>% 
-  dplyr::select(-time) %>% 
-  filter(series_id %in% c("DGS10","DGS2")) %>% 
-  spread(series_id,value) %>% 
-  dplyr::mutate(spread=(DGS10-DGS2)/100) %>% 
+df_yieldcurve %>%
+  filter(date>ymd("1975-01-01")) %>%
+  dplyr::select(-time) %>%
+  filter(series_id %in% c("DGS10","DGS2")) %>%
+  spread(series_id,value) %>%
+  dplyr::mutate(spread=(DGS10-DGS2)/100) %>%
   ggplot(.,aes(x=date,y=spread)) +
   geom_line() +
-  geom_hline(yintercept = 0) + 
+  geom_hline(yintercept = 0) +
   scale_x_date(date_breaks = "2 year",date_labels = "%Y") +
-  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) + 
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) +
   theme_money_printer_go_brrr(base_size=12) +
   geom_hline(yintercept = c(-0.0025,-0.005,-0.0075,-0.01),linetype=2,color="gray60") +
-  labs(title="Spread: DGS2 - DGS10",
+  labs(title="Spread: DGS10 - DGS2",
        x="Date",
        y="Spread (%)",
        caption = timestamp_caption())
 ```
 
-```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') , fig.alt = "2-Year to 10-Year T-Bond: chart of the series described in this section"}
 
-df_yieldcurve %>% 
-  filter(date>Sys.Date()-years(1)) %>% 
-  dplyr::select(-time) %>% 
-  filter(series_id %in% c("DGS10","DGS2")) %>% 
-  spread(series_id,value) %>% 
-  dplyr::mutate(spread=(DGS10-DGS2)/100) %>% 
+df_yieldcurve %>%
+  filter(date>book_date()-years(1)) %>%
+  dplyr::select(-time) %>%
+  filter(series_id %in% c("DGS10","DGS2")) %>%
+  spread(series_id,value) %>%
+  dplyr::mutate(spread=(DGS10-DGS2)/100) %>%
   ggplot(.,aes(x=date,y=spread)) +
   geom_line() +
-  geom_hline(yintercept = 0,linetype=2) + 
+  geom_hline(yintercept = 0,linetype=2) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
-  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) + 
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Spread: DGS2 - DGS10",
+  labs(title="Spread: DGS10 - DGS2",
        x="Date",
        y="Spread (%)",
        caption = timestamp_caption())
 ```
 
-### 30-Year Mortgage to 30-Year T-Bond
+## 30-Year Mortgage to 30-Year T-Bond
 
-```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') , fig.alt = "30-Year Mortgage to 30-Year T-Bond: chart of the series described in this section"}
 
-df_yieldcurve %>% 
-  filter(date>ymd("1975-01-01")) %>% 
-  filter(series_id %in% c("MORTGAGE30US","DGS30")) %>% 
-  spread(series_id,value) %>% 
-  dplyr::mutate(spread=(MORTGAGE30US-DGS30)/100) %>% 
+df_yieldcurve %>%
+  filter(date>ymd("1975-01-01")) %>%
+  filter(series_id %in% c("MORTGAGE30US","DGS30")) %>%
+  spread(series_id,value) %>%
+  dplyr::mutate(spread=(MORTGAGE30US-DGS30)/100) %>%
   ggplot(.,aes(x=date,y=spread)) +
   geom_line() +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
@@ -317,16 +305,16 @@ df_yieldcurve %>%
        caption = timestamp_caption())
 ```
 
-### 30-Year Mortgage to 10-Year T-Bond
+## 30-Year Mortgage to 10-Year T-Bond
 
-```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') }
+```{r fig.width = 1024/72, fig.width = 1024/72, dpi=72, fig.retina=1, dev.args = list(type = 'cairo-png') , fig.alt = "30-Year Mortgage to 10-Year T-Bond: chart of the series described in this section"}
 
-df_yieldcurve %>% 
-  dplyr::select(-time) %>% 
-  filter(date>ymd("1975-01-01")) %>% 
-  filter(series_id %in% c("MORTGAGE30US","DGS10")) %>% 
-  spread(series_id,value) %>% 
-  dplyr::mutate(spread=(MORTGAGE30US-DGS10)/100) %>% 
+df_yieldcurve %>%
+  dplyr::select(-time) %>%
+  filter(date>ymd("1975-01-01")) %>%
+  filter(series_id %in% c("MORTGAGE30US","DGS10")) %>%
+  spread(series_id,value) %>%
+  dplyr::mutate(spread=(MORTGAGE30US-DGS10)/100) %>%
   ggplot(.,aes(x=date,y=spread)) +
   geom_line() +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
@@ -343,32 +331,32 @@ df_yieldcurve %>%
 
 ## Yield Checkboard
 
-```{r }
+```{r , fig.alt = "Yield Checkboard: chart of the series described in this section"}
 df_checkboard = expand.grid(series_id=unique(df_yieldcurve$series_id),
                             joined_series=unique(df_yieldcurve$series_id))
 
-df_yield_checkboard = 
-  df_checkboard %>% 
-  inner_join(df_yieldcurve) %>% 
-  inner_join(df_yieldcurve,by=c("joined_series"="series_id","date"="date")) %>% 
-  dplyr::mutate(spread=value.x-value.y) %>% 
-  dplyr::mutate(label=ifelse(spread<0,spread,NA)) %>% 
-  dplyr::select(series_id,joined_series,date,spread,label) %>% 
+df_yield_checkboard =
+  df_checkboard %>%
+  inner_join(df_yieldcurve) %>%
+  inner_join(df_yieldcurve,by=c("joined_series"="series_id","date"="date")) %>%
+  dplyr::mutate(spread=value.x-value.y) %>%
+  dplyr::mutate(label=ifelse(spread<0,spread,NA)) %>%
+  dplyr::select(series_id,joined_series,date,spread,label) %>%
   dplyr::mutate(series_id=factor(series_id,levels=order_),
                 joined_series=factor(joined_series,levels=order_))
 ```
 
 
-```{r }
-df_yield_checkboard %>% 
-  group_by(series_id,joined_series) %>% 
-  filter(date==max(date)) %>% 
-  ungroup() %>% 
-  dplyr::mutate(spread=ifelse(series_id==joined_series,NA,spread)) %>% 
+```{r , fig.alt = "Yield Checkboard: chart of the series described in this section"}
+df_yield_checkboard %>%
+  group_by(series_id,joined_series) %>%
+  filter(date==max(date)) %>%
+  ungroup() %>%
+  dplyr::mutate(spread=ifelse(series_id==joined_series,NA,spread)) %>%
   ggplot(.,aes(x=series_id,y=joined_series)) +
   geom_tile(aes(fill=spread)) +
   scale_fill_gradient2(low="green",high="red",midpoint=0,na.value = "gray70") +
-  geom_text(aes(label=scales::number(label,accuracy = 0.01,prefix = NULL)),size=3.5)+ 
+  geom_text(aes(label=scales::number(label,accuracy = 0.01,prefix = NULL)),size=3.5)+
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="US T-Bond Spreads Checkboard",
        x=NULL,
@@ -377,24 +365,24 @@ df_yield_checkboard %>%
 ```
 
 
-```{r eval=F }
-df_yield_checkboard %>% 
-  filter(date>ymd("20-01-01")) %>% 
+```{r eval=F , fig.alt = "Yield Checkboard: chart of the series described in this section"}
+df_yield_checkboard %>%
+  filter(date>ymd("20-01-01")) %>%
   ggplot(.,aes(x=series_id,y=joined_series)) +
   geom_tile(aes(fill=spread)) +
   scale_fill_gradient2(low="green",high="red",midpoint=0) +
   theme(axis.text.x=element_text(angle=45,hjust=1),
         legend.position="bottom")+
-  geom_text(aes(label=scales::number(label,accuracy = 0.01,prefix = NULL)),size=3.5)  + 
+  geom_text(aes(label=scales::number(label,accuracy = 0.01,prefix = NULL)),size=3.5)  +
   transition_time(date) +
   labs(title = "Date: {frame_time}")
 
 ```
 
 
-```{r }
+```{r , fig.alt = "Yield Checkboard: chart of the series described in this section"}
 
-df_yield_checkboard %>% 
+df_yield_checkboard %>%
   dplyr::mutate(series_id=as.integer(paste0(recode(series_id,
                                  'DFF'='0',
                                  'DGS1MO'='1',
@@ -407,7 +395,7 @@ df_yield_checkboard %>%
                                  'DGS7'='84',
                                  'DGS10'='120',
                                  'DGS20'='240',
-                                 'DGS30'='360')))) %>% 
+                                 'DGS30'='360')))) %>%
   dplyr::mutate(joined_series=as.integer(paste0(recode(joined_series,
                                  'DFF'='0',
                                  'DGS1MO'='1',
@@ -420,11 +408,11 @@ df_yield_checkboard %>%
                                  'DGS7'='84',
                                  'DGS10'='120',
                                  'DGS20'='240',
-                                 'DGS30'='360')))) %>% 
-  dplyr::mutate(diff=series_id-joined_series) %>% 
-  filter(series_id!=joined_series) %>% 
-  filter(series_id > joined_series) %>% 
-  filter(date>ymd("2022-01-01")) %>% 
+                                 'DGS30'='360')))) %>%
+  dplyr::mutate(diff=series_id-joined_series) %>%
+  filter(series_id!=joined_series) %>%
+  filter(series_id > joined_series) %>%
+  filter(date>ymd("2022-01-01")) %>%
   dplyr::mutate(series_id=recode(series_id,
                                  '0'='DFF',
                                  '1'='DGS1MO',
@@ -437,7 +425,7 @@ df_yield_checkboard %>%
                                  '84'='DGS7',
                                  '120'='DGS10',
                                  '240'='DGS20',
-                                 '360'='DGS30')) %>% 
+                                 '360'='DGS30')) %>%
   dplyr::mutate(joined_series=recode(joined_series,
                                  '0'='DFF',
                                  '1'='DGS1MO',
@@ -450,10 +438,10 @@ df_yield_checkboard %>%
                                  '84'='DGS7',
                                  '120'='DGS10',
                                  '240'='DGS20',
-                                 '360'='DGS30')) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  group_by(series_id) %>% 
-  dplyr::mutate(label=ifelse(date==max(date),paste0(series_id),"")) %>% 
+                                 '360'='DGS30')) %>%
+  unite(series_id,series_id,joined_series) %>%
+  group_by(series_id) %>%
+  dplyr::mutate(label=ifelse(date==max(date),paste0(series_id),"")) %>%
   ggplot(.,aes(x=date,y=spread,color=series_id)) +
   geom_line()+
   theme_bw() +
@@ -462,50 +450,47 @@ df_yield_checkboard %>%
   scale_x_date(expand=c(0.4,0)) +
   geom_text(aes(label=label),hjust=-0.1,size=3) +
   geom_hline(yintercept = 0,linetype=2) +
-  geom_vline(xintercept = Sys.Date())+ 
+  geom_vline(xintercept = book_date())+
   theme_money_printer_go_brrr(base_size=12) +
   theme(legend.position="null") +
   labs(title="US T-Bond Spread Over Time",
        x="Date",
        y="Spread (%)",
        caption = timestamp_caption())
-  
+
 ```
 
 
-# Denmark Mortgage Bonds
+## Denmark Mortgage Bonds
 
-```{r}
+```{r, fig.alt = "Denmark Mortgage Bonds: chart of the series described in this section"}
 fit_draw_abline = function(date1,date2,value1,value2) {
-  
+
   data.frame(Date=c(date1,date2),
-             val=c(value1,value2)) %>% 
-    lm(data = .,formula = val~Date) %>% 
-    coef(.) %>% 
-    as.numeric(.) %>% 
+             val=c(value1,value2)) %>%
+    lm(data = .,formula = val~Date) %>%
+    coef(.) %>%
+    as.numeric(.) %>%
     geom_abline(intercept = .[1],slope = .[2])
-  
+
 }
 ```
 
-```{r}
+```{r, fig.alt = "Denmark Mortgage Bonds: chart of the series described in this section"}
 
 source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
-current_url = xml2::read_html(source_url) %>%
-  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(9) > strong > span > a") %>% 
-  rvest::html_attr("href")
-xlsx_url = paste0("https://finansdanmark.dk/",current_url)
+xlsx_url = finansdanmark_xlsx_url(source_url)
 
 ```
 
-```{r}
+```{r, fig.alt = "Denmark Mortgage Bonds: chart of the series described in this section"}
 
-df_interest = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
+df_interest = book_workbook(url = xlsx_url,startRow = 1)
 df_interest$År[1] = 1997
 df_interest = df_interest %>% fill(År,.direction = "down")
-df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
-df_interest = df_interest %>% 
-  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
+df_interest$Date = book_iso_week_monday(df_interest$År, df_interest$Uge)
+df_interest = df_interest %>%
+  dplyr::select(Date,Kort.rente,Lang.rente) %>%
   dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente )
 
 max_date = max(df_interest$Date,na.rm = T)
@@ -513,17 +498,17 @@ max_date = max(df_interest$Date,na.rm = T)
 
 ## Short, Long + Spread
 
-```{r}
+```{r, fig.alt = "Short, Long + Spread: chart of the series described in this section"}
 
-df_interest %>% 
-  gather(stat,val,Kort.rente:Lang.rente) %>% 
-  dplyr::mutate(stat=recode(stat,"Kort.rente"="Short","Lang.rente"="30yr","CurveLongShort"="Spread")) %>% 
-  dplyr::mutate(val=val/100) %>% 
+df_interest %>%
+  gather(stat,val,Kort.rente:Lang.rente) %>%
+  dplyr::mutate(stat=recode(stat,"Kort.rente"="Short","Lang.rente"="30yr","CurveLongShort"="Spread")) %>%
+  dplyr::mutate(val=val/100) %>%
   ggplot(.,aes(x=Date,y=val,color=stat)) +
   geom_line() +
   scale_x_date(date_breaks = "2 years",date_labels = "%Y") +
   scale_y_continuous(labels = scales::percent,breaks = seq(-0.03,0.1,by=0.005)) +
-  # geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) + 
+  # geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) +
   geom_hline(yintercept = 0,linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="Danish Long and Short Interest Rate",
@@ -536,15 +521,15 @@ df_interest %>%
 ```
 
 
-### Previous 12 Months
+## Previous 12 Months
 
-```{r}
+```{r, fig.alt = "Previous 12 Months: chart of the series described in this section"}
 
-df_interest %>% 
-  filter(Date>=Sys.Date()-years(1)) %>%  
-  gather(stat,val,Kort.rente:CurveLongShort) %>% 
-  dplyr::mutate(stat=recode(stat,"Kort.rente"="Short","Lang.rente"="30yr","CurveLongShort"="Spread")) %>% 
-  dplyr::mutate(val=val/100) %>% 
+df_interest %>%
+  filter(Date>=book_date()-years(1)) %>%
+  gather(stat,val,Kort.rente:CurveLongShort) %>%
+  dplyr::mutate(stat=recode(stat,"Kort.rente"="Short","Lang.rente"="30yr","CurveLongShort"="Spread")) %>%
+  dplyr::mutate(val=val/100) %>%
   ggplot(.,aes(x=Date,y=val,color=stat)) +
   geom_line() +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
@@ -559,19 +544,19 @@ df_interest %>%
   geom_vline(xintercept = max_date)
 ```
 
-### Spread
+## Spread
 
-```{r}
+```{r, fig.alt = "Spread: chart of the series described in this section"}
 
-df_interest %>% 
-  gather(stat,val,CurveLongShort) %>% 
-  dplyr::mutate(stat=recode(stat,"Kort.rente"="Short","Lang.rente"="30yr","CurveLongShort"="Spread")) %>% 
-  dplyr::mutate(val=val/100) %>% 
+df_interest %>%
+  gather(stat,val,CurveLongShort) %>%
+  dplyr::mutate(stat=recode(stat,"Kort.rente"="Short","Lang.rente"="30yr","CurveLongShort"="Spread")) %>%
+  dplyr::mutate(val=val/100) %>%
   ggplot(.,aes(x=Date,y=val,color=stat)) +
   geom_line() +
   scale_x_date(date_breaks = "1 years",date_labels = "%Y") +
   scale_y_continuous(labels = scales::percent,breaks = seq(-0.03,0.1,by=0.005)) +
-  # geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) + 
+  # geom_vline(data=data.frame(Date=c(ymd("2005-08-05"),ymd("2005-09-15"),ymd("2021-04-05"),ymd("2021-06-14"))),aes(xintercept=Date)) +
   # geom_hline(yintercept = 0,linetype=2) +
   geom_hline(yintercept = 0.035,color="red") +
   # fit_draw_abline(date1 = ymd("2021-01-01"),date2 = ymd("2022-09-01"),value1 = 0.015,value2 = 0.035) +
@@ -584,28 +569,55 @@ df_interest %>%
 
 ```
 
-### Short w/ ECB Rate Changes
+## Short w/ ECB Rate Changes
 
-```{r}
+```{r, fig.alt = "Short w/ ECB Rate Changes: chart of the series described in this section"}
 
-df_interest %>% 
-  dplyr::mutate(Kort.rente=Kort.rente/100) %>% 
+# Effective dates and deposit-facility rates from the ECB's official history:
+# https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html
+ecb_rate_changes = tibble::tribble(
+  ~effective_date, ~deposit_rate, ~change_bps,
+  "2011-04-13",  0.50,   25,
+  "2011-07-13",  0.75,   25,
+  "2011-11-09",  0.50,  -25,
+  "2011-12-14",  0.25,  -25,
+  "2012-07-11",  0.00,  -25,
+  "2014-06-11", -0.10,  -10,
+  "2014-09-10", -0.20,  -10,
+  "2015-12-09", -0.30,  -10,
+  "2016-03-16", -0.40,  -10,
+  "2019-09-18", -0.50,  -10,
+  "2022-07-27",  0.00,   50,
+  "2022-09-14",  0.75,   75,
+  "2022-11-02",  1.50,   75,
+  "2022-12-21",  2.00,   50,
+  "2023-02-08",  2.50,   50,
+  "2023-03-22",  3.00,   50,
+  "2023-05-10",  3.25,   25,
+  "2023-06-21",  3.50,   25,
+  "2023-08-02",  3.75,   25,
+  "2023-09-20",  4.00,   25,
+  "2024-06-12",  3.75,  -25,
+  "2024-09-18",  3.50,  -25,
+  "2024-10-23",  3.25,  -25,
+  "2024-12-18",  3.00,  -25,
+  "2025-02-05",  2.75,  -25,
+  "2025-03-12",  2.50,  -25,
+  "2025-04-23",  2.25,  -25,
+  "2025-06-11",  2.00,  -25,
+  "2026-06-17",  2.25,   25
+) %>%
+  dplyr::mutate(effective_date = ymd(effective_date))
+
+df_interest %>%
+  dplyr::mutate(Kort.rente=Kort.rente/100) %>%
   ggplot(.,aes(x=Date,y=Kort.rente)) +
   geom_line() +
   scale_y_continuous(limits=c(-0.01,NA),breaks = seq(-0.01,0.07,by=0.005),labels = scales::percent) +
-  geom_vline(xintercept = dmy("01-12-2018")) +
-  geom_vline(xintercept = c(dmy("09-11-2011"),
-                            dmy("14-12-2011"),
-                            dmy("11-07-2012"),
-                            dmy("13-11-2013"),
-                            dmy("08-05-2013"),
-                            dmy("11-06-2014"),
-                            dmy("10-09-2014"),
-                            dmy("09-12-2015"),
-                            dmy("16-03-2016"),
-                            dmy("18-09-2019")),color="blue",linetype=2) +
-  geom_vline(xintercept = c(dmy("13-04-2011"),
-                            dmy("13-07-2011")),color="red",linetype=2) + 
+  geom_vline(data = ecb_rate_changes,
+             aes(xintercept = effective_date, color = change_bps > 0),
+             linetype = 2, show.legend = FALSE) +
+  scale_color_manual(values = c(`FALSE` = "blue", `TRUE` = "red")) +
   geom_hline(yintercept = 0,linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="Short Yield",
@@ -617,34 +629,34 @@ df_interest %>%
 
 ## Parabolic Support and Resistance
 
-```{r }
+```{r , fig.alt = "Parabolic Support and Resistance: chart of the series described in this section"}
 
 # Decline
 lm_low = data.frame(Date=c(ymd("2010-08-30","2019-09-09")),
-           Lang.Rente=c(4.12000,0.68330)) %>% 
+           Lang.Rente=c(4.12000,0.68330)) %>%
   lm(log(Lang.Rente)~Date,data=.)
 
 lm_high = data.frame(Date=c(ymd("2011-04-01","2015-07-01")),
-           Lang.Rente=c(5.3,3.4)) %>% 
+           Lang.Rente=c(5.3,3.4)) %>%
   lm(log(Lang.Rente)~Date,data=.)
 
 # Surge
 lm_low_2 = data.frame(Date=c(ymd("2022-07-30","2022-11-09")),
-           Lang.Rente=c(3.3,4.6)) %>% 
+           Lang.Rente=c(3.3,4.6)) %>%
   lm(log(Lang.Rente)~Date,data=.)
 
 lm_high_2 = data.frame(Date=c(ymd("2022-06-01","2021-07-01")),
-           Lang.Rente=c(4.2,1.8)) %>% 
+           Lang.Rente=c(4.2,1.8)) %>%
   lm(log(Lang.Rente)~Date,data=.)
 
 # Graph
-df_interest %>% 
-  filter(Date>=ymd("2010-01-01")) %>%  
-  dplyr::mutate(Lang.rente=Lang.rente/100) %>% 
+df_interest %>%
+  filter(Date>=ymd("2010-01-01")) %>%
+  dplyr::mutate(Lang.rente=Lang.rente/100) %>%
   dplyr::mutate(Pred_High=exp(predict(lm_high,.))/100,
-                Pred_Low=exp(predict(lm_low,.))/100) %>% 
+                Pred_Low=exp(predict(lm_low,.))/100) %>%
   dplyr::mutate(Pred_High_2=exp(predict(lm_high_2,.))/100,
-                Pred_Low_2=exp(predict(lm_low_2,.))/100) %>% 
+                Pred_Low_2=exp(predict(lm_low_2,.))/100) %>%
   ggplot(.,aes(x=Date,y=Lang.rente)) +
   geom_line() +
   geom_line(aes(y=Pred_High),linetype=2) +
@@ -669,7 +681,7 @@ df_interest %>%
                             dmy("13-07-2011")),color="red",linetype=2) +
   geom_vline(xintercept = c(dmy("01-02-2017"),
                             dmy("01-10-2017"),
-                            dmy("01-12-2018")),color="green",linetype=2) + 
+                            dmy("01-12-2018")),color="green",linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="All Yields (Last Year)",
        x="Date",
@@ -687,15 +699,15 @@ df_interest %>%
 
 ## Historic 5-Year Forward Rate Increases
 
-```{r}
+```{r, fig.alt = "Historic 5-Year Forward Rate Increases: chart of the series described in this section"}
 
-df_interest %>% 
-  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
-  gather(stat,val,Kort.rente:Lang.rente) %>% 
-  group_by(stat) %>% 
-  # arrange(stat,desc(Date)) %>% 
-  arrange(stat,Date) %>% 
-  dplyr::mutate(FutureMax=rollmax(val,k = 5*52,fill = NA,align = "left")-val) %>% 
+df_interest %>%
+  dplyr::select(Date,Kort.rente,Lang.rente) %>%
+  gather(stat,val,Kort.rente:Lang.rente) %>%
+  group_by(stat) %>%
+  # arrange(stat,desc(Date)) %>%
+  arrange(stat,Date) %>%
+  dplyr::mutate(FutureMax=rollmax(val,k = 5*52,fill = NA,align = "left")-val) %>%
   ggplot(.,aes(x=Date,y=FutureMax,color=stat)) +
   geom_line() +
   scale_x_date(date_breaks = "1 years",date_labels = "%Y") +
@@ -703,19 +715,19 @@ df_interest %>%
   labs(title="Future Rate Increases within 5 yrs",
        x="Date",
        y="Spread (%)",
-       caption = timestamp_caption()) 
+       caption = timestamp_caption())
 
 ```
 
-```{r}
+```{r, fig.alt = "Historic 5-Year Forward Rate Increases: chart of the series described in this section"}
 
-df_interest %>% 
-  dplyr::select(Date,Kort.rente,Lang.rente) %>% 
-  gather(stat,val,Kort.rente:Lang.rente) %>% 
-  group_by(stat) %>% 
-  # arrange(stat,desc(Date)) %>% 
-  arrange(stat,Date) %>% 
-  dplyr::mutate(FutureMax=rollmax(val,k = 5*52,fill = NA,align = "left")-val) %>% 
+df_interest %>%
+  dplyr::select(Date,Kort.rente,Lang.rente) %>%
+  gather(stat,val,Kort.rente:Lang.rente) %>%
+  group_by(stat) %>%
+  # arrange(stat,desc(Date)) %>%
+  arrange(stat,Date) %>%
+  dplyr::mutate(FutureMax=rollmax(val,k = 5*52,fill = NA,align = "left")-val) %>%
   ggplot(.,aes(x=Date,y=FutureMax,color=stat)) +
   geom_line() +
   scale_x_date(date_breaks = "1 years",date_labels = "%Y") +
@@ -731,23 +743,23 @@ df_interest %>%
 
 ## Lowest Long Yield and Smallest Spread
 
-```{r}
+```{r, fig.alt = "Lowest Long Yield and Smallest Spread: chart of the series described in this section"}
 
-df_latest = df_interest %>% 
+df_latest = df_interest %>%
   dplyr::mutate(Lang.rente=Lang.rente/100,
-                CurveLongShort=CurveLongShort/100) %>% 
-  filter(Date==max(Date,na.rm=T)) %>% 
-  dplyr::mutate(Time_Ago=as.numeric(Sys.Date()-Date)) 
+                CurveLongShort=CurveLongShort/100) %>%
+  filter(Date==max(Date,na.rm=T)) %>%
+  dplyr::mutate(Time_Ago=as.numeric(book_date()-Date))
 
 
-df_interest %>% 
+df_interest %>%
   dplyr::mutate(Lang.rente=Lang.rente/100,
-                CurveLongShort=CurveLongShort/100) %>% 
-  dplyr::mutate(Time_Ago=as.numeric(Sys.Date()-Date)) %>% 
+                CurveLongShort=CurveLongShort/100) %>%
+  dplyr::mutate(Time_Ago=as.numeric(book_date()-Date)) %>%
   ggplot(.,aes(y=Lang.rente,x=CurveLongShort,color=Time_Ago)) +
   geom_point() +
   scale_y_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) +
-  scale_x_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) + 
+  scale_x_continuous(limits=c(0,NA),breaks = seq(0,0.1,by=0.005),labels = scales::percent) +
   geom_text_repel(data=df_latest,aes(label=scales::percent(Lang.rente,accuracy = 0.1)),nudge_x = -0.01,nudge_y=-0.01) +
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="Lowest Long Yield to Lowest Short-Long Spread",
@@ -759,36 +771,36 @@ df_interest %>%
 
 ## Best Time to Go Fixed
 
-```{r}
+```{r, fig.alt = "Best Time to Go Fixed: chart of the series described in this section"}
 df_glicko = data.frame(t(combn(df_interest %>% filter(Date>ymd("2001-01-01")) %>% pull(Date),2)))
 df_glicko$X1 = as.Date(df_glicko$X1,origin="1970-01-01")
 df_glicko$X2 = as.Date(df_glicko$X2,origin="1970-01-01")
 
-df_glicko_ratings = 
-  df_glicko %>% 
-  inner_join(df_interest,by=c("X1"="Date")) %>% 
-  inner_join(df_interest,by=c("X2"="Date")) %>% 
-  dplyr::mutate(Score1=ifelse(Lang.rente.x<Lang.rente.y,1,ifelse(Lang.rente.x>Lang.rente.y,-1,0))) %>% 
-  dplyr::mutate(Score2=ifelse(CurveLongShort.x<CurveLongShort.y,1,ifelse(CurveLongShort.x>CurveLongShort.y,-1,0))) %>% 
-  dplyr::mutate(Score=Score1+Score2) %>% 
-  dplyr::select(X1,X2,Score) %>% 
+df_glicko_ratings =
+  df_glicko %>%
+  inner_join(df_interest,by=c("X1"="Date")) %>%
+  inner_join(df_interest,by=c("X2"="Date")) %>%
+  dplyr::mutate(Score1=ifelse(Lang.rente.x<Lang.rente.y,1,ifelse(Lang.rente.x>Lang.rente.y,-1,0))) %>%
+  dplyr::mutate(Score2=ifelse(CurveLongShort.x<CurveLongShort.y,1,ifelse(CurveLongShort.x>CurveLongShort.y,-1,0))) %>%
+  dplyr::mutate(Score=Score1+Score2) %>%
+  dplyr::select(X1,X2,Score) %>%
   dplyr::mutate(result=ifelse(Score>0,1,
-                              ifelse(Score<0,0,0.5))) %>% 
-  na.omit() %>% 
+                              ifelse(Score<0,0,0.5))) %>%
+  na.omit() %>%
   dplyr::mutate(Time=1,
                 X1=paste0(X1),
-                X2=paste0(X2)) %>% 
-  dplyr::select(Time,X1,X2,result) %>% 
-  PlayerRatings::glicko(.)  %>% 
-  .[["ratings"]] %>% 
+                X2=paste0(X2)) %>%
+  dplyr::select(Time,X1,X2,result) %>%
+  PlayerRatings::glicko(.)  %>%
+  .[["ratings"]] %>%
   dplyr::mutate(Rating=scales::rescale(Rating,to=c(0,100)))
 ```
 
 
 
-```{r}
-df_glicko_ratings %>% 
-  dplyr::mutate(Player=ymd(Player)) %>% 
+```{r, fig.alt = "Best Time to Go Fixed: chart of the series described in this section"}
+df_glicko_ratings %>%
+  dplyr::mutate(Player=ymd(Player)) %>%
   ggplot(.,aes(x=Player,y=Rating)) +
   geom_line() +
   scale_y_continuous(limits=c(0,100),breaks = seq(0,100,by=10)) +
@@ -801,10 +813,10 @@ df_glicko_ratings %>%
 
 ```
 
-```{r}
-df_glicko_ratings %>% 
-  filter(Player>=Sys.Date()-years(2)) %>% 
-  dplyr::mutate(Player=ymd(Player)) %>% 
+```{r, fig.alt = "Best Time to Go Fixed: chart of the series described in this section"}
+df_glicko_ratings %>%
+  filter(Player>=book_date()-years(2)) %>%
+  dplyr::mutate(Player=ymd(Player)) %>%
   ggplot(.,aes(x=Player,y=Rating)) +
   geom_line() +
   scale_y_continuous(limits=c(0,100),breaks = seq(0,100,by=10)) +
@@ -817,9 +829,13 @@ df_glicko_ratings %>%
 
 ```
 
-# Predict US Interest Rates
+## Predict US Interest Rates
 
-```{r}
+The model inputs combine yield spreads with absolute yield levels. All series
+retain the same one-year target dates; the full-sample fits support exploratory
+charts, while the chronological backtest below measures forecast performance.
+
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
 
 fomc_dates = data.frame(date_fomc=c(ymd("2022-06-15"),
                             ymd("2022-07-27"),
@@ -842,731 +858,638 @@ fomc_dates = data.frame(date_fomc=c(ymd("2022-06-15"),
                             ymd("2024-09-25"),
                             ymd("2024-11-06"),
                             ymd("2024-12-18"),
-                            Sys.Date())) %>% 
-  filter(date_fomc>=Sys.Date())
+                            book_date())) %>%
+  filter(date_fomc>=book_date())
 
 add_fomc_meeting_dates = function() {
   geom_vline(xintercept = fomc_dates$date_fomc,linetype=2,color="#eb493a")
 }
 ```
 
-```{r}
-num_trees=100
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
+set.seed(1971)
+num_trees=300
 tune_grid=data.frame(mtry=c(3))
 ```
 
-```{r}
-df_yieldcurve = 
-  fredr(series_id = "DGS1") %>% 
-  bind_rows(fredr(series_id = "DGS2")) %>% 
-  bind_rows(fredr(series_id = "DGS3")) %>% 
-  bind_rows(fredr(series_id = "DGS5")) %>% 
-  bind_rows(fredr(series_id = "DGS7")) %>% 
-  bind_rows(fredr(series_id = "DGS10")) %>% 
-  bind_rows(fredr(series_id = "DGS20")) %>% 
-  bind_rows(fredr(series_id = "DGS30")) %>% 
-  bind_rows(fredr(series_id = "DGS1MO")) %>% 
-  bind_rows(fredr(series_id = "DGS3MO")) %>% 
-  bind_rows(fredr(series_id = "DGS6MO")) %>% 
-  bind_rows(fredr(series_id = "DFF")) %>% 
-  bind_rows(fredr(series_id = "MORTGAGE30US"))
-
-order_ = c("DFF",
-                                                    "DGS1MO",
-                                                    "DGS3MO",
-                                                    "DGS6MO",
-                                                    "DGS1",
-                                                    "DGS2",
-                                                    "DGS3",
-                                                    "DGS5",
-                                                    "DGS7",
-                                                    "DGS10",
-                                                    "DGS20",
-                                                    "DGS30",
-                                                    "MORTGAGE30US")
-df_yieldcurve = 
-  df_yieldcurve %>% 
-  dplyr::select(date,series_id,value) %>% 
-  dplyr::mutate(series_id=factor(series_id,levels=order_)) %>% 
-  spread(series_id,value) %>% 
-  arrange(desc(date)) %>% 
-  tidyr::fill(c(2:ncol(.)),.direction="up") %>% 
-  na.omit() %>% 
-  # top_n(n=1,wt=date) %>% 
-  gather(series_id,value,c(2:ncol(.))) %>% 
-  ungroup() %>% 
-  dplyr::mutate(series_id=factor(series_id,levels=order_)) %>% 
-  dplyr::mutate(time=ifelse(series_id=="DFF",0,
-                            ifelse(substr(series_id,1,8)=="MORTGAGE",
-                                   365*30,
-                                   ifelse(substr(series_id,5,6)=="MO",
-                                          30*as.integer(substr(series_id,4,4)),
-                                          365*as.integer(substr(series_id,4,5)))))) 
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
+# Reuse the filled curve acquired for the charts, retaining complete dates.
+df_yieldcurve = yield_complete_curve(df_yieldcurve)
 ```
 
-```{r}
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
 
-source_url = "https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/"
-current_url = xml2::read_html(source_url) %>%
-  html_node("body > main > div > div.page-header > div.page-header__content > div > div.row > div.col-12.col-md-8 > div > p:nth-child(9) > strong > span > a") %>% 
-  rvest::html_attr("href")
-xlsx_url = paste0("https://finansdanmark.dk/",current_url)
-
-df_DK = openxlsx::read.xlsx(xlsxFile = xlsx_url,startRow = 1)
-
-
-df_DK$År[1] = 1997
-df_DK = df_DK %>% fill(År,.direction = "down")
-
-df_DK$date = as.Date(paste(df_DK$År, df_DK$Uge, 1, sep="-"), "%Y-%U-%u")
-df_DK = df_DK %>% 
-  dplyr::select(date,Kort.rente,Lang.rente) %>% 
-  rename(DK_Short=Kort.rente,
-         DK_Long=Lang.rente) %>% 
-  dplyr::mutate( DK_Spread = DK_Short - DK_Long ) %>% 
+# Reuse the workbook already acquired and transformed for the Danish charts.
+df_DK = df_interest %>%
+  dplyr::transmute(date=Date, DK_Short=Kort.rente, DK_Long=Lang.rente,
+                   DK_Spread=Kort.rente-Lang.rente) %>%
   gather(series_id,value,DK_Short:DK_Spread)
 
-# df_interest$Date = as.Date(paste(df_interest$År, df_interest$Uge, 1, sep="-"), "%Y-%U-%u")
-# df_interest = df_interest %>% 
-#   dplyr::select(Date,Kort.rente,Lang.rente) %>% 
-#   dplyr::mutate( CurveLongShort = Lang.rente - Kort.rente )
-
-# max_date = max(df_interest$Date,na.rm = T)
 ```
 
-```{r}
-df_INFLATION = 
-  fredr(series_id = "CPIAUCSL") %>% 
-  arrange(date) %>% 
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
+df_INFLATION =
+  fredr_cached(series_id = "CPIAUCSL") %>%
+  arrange(date) %>%
   dplyr::mutate(value=100*((value/lag(x = value,n = 12))-1))
-df_CSUSHPINSA = 
-  fredr(series_id = "CSUSHPINSA") %>% 
+df_CSUSHPINSA =
+  fredr_cached(series_id = "CSUSHPINSA") %>%
   arrange(date)
-df_M2SL = 
-  fredr(series_id = "M2SL") %>% 
+df_M2SL =
+  fredr_cached(series_id = "M2SL") %>%
   arrange(date)
-df_UMCSENT = 
-  fredr(series_id = "UMCSENT") %>% 
+df_UMCSENT =
+  fredr_cached(series_id = "UMCSENT") %>%
   arrange(date)
-df_USREC = 
-  fredr(series_id = "USREC") %>% 
+df_USREC =
+  fredr_cached(series_id = "USREC") %>%
   arrange(date)
 
 ```
 
 
-```{r}
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
 
 # df_checkboard = expand.grid(series_id=unique(df_yieldcurve$series_id),
 #                             joined_series=unique(df_yieldcurve$series_id))
 df_checkboard = data.frame(t(data.frame(combn(unique(df_yieldcurve$series_id), 2, simplify = FALSE))),row.names = NULL)
 colnames(df_checkboard) = c("series_id","joined_series")
 
-df_yield_checkboard = 
-  df_checkboard %>% 
-  inner_join(df_yieldcurve) %>% 
-  inner_join(df_yieldcurve,by=c("joined_series"="series_id","date"="date")) %>% 
-  dplyr::mutate(spread=value.x-value.y) %>% 
-  dplyr::mutate(label=ifelse(spread<0,spread,NA)) %>% 
-  dplyr::select(series_id,joined_series,date,spread,label) %>% 
+df_yield_checkboard =
+  df_checkboard %>%
+  inner_join(df_yieldcurve) %>%
+  inner_join(df_yieldcurve,by=c("joined_series"="series_id","date"="date")) %>%
+  dplyr::mutate(spread=value.x-value.y) %>%
+  dplyr::mutate(label=ifelse(spread<0,spread,NA)) %>%
+  dplyr::select(series_id,joined_series,date,spread,label) %>%
   dplyr::mutate(series_id=factor(series_id,levels=order_),
                 joined_series=factor(joined_series,levels=order_))
 
 ```
 
 
-```{r}
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
 
-train_control = caret::trainControl(method = "repeatedcv",number = 5,repeats = 5)
+# Hyperparameters are fixed here. Model quality is assessed below with a
+# chronological expanding-window backtest, not random cross-validation.
+train_control = caret::trainControl(method = "none")
 
 ```
 
-```{r}
-df_DFF = 
-  df_yieldcurve %>% 
-  filter(series_id=="DFF") %>% 
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
+df_DFF =
+  df_yieldcurve %>%
+  filter(series_id=="DFF") %>%
   dplyr::select(date,value)
 
-df_DGS2 = 
-  df_yieldcurve %>% 
-  filter(series_id=="DGS2") %>% 
+df_DGS2 =
+  df_yieldcurve %>%
+  filter(series_id=="DGS2") %>%
   dplyr::select(date,value)
 
-df_DGS10 = 
-  df_yieldcurve %>% 
-  filter(series_id=="DGS10") %>% 
+df_DGS10 =
+  df_yieldcurve %>%
+  filter(series_id=="DGS10") %>%
   dplyr::select(date,value)
 
-df_MORTGAGE30US = 
-  df_yieldcurve %>% 
-  filter(series_id=="MORTGAGE30US") %>% 
+df_MORTGAGE30US =
+  df_yieldcurve %>%
+  filter(series_id=="MORTGAGE30US") %>%
   dplyr::select(date,value)
 
 df_DK_Short =
-  df_DK %>% 
-  filter(series_id=="DK_Short") %>% 
-  dplyr::select(date,value) %>% 
-  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+  df_DK %>%
+  filter(series_id=="DK_Short") %>%
+  dplyr::select(date,value) %>%
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>%
   tidyr::fill(value,.direction = "down")
 
-df_DK_Long = 
-  df_DK %>% 
-  filter(series_id=="DK_Long") %>% 
-  dplyr::select(date,value) %>% 
-  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+df_DK_Long =
+  df_DK %>%
+  filter(series_id=="DK_Long") %>%
+  dplyr::select(date,value) %>%
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>%
   tidyr::fill(value,.direction = "down")
 
-df_CPIAUCSL = 
-  df_INFLATION %>% 
-  filter(series_id=="CPIAUCSL") %>% 
-  dplyr::select(date,value) %>% 
-  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+df_CPIAUCSL =
+  df_INFLATION %>%
+  filter(series_id=="CPIAUCSL") %>%
+  dplyr::select(date,value) %>%
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>%
   tidyr::fill(value,.direction = "down")
 
-df_CSUSHPINSA = 
-  df_CSUSHPINSA %>% 
-  filter(series_id=="CSUSHPINSA") %>% 
-  dplyr::select(date,value) %>% 
-  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+df_CSUSHPINSA =
+  df_CSUSHPINSA %>%
+  filter(series_id=="CSUSHPINSA") %>%
+  dplyr::select(date,value) %>%
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>%
   tidyr::fill(value,.direction = "down")
 
-df_M2SL = 
-  df_M2SL %>% 
-  filter(series_id=="M2SL") %>% 
-  dplyr::select(date,value) %>% 
-  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+df_M2SL =
+  df_M2SL %>%
+  filter(series_id=="M2SL") %>%
+  dplyr::select(date,value) %>%
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>%
   tidyr::fill(value,.direction = "down")
 
-df_UMCSENT = 
-  df_UMCSENT %>% 
-  filter(series_id=="UMCSENT") %>% 
-  dplyr::select(date,value) %>% 
-  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+df_UMCSENT =
+  df_UMCSENT %>%
+  filter(series_id=="UMCSENT") %>%
+  dplyr::select(date,value) %>%
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>%
   tidyr::fill(value,.direction = "down")
 
-df_USREC = 
-  df_USREC %>% 
-  filter(series_id=="USREC") %>% 
-  dplyr::select(date,value) %>% 
-  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>% 
+df_USREC =
+  df_USREC %>%
+  filter(series_id=="USREC") %>%
+  dplyr::select(date,value) %>%
+  tidyr::complete(date=seq.Date(from=min(date,na.rm=T),to=max(date,na.rm=T),by="1 day")) %>%
   tidyr::fill(value,.direction = "down")
 
 ```
 
 
-```{r}
+```{r, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
 
-df_predict_DFF = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_DFF,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread)
+# Spread and absolute-level predictors are shared by every outcome series.
+df_spread_features = yield_spread_features(df_yield_checkboard)
+df_level_features = df_yieldcurve %>%
+  dplyr::select(date,series_id,value) %>%
+  dplyr::mutate(series_id=paste0("level_",series_id)) %>%
+  tidyr::spread(series_id,value)
 
-df_predict_DGS2 = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_DGS2,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread)
-
-df_predict_DGS10 = df_yield_checkboard %>%
-  filter(series_id!=joined_series) %>%
-  dplyr::mutate(one_year_ahead=date+years(1)) %>%
-  left_join(df_DGS10,by=c("one_year_ahead"="date")) %>%
-  unite(series_id,series_id,joined_series) %>%
-  dplyr::select(date,series_id,spread,value) %>%
-  spread(series_id,spread)
-
-df_predict_MORTGAGE30US = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_MORTGAGE30US,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread)
-
-df_predict_DK_Short = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_DK_Short,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) 
-
-df_predict_DK_Long = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_DK_Long,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) %>% 
-  arrange(desc(date))
-
-df_predict_DK_Long = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_DK_Long,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) %>% 
-  arrange(desc(date))
-
-df_predict_CPIAUCSL = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_CPIAUCSL,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) %>% 
-  arrange(desc(date))
-
-
-df_predict_CSUSHPINSA = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_CSUSHPINSA,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) %>% 
-  arrange(desc(date))
-df_predict_M2SL = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_M2SL,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) %>% 
-  arrange(desc(date))
-
-
-df_predict_UMCSENT = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_UMCSENT,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) %>% 
-  arrange(desc(date))
-df_predict_USREC = df_yield_checkboard %>% 
-  filter(series_id!=joined_series) %>% 
-  dplyr::mutate(one_year_ahead=date+years(1)) %>% 
-  left_join(df_USREC,by=c("one_year_ahead"="date")) %>% 
-  unite(series_id,series_id,joined_series) %>% 
-  dplyr::select(date,series_id,spread,value) %>% 
-  spread(series_id,spread) %>% 
-  arrange(desc(date))
-
+df_predict_DFF = yield_target_features(
+  df_spread_features, df_DFF, df_level_features
+)
+df_predict_DGS2 = yield_target_features(
+  df_spread_features, df_DGS2, df_level_features
+)
+df_predict_DGS10 = yield_target_features(
+  df_spread_features, df_DGS10, df_level_features
+)
+df_predict_MORTGAGE30US = yield_target_features(
+  df_spread_features, df_MORTGAGE30US, df_level_features
+)
+df_predict_DK_Short = yield_target_features(
+  df_spread_features, df_DK_Short, df_level_features
+)
+df_predict_DK_Long = yield_target_features(
+  df_spread_features, df_DK_Long, df_level_features, descending=TRUE
+)
+df_predict_CPIAUCSL = yield_target_features(
+  df_spread_features, df_CPIAUCSL, df_level_features, descending=TRUE
+)
+df_predict_CSUSHPINSA = yield_target_features(
+  df_spread_features, df_CSUSHPINSA, df_level_features, descending=TRUE
+)
+df_predict_M2SL = yield_target_features(
+  df_spread_features, df_M2SL, df_level_features, descending=TRUE
+)
+df_predict_UMCSENT = yield_target_features(
+  df_spread_features, df_UMCSENT, df_level_features, descending=TRUE
+)
+df_predict_USREC = yield_target_features(
+  df_spread_features, df_USREC, df_level_features, descending=TRUE
+)
 
 ```
 
-```{r eval=F}
+```{r eval=F, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
 
 df_combinations_split = split(expand.grid(mtry=seq(15),num_trees=c(10,100,1000)),
                               seq(nrow(expand.grid(mtry=seq(15),
-            num_trees=c(10,100,1000))))) 
+            num_trees=c(10,100,1000)))))
 
 df_results = do.call("rbind",lapply(df_combinations_split,function(row_) {
-  caret::train(x = df_predict_DFF %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
+  caret::train(x = df_predict_DFF %>%
+                              na.omit %>%
+                              dplyr::select(-date,-value) %>%
                               data.frame(),
-                         y = df_predict_DFF %>% 
-                           na.omit %>% 
+                         y = df_predict_DFF %>%
+                           na.omit %>%
                            .[["value"]],
-                         method = "rf",libraryrf
+                         method = "rf",
                          tuneGrid=data.frame(mtry=row_$mtry),
                          ntree=row_$num_trees,
                          metric = "RMSE",
                          trControl=train_control)$results
   }))
-}
 ```
 
 
-```{r libraryrf}
-pacman::p_load(randomForest)
+```{r libraryrf, fig.alt = "Predict US Interest Rates: chart of the series described in this section"}
+book_load_packages(randomForest)
 # library(randomForest)
-fit_DFF = caret::train(x = df_predict_DFF %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_DFF %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_DGS2 = caret::train(x = df_predict_DGS2 %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_DGS2 %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_DGS10= caret::train(x = df_predict_DGS10 %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_DGS10 %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_MORTGAGE30US = caret::train(x = df_predict_MORTGAGE30US %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_MORTGAGE30US %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_DK_Short = caret::train(x = df_predict_DK_Short %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_DK_Short %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_DK_Long = caret::train(x = df_predict_DK_Long %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_DK_Long %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_CPIAUCSL = caret::train(x = df_predict_CPIAUCSL %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_CPIAUCSL %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_CSUSHPINSA = caret::train(x = df_predict_CSUSHPINSA %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_CSUSHPINSA %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_M2SL = caret::train(x = df_predict_M2SL %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_M2SL %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_UMCSENT = caret::train(x = df_predict_UMCSENT %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_UMCSENT %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
-fit_USREC = caret::train(x = df_predict_USREC %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
-                              data.frame(),
-                         y = df_predict_USREC %>% 
-                           na.omit %>% 
-                           .[["value"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
+set.seed(1971)
+fit_DFF = yield_fit_rf(df_predict_DFF, "DFF", num_trees,
+                            tune_grid, train_control)
+fit_DGS2 = yield_fit_rf(df_predict_DGS2, "DGS2", num_trees,
+                            tune_grid, train_control)
+fit_DGS10 = yield_fit_rf(df_predict_DGS10, "DGS10", num_trees,
+                            tune_grid, train_control)
+fit_MORTGAGE30US = yield_fit_rf(df_predict_MORTGAGE30US, "MORTGAGE30US", num_trees,
+                            tune_grid, train_control)
+fit_DK_Short = yield_fit_rf(df_predict_DK_Short, "DK_Short", num_trees,
+                            tune_grid, train_control)
+fit_DK_Long = yield_fit_rf(df_predict_DK_Long, "DK_Long", num_trees,
+                            tune_grid, train_control)
+fit_CPIAUCSL = yield_fit_rf(df_predict_CPIAUCSL, "CPIAUCSL", num_trees,
+                            tune_grid, train_control)
+fit_CSUSHPINSA = yield_fit_rf(df_predict_CSUSHPINSA, "CSUSHPINSA", num_trees,
+                            tune_grid, train_control)
+fit_M2SL = yield_fit_rf(df_predict_M2SL, "M2SL", num_trees,
+                            tune_grid, train_control)
+fit_UMCSENT = yield_fit_rf(df_predict_UMCSENT, "UMCSENT", num_trees,
+                            tune_grid, train_control)
+fit_USREC = yield_fit_rf(df_predict_USREC, "USREC", num_trees,
+                            tune_grid, train_control)
 
 detach(package:randomForest,unload=TRUE)
 ```
 
 
-## Predicted US Yield
+## Honest Walk-Forward Validation
 
-```{r }
+The random forest is evaluated as a one-year-ahead forecasting model. Each
+backtest fit uses only observations whose one-year-ahead outcome was already
+known at the forecast origin. The test origins are quarterly to reduce overlap
+and deployment time. "Persistence" is the deliberately difficult baseline that
+assumes the yield one year from now will equal its current level.
 
-df_predict_DFF %>% 
-  dplyr::mutate(pred_DFF=predict(fit_DFF,.)) %>% 
-  dplyr::select(date,pred_DFF) %>% 
+The chart aligns each forecast with its target date and shows the observed
+yield alongside the forest and persistence predictions. The regime table
+separates errors for inverted and normal curves at the forecast origin.
+
+```{r rf-walk-forward-validation, fig.alt = "Honest Walk-Forward Validation: chart of the series described in this section"}
+
+rf_targets = list(
+  DFF = list(data=df_predict_DFF,current="level_DFF"),
+  DGS2 = list(data=df_predict_DGS2,current="level_DGS2"),
+  DGS10 = list(data=df_predict_DGS10,current="level_DGS10"),
+  MORTGAGE30US = list(data=df_predict_MORTGAGE30US,current="level_MORTGAGE30US")
+)
+
+
+rf_backtest = dplyr::bind_rows(lapply(names(rf_targets),function(target_name) {
+  yield_walk_forward_rf(target_name,rf_targets[[target_name]], num_trees)
+})) %>%
+  dplyr::arrange(target,origin) %>%
+  dplyr::group_by(target) %>%
+  dplyr::mutate(
+    error=random_forest-actual,
+    persistence_error=persistence-actual,
+    interval_half_width=vapply(seq_along(error),function(i) {
+      previous_errors=abs(error[seq_len(i-1)])
+      if (length(previous_errors)<8) return(NA_real_)
+      as.numeric(stats::quantile(previous_errors,0.80,na.rm=TRUE,type=8))
+    },numeric(1)),
+    lower_80=random_forest-interval_half_width,
+    upper_80=random_forest+interval_half_width
+  ) %>%
+  dplyr::ungroup()
+
+rf_metrics = rf_backtest %>%
+  dplyr::group_by(target) %>%
+  dplyr::summarise(
+    observations=dplyr::n(),
+    rf_rmse=sqrt(mean(error^2)),
+    persistence_rmse=sqrt(mean(persistence_error^2)),
+    rmse_skill=1-rf_rmse/persistence_rmse,
+    rf_mae=mean(abs(error)),
+    persistence_mae=mean(abs(persistence_error)),
+    interval_80_coverage=mean(actual>=lower_80 & actual<=upper_80,na.rm=TRUE),
+    .groups="drop"
+  )
+
+knitr::kable(
+  rf_metrics %>%
+    dplyr::mutate(dplyr::across(where(is.numeric),~round(.x,3))),
+  caption="Expanding-window one-year forecast performance. Positive skill means the forest beats persistence."
+)
+
+```
+
+```{r rf-walk-forward-chart, fig.height=8, fig.alt = "Honest Walk-Forward Validation: chart of the series described in this section"}
+
+rf_backtest %>%
+  dplyr::select(target,target_date,actual,random_forest,persistence) %>%
+  tidyr::gather(model,value,actual:persistence) %>%
+  ggplot(.,aes(x=target_date,y=value,color=model))+
+  geom_line(linewidth=0.45)+
+  facet_wrap(~target,scales="free_y",ncol=1)+
+  theme_money_printer_go_brrr(base_size=12)+
+  labs(title="Genuinely Out-of-Sample One-Year Yield Forecasts",
+       subtitle="Expanding-window random forest versus a no-change persistence benchmark",
+       x=NULL,y="Yield (%)",color=NULL,
+       caption=timestamp_caption())
+
+```
+
+```{r rf-regime-errors, fig.alt = "Honest Walk-Forward Validation: chart of the series described in this section"}
+
+rf_regime_metrics = rf_backtest %>%
+  dplyr::group_by(target,curve_regime) %>%
+  dplyr::summarise(
+    observations=dplyr::n(),
+    rf_mae=mean(abs(error)),
+    persistence_mae=mean(abs(persistence_error)),
+    .groups="drop"
+  )
+
+knitr::kable(
+  rf_regime_metrics %>%
+    dplyr::mutate(dplyr::across(where(is.numeric),~round(.x,3))),
+  caption="Errors by yield-curve regime at the forecast origin."
+)
+
+```
+
+
+## Legacy In-Sample US Diagnostics
+
+These plots are retained for exploratory diagnosis only. They contain fitted
+values from the full training sample and must not be interpreted as evidence of
+forecast accuracy; the walk-forward results above are the governing validation.
+
+```{r , fig.alt = "Legacy In-Sample US Diagnostics: chart of the series described in this section"}
+
+df_predict_DFF %>%
+  dplyr::mutate(pred_DFF=predict(fit_DFF,.)) %>%
+  dplyr::select(date,pred_DFF) %>%
   dplyr::mutate(date=date+years(1)) %>%
-  filter(date>=ymd("2000-01-01")) %>% 
+  filter(date>=ymd("2000-01-01")) %>%
   gather(pred,val,pred_DFF) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
-  filter(!one_year) %>% 
+  filter(!one_year) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=0.25) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
   scale_y_continuous(breaks = seq(0,10,0.5)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed T-Bond Yields",
+  labs(title="In-Sample Random-Forest Fit — Not Forecast Validation",
        x=NULL,
        y="(%)",
        caption = timestamp_caption()) +
   add_fomc_meeting_dates()
-           
+
 
 ```
 
-```{r}
+```{r, fig.alt = "Legacy In-Sample US Diagnostics: chart of the series described in this section"}
 
-df_predict_DFF %>% 
+df_predict_DFF %>%
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
                 pred_DGS2=predict(fit_DGS2,.),
                 pred_DGS10=predict(fit_DGS10,.),
-                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>% 
-  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
+                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>%
+  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
-  filter(!one_year) %>% 
-  filter(date>=ymd("2000-01-01")) %>% 
+  filter(!one_year) %>%
+  filter(date>=ymd("2000-01-01")) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=0.25) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
   scale_y_continuous(breaks = seq(0,10,0.5)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed T-Bond Yields",
+  labs(title="In-Sample Random-Forest Fits — Not Forecast Validation",
        x=NULL,
        y="(%)",
        caption = timestamp_caption()) +
   add_fomc_meeting_dates()
-                
+
 ```
 
-```{r }
+```{r , fig.alt = "Legacy In-Sample US Diagnostics: chart of the series described in this section"}
 
-df_predict_DFF %>% 
+df_predict_DFF %>%
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
                 pred_DGS2=predict(fit_DGS2,.),
                 pred_DGS10=predict(fit_DGS10,.),
-                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>% 
-  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
+                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>%
+  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
-  filter(one_year) %>% 
-  filter(date>=ymd("2000-01-01")) %>% 
+  filter(one_year) %>%
+  filter(date>=ymd("2000-01-01")) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=0.25) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   scale_y_continuous(breaks = seq(0,10,0.5)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed T-Bond Yields",
+  labs(title="Experimental One-Year Random-Forest Scenarios",
        x=NULL,
        y="(%)",
        caption = timestamp_caption()) +
   add_fomc_meeting_dates()
-                
+
 ```
 
-```{r }
+```{r , fig.alt = "Legacy In-Sample US Diagnostics: chart of the series described in this section"}
 
-df_predict_DFF %>% 
-  dplyr::mutate(pred_spread=predict(fit_DGS10,.)-predict(fit_DGS2,.)) %>% 
-  dplyr::select(date,pred_spread) %>% 
+df_predict_DFF %>%
+  dplyr::mutate(pred_spread=predict(fit_DGS10,.)-predict(fit_DGS2,.)) %>%
+  dplyr::select(date,pred_spread) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_spread) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
-  filter(one_year) %>% 
-  filter(date>=ymd("2000-01-01")) %>% 
+  filter(one_year) %>%
+  filter(date>=ymd("2000-01-01")) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=0.25) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   scale_y_continuous(breaks = seq(-10,10,0.5)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed Spread 2-10 T-Bond Yields",
+  labs(title="Experimental One-Year 2s10s Spread Scenario",
        x=NULL,
        y="(%)",
        caption = timestamp_caption()) +
   add_fomc_meeting_dates()
-                
+
 ```
 
-## Future Yield Curves
+## Experimental One-Year Yield Scenario
 
-```{r fig.width=15,fig.height=15}
+This is a conditional model scenario, not a market price or a promise. The
+random-forest estimate is shown beside persistence, with an empirically
+calibrated 80% interval from earlier walk-forward errors. A model with
+non-positive out-of-sample skill should not be preferred to persistence.
 
-df_predict_DFF %>% 
-  dplyr::mutate(pred_DFF=predict(fit_DFF,.),
-                pred_DGS2=predict(fit_DGS2,.),
-                pred_DGS10=predict(fit_DGS10,.),
-                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>% 
-  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
-  dplyr::mutate(date=date+years(1)) %>%
-  filter(date>=Sys.Date()) %>% 
-  filter(date %in% unique(date)[seq(1,length(date),length.out=6)]) %>%
-  gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>% 
-  dplyr::mutate(pred=factor(pred,levels=c("pred_DFF",
-                                          "pred_DGS2",
-                                          "pred_DGS10",
-                                          # "pred_DGS30",
-                                          "pred_MORTGAGE30US"))) %>% 
-  ggplot(.,aes(x=pred,y=val,color=factor(date),group=date)) +
-  geom_line(size=1) +
-  scale_y_continuous(breaks = seq(0,10,0.5)) +
+```{r fig.width=15,fig.height=15, fig.alt = "Experimental One-Year Yield Scenario: chart of the series described in this section"}
+
+final_fits = list(
+  DFF=fit_DFF,
+  DGS2=fit_DGS2,
+  DGS10=fit_DGS10,
+  MORTGAGE30US=fit_MORTGAGE30US
+)
+
+rf_live_forecast = dplyr::bind_rows(lapply(names(rf_targets),function(target_name) {
+  target_spec=rf_targets[[target_name]]
+  latest=target_spec$data %>%
+    dplyr::filter(stats::complete.cases(dplyr::select(.,-date,-value))) %>%
+    dplyr::filter(date==max(date))
+  interval_width=rf_backtest %>%
+    dplyr::filter(target==target_name) %>%
+    dplyr::summarise(value=stats::quantile(abs(error),0.80,na.rm=TRUE,type=8)) %>%
+    dplyr::pull(value)
+  estimate=as.numeric(predict(final_fits[[target_name]],latest))
+
+  data.frame(
+    target=target_name,
+    origin=latest$date,
+    forecast_date=latest$date+years(1),
+    random_forest=estimate,
+    persistence=latest[[target_spec$current]],
+    lower_80=estimate-interval_width,
+    upper_80=estimate+interval_width
+  )
+})) %>%
+  dplyr::left_join(dplyr::select(rf_metrics,target,rmse_skill),by="target") %>%
+  dplyr::mutate(preferred_estimate=ifelse(rmse_skill>0,random_forest,persistence),
+                target=factor(target,levels=c("DFF","DGS2","DGS10","MORTGAGE30US")))
+
+knitr::kable(
+  rf_live_forecast %>%
+    dplyr::mutate(dplyr::across(c(random_forest,persistence,lower_80,upper_80,rmse_skill),~round(.x,3))),
+  caption="Experimental one-year scenario. Preferred estimate uses the forest only when it beat persistence out of sample."
+)
+
+rf_live_forecast %>%
+  ggplot(.,aes(x=target,y=preferred_estimate,group=1))+
+  geom_ribbon(aes(ymin=lower_80,ymax=upper_80,group=1),alpha=0.15)+
+  geom_line(linewidth=1)+
+  geom_point(size=3)+
+  geom_point(aes(y=persistence),shape=4,size=3)+
+  scale_y_continuous(breaks=seq(-2,12,0.5))+
   theme_money_printer_go_brrr(base_size=20) +
-  labs(title="Predicted Yield Curves",
-       x=NULL,
-       y="(%)",
+  labs(title="Historical Random-Forest Scenario Based on the Current Yield Curve",
+       subtitle="One year ahead; crosses show persistence and shading shows calibrated 80% RF error intervals",
+       x=NULL,y="Yield (%)",
        caption = timestamp_caption())
-                
+
 ```
 
-## Future FED FOMC Meeting Rate changes
+## Experimental FOMC Meeting Scenario
 
-```{r }
+```{r , fig.alt = "Experimental FOMC Meeting Scenario: chart of the series described in this section"}
 
-df_predict_DFF %>% 
+dff_rf_has_skill = rf_metrics %>%
+  dplyr::filter(target=="DFF") %>%
+  dplyr::pull(rmse_skill) > 0
+
+df_predict_DFF %>%
   dplyr::mutate(pred_DFF=predict(fit_DFF,.),
                 pred_DGS2=predict(fit_DGS2,.),
                 pred_DGS10=predict(fit_DGS10,.),
-                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.)) %>% 
-  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>% 
+                pred_MORTGAGE30US=predict(fit_MORTGAGE30US,.),
+                pred_DFF=ifelse(dff_rf_has_skill,pred_DFF,level_DFF)) %>%
+  dplyr::select(date,pred_DFF:pred_MORTGAGE30US) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_DFF:pred_MORTGAGE30US) %>%
-  filter(!is.na(date)) %>% 
-  dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>% 
-  tidyr::crossing(fomc_dates) %>% 
-  group_by( date_fomc ) %>% 
-  filter(date-date_fomc>=0) %>% 
-  filter(date-date_fomc==min(date-date_fomc)) %>% 
-  filter(pred=="pred_DFF") %>% 
-  dplyr::mutate(val=ceiling(val/0.25)*0.25/100) %>% 
+  filter(!is.na(date)) %>%
+  dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
+  tidyr::crossing(fomc_dates) %>%
+  group_by( date_fomc ) %>%
+  filter(date-date_fomc>=0) %>%
+  filter(date-date_fomc==min(date-date_fomc)) %>%
+  filter(pred=="pred_DFF") %>%
+  dplyr::mutate(val=ceiling(val/0.25)*0.25/100) %>%
   ggplot(.,aes(x=date_fomc,y=val)) +
-  geom_point(size=3) + 
+  geom_point(size=3) +
   geom_line(size=0.25) +
   scale_y_continuous(breaks = seq(0,0.1,by=0.0025),labels = scales::percent,limits = c(0,NA)) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   geom_vline(data=fomc_dates,aes(xintercept=date_fomc),linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted FOMC Meeting Rates",
+  labs(title="Experimental FOMC Meeting Rate Scenario",
+       subtitle=ifelse(dff_rf_has_skill,
+                       "Random forest beat persistence in walk-forward testing",
+                       "Persistence shown because random forest did not beat it out of sample"),
        x=NULL,
        y="(%)",
        caption = timestamp_caption())
 
-                
+
 ```
 
 
 
-```{r eval=F,fig.width=15,fig.height=15,eval=F}
+```{r eval=F,fig.width=15,fig.height=15,eval=F, fig.alt = "Experimental FOMC Meeting Scenario: chart of the series described in this section"}
 
 fit_DFF_previous = rbindlist(lapply(c(7,30,180,365),function(days_ago) {
-  
-  temp_df =df_predict_DFF %>% 
-    filter(date<=Sys.Date()-days(days_ago))
-  
-  temp_fit = caret::train(x = temp_df %>% 
-                              na.omit %>% 
-                              dplyr::select(-date,-value) %>% 
+
+  temp_df =df_predict_DFF %>%
+    filter(date<=book_date()-days(days_ago))
+
+  temp_fit = caret::train(x = temp_df %>%
+                              na.omit %>%
+                              dplyr::select(-date,-value) %>%
                               data.frame(),
-                         y = temp_df %>% 
-                           na.omit %>% 
+                         y = temp_df %>%
+                           na.omit %>%
                            .[["value"]],
                          method = "rf",
                          tuneGrid=tune_grid,
                          ntree=num_trees,
                          metric = "RMSE",
                          trControl=train_control)
-  
-  temp_df %>% 
-    dplyr::mutate(pred_DFF=predict(temp_fit,.)) %>% 
-    dplyr::select(date,pred_DFF) %>% 
+
+  temp_df %>%
+    dplyr::mutate(pred_DFF=predict(temp_fit,.)) %>%
+    dplyr::select(date,pred_DFF) %>%
     dplyr::mutate(date=date+years(1),
                   days_ago=days_ago,) %>%
-    gather(pred,val,pred_DFF) 
-  
+    gather(pred,val,pred_DFF)
+
 }))
 
-fit_DFF_previous %>% 
-  filter(!is.na(date)) %>% 
+fit_DFF_previous %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01"),
-                days_ago=factor(days_ago)) %>% 
-  tidyr::crossing(fomc_dates) %>% 
-  group_by( date_fomc ) %>% 
-  filter(date-date_fomc>=0) %>% 
-  filter(date-date_fomc==min(date-date_fomc)) %>% 
-  filter(pred=="pred_DFF") %>% 
-  dplyr::mutate(val=ceiling(val/0.25)*0.25/100) %>% 
+                days_ago=factor(days_ago)) %>%
+  tidyr::crossing(fomc_dates) %>%
+  group_by( date_fomc ) %>%
+  filter(date-date_fomc>=0) %>%
+  filter(date-date_fomc==min(date-date_fomc)) %>%
+  filter(pred=="pred_DFF") %>%
+  dplyr::mutate(val=ceiling(val/0.25)*0.25/100) %>%
   ggplot(.,aes(x=date_fomc,y=val,color=days_ago)) +
-  geom_point() + 
+  geom_point() +
   geom_line() +
   scale_y_continuous(breaks = seq(0,0.1,by=0.0025),labels = scales::percent,limits = c(0,NA)) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
@@ -1581,91 +1504,94 @@ fit_DFF_previous %>%
 ```
 
 
-## Danish Short and Long
+## Legacy Danish Rate Diagnostics
 
-```{r }
+These Danish fits have not yet received the walk-forward validation applied to
+the US series above. Treat them as exploratory scenarios, not forecasts.
 
-df_predict_DK_Short %>% 
+```{r , fig.alt = "Legacy Danish Rate Diagnostics: chart of the series described in this section"}
+
+df_predict_DK_Short %>%
   dplyr::mutate(pred_DK_Short=predict(fit_DK_Short,.),
-                pred_DK_Long=predict(fit_DK_Long,.)) %>% 
-  dplyr::mutate(pred_spread=pred_DK_Long-pred_DK_Short) %>% 
+                pred_DK_Long=predict(fit_DK_Long,.)) %>%
+  dplyr::mutate(pred_spread=pred_DK_Long-pred_DK_Short) %>%
   dplyr::select(date,pred_DK_Short,pred_DK_Long,pred_spread,value) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_DK_Short:pred_spread) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01"))  %>%
-    filter(!one_year) %>% 
-  filter(date>=ymd("2000-01-01")) %>% 
+    filter(!one_year) %>%
+  filter(date>=ymd("2000-01-01")) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line() +
-  geom_line(data=df_DK_Short %>% 
+  geom_line(data=df_DK_Short %>%
                dplyr::mutate(pred="Observed") %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
-  geom_line(data=df_DK_Long %>% 
+  geom_line(data=df_DK_Long %>%
                dplyr::mutate(pred="Observed") %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
   scale_y_continuous(breaks = seq(0,10,0.5)) +
   theme(axis.text.x=element_text(angle=45,hjust=1))  +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed Long and Short Interest Rate",
+  labs(title="In-Sample Danish Rate Fit — Not Forecast Validation",
        x=NULL,
        y="(%)",
        caption = timestamp_caption())
 
 ```
 
-```{r }
+```{r , fig.alt = "Legacy Danish Rate Diagnostics: chart of the series described in this section"}
 
-df_predict_DK_Short %>% 
+df_predict_DK_Short %>%
   dplyr::mutate(pred_DK_Short=predict(fit_DK_Short,.),
-                pred_DK_Long=predict(fit_DK_Long,.)) %>% 
-  dplyr::mutate(pred_spread=pred_DK_Long-pred_DK_Short) %>% 
+                pred_DK_Long=predict(fit_DK_Long,.)) %>%
+  dplyr::mutate(pred_spread=pred_DK_Long-pred_DK_Short) %>%
   dplyr::select(date,pred_DK_Short,pred_DK_Long,pred_spread,value) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_DK_Short:pred_spread) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01"))  %>%
-  filter(one_year) %>% 
+  filter(one_year) %>%
   ggplot(.,aes(x=date,y=val,color=pred),size=2) +
   geom_line() +
-  geom_line(data=df_DK_Short %>% 
+  geom_line(data=df_DK_Short %>%
                dplyr::mutate(pred="Observed") %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
-  geom_line(data=df_DK_Long %>% 
+  geom_line(data=df_DK_Long %>%
                dplyr::mutate(pred="Observed") %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")),aes(x=date,y=value))  +
-  scale_x_date(date_breaks = "1 month",date_labels = "%b",limits=c(Sys.Date()-years(1),NA)) +
+  scale_x_date(date_breaks = "1 month",date_labels = "%b",limits=c(book_date()-years(1),NA)) +
   scale_y_continuous(breaks = seq(0,10,0.5),limits=c(NA,7)) +
   theme(axis.text.x=element_text(angle=45,hjust=1))  +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   theme_money_printer_go_brrr(base_size=12) +
-  labs(title="Predicted/Observed Long and Short Interest Rate",
+  labs(title="Experimental One-Year Danish Rate Scenario",
        x=NULL,
        y="(%)",
        caption = timestamp_caption())
@@ -1676,26 +1602,26 @@ df_predict_DK_Short %>%
 
 ## USREC
 
-```{r }
+```{r , fig.alt = "USREC: chart of the series described in this section"}
 
-df_predict_UMCSENT %>% 
-    dplyr::mutate(pred_UMCSENT=predict(fit_UMCSENT,.)) %>% 
-  dplyr::select(date,pred_UMCSENT,value) %>% 
+df_predict_UMCSENT %>%
+    dplyr::mutate(pred_UMCSENT=predict(fit_UMCSENT,.)) %>%
+  dplyr::select(date,pred_UMCSENT,value) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_UMCSENT:value) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
-  # filter(one_year) %>% 
+  # filter(one_year) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=1) +
   # scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   # scale_y_continuous(breaks = seq(0,10,0.5),limits=c(0,NA)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
   add_fomc_meeting_dates() +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 2,linetype=2) +
   # geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
@@ -1709,17 +1635,17 @@ df_predict_UMCSENT %>%
 
 ## USREC
 
-```{r }
+```{r , fig.alt = "USREC: chart of the series described in this section"}
 
-df_predict_USREC %>% 
-    dplyr::mutate(pred_USREC=predict(fit_USREC,.)) %>% 
-  dplyr::select(date,pred_USREC,value) %>% 
+df_predict_USREC %>%
+    dplyr::mutate(pred_USREC=predict(fit_USREC,.)) %>%
+  dplyr::select(date,pred_USREC,value) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_USREC:value) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
   filter(one_year) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
@@ -1728,7 +1654,7 @@ df_predict_USREC %>%
   # scale_y_continuous(breaks = seq(0,10,0.5),limits=c(0,NA)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
   add_fomc_meeting_dates() +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 1,linetype=2) +
   # geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
@@ -1742,26 +1668,26 @@ df_predict_USREC %>%
 
 ## M2
 
-```{r }
+```{r , fig.alt = "M2: chart of the series described in this section"}
 
-df_predict_M2SL %>% 
-    dplyr::mutate(pred_M2SL=predict(fit_M2SL,.)) %>% 
-  dplyr::select(date,pred_M2SL,value) %>% 
+df_predict_M2SL %>%
+    dplyr::mutate(pred_M2SL=predict(fit_M2SL,.)) %>%
+  dplyr::select(date,pred_M2SL,value) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_M2SL:value) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
-  # filter(one_year) %>% 
+  # filter(one_year) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=1) +
   # scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   # scale_y_continuous(breaks = seq(0,10,0.5),limits=c(0,NA)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
   add_fomc_meeting_dates() +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 2,linetype=2) +
   # geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
@@ -1775,26 +1701,26 @@ df_predict_M2SL %>%
 
 ## Inflation Expectations
 
-```{r }
+```{r , fig.alt = "Inflation Expectations: chart of the series described in this section"}
 
-df_predict_CPIAUCSL %>% 
-    dplyr::mutate(pred_CPIAUCSL=predict(fit_CPIAUCSL,.)) %>% 
-  dplyr::select(date,pred_CPIAUCSL,value) %>% 
+df_predict_CPIAUCSL %>%
+    dplyr::mutate(pred_CPIAUCSL=predict(fit_CPIAUCSL,.)) %>%
+  dplyr::select(date,pred_CPIAUCSL,value) %>%
   dplyr::mutate(date=date+years(1)) %>%
   gather(pred,val,pred_CPIAUCSL:value) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(date=ifelse(one_year,
-                            ifelse(date>=Sys.Date()-years(1),date,NA),date)) %>% 
-  filter(!is.na(date)) %>% 
+                            ifelse(date>=book_date()-years(1),date,NA),date)) %>%
+  filter(!is.na(date)) %>%
   dplyr::mutate(date=as.Date(date,origin="1970-01-01")) %>%
-  filter(one_year) %>% 
+  filter(one_year) %>%
   ggplot(.,aes(x=date,y=val,color=pred)) +
   geom_line(size=1) +
   scale_x_date(date_breaks = "1 month",date_labels = "%b") +
   scale_y_continuous(breaks = seq(0,10,0.5),limits=c(0,NA)) +
   theme(axis.text.x=element_text(angle=45,hjust=1)) +
   add_fomc_meeting_dates() +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 2,linetype=2) +
   # geom_hline(yintercept = 0,linetype=2) +
   # facet_wrap(~one_year,scales="free",ncol=1) +
@@ -1808,52 +1734,76 @@ df_predict_CPIAUCSL %>%
 
 ## Previous Hiking Cycles
 
-```{r fig.width=15,fig.height=15}
+```{r fig.width=15,fig.height=15, fig.alt = "Previous Hiking Cycles: chart of the series described in this section"}
+
+# Effective dates and target ranges from the Federal Reserve's official history:
+# https://www.federalreserve.gov/monetarypolicy/openmarket.htm
+fed_rate_changes = tibble::tribble(
+  ~effective_date, ~target_lower, ~target_upper, ~change_bps,
+  "2022-03-17", 0.25, 0.50,  25,
+  "2022-05-05", 0.75, 1.00,  50,
+  "2022-06-16", 1.50, 1.75,  75,
+  "2022-07-28", 2.25, 2.50,  75,
+  "2022-09-22", 3.00, 3.25,  75,
+  "2022-11-03", 3.75, 4.00,  75,
+  "2022-12-15", 4.25, 4.50,  50,
+  "2023-02-02", 4.50, 4.75,  25,
+  "2023-03-23", 4.75, 5.00,  25,
+  "2023-05-04", 5.00, 5.25,  25,
+  "2023-07-27", 5.25, 5.50,  25,
+  "2024-09-19", 4.75, 5.00, -50,
+  "2024-11-08", 4.50, 4.75, -25,
+  "2024-12-19", 4.25, 4.50, -25,
+  "2025-09-18", 4.00, 4.25, -25,
+  "2025-10-30", 3.75, 4.00, -25,
+  "2025-12-11", 3.50, 3.75, -25
+) %>%
+  dplyr::mutate(effective_date = ymd(effective_date))
 
 fomc_decisions = do.call("rbind",list(
 data.frame(type="hike",
-           start_date=c("1994-02-04","1997-03-25","1999-06-30","2004-06-30","2015-12-07","2022-03-17")),
+           start_date=c("1994-02-04","1997-03-25","1999-06-30","2004-06-30","2015-12-17","2022-03-17")),
 data.frame(type="cut",
-           start_date=c("1990-07-13","1995-07-06","1998-09-29","2001-01-03","2002-11-06","2007-09-18","2008-10-08","2019-08-01","2020-03-03"))
-)) %>% 
+           start_date=c("1990-07-13","1995-07-06","1998-09-29","2001-01-03","2002-11-06","2007-09-18","2008-10-08","2019-08-01","2020-03-03","2024-09-19"))
+)) %>%
   dplyr::mutate(start_date=ymd(start_date))
 
 # Crossing
-df_DFF %>% 
-  tidyr::crossing( fomc_decisions ) %>% 
-  dplyr::mutate(date_diff=as.numeric(date-start_date)) %>% 
+df_DFF %>%
+  tidyr::crossing( fomc_decisions ) %>%
+  dplyr::mutate(date_diff=as.numeric(date-start_date)) %>%
   filter( date_diff <= 365,
-          date_diff >= -365) %>% 
-  dplyr::mutate(start_date=factor(start_date)) %>% 
+          date_diff >= -365) %>%
+  dplyr::mutate(start_date=factor(start_date)) %>%
   ggplot(.,aes(x=date_diff,y=value,color=start_date,group=start_date)) +
   geom_line() +
   facet_wrap(~type)+
-  theme_money_printer_go_brrr(base_size=20) 
+  theme_money_printer_go_brrr(base_size=20)
 
 ```
 
-# ECB Yield
+## ECB Yield
 
-```{r}
+```{r, fig.alt = "ECB Yield: chart of the series described in this section"}
 # Deposit Rate
-df_ECB_DepositRate = ecb::get_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))   %>% 
+df_ECB_DepositRate = get_ecb_data(key = glue("FM.D.U2.EUR.4F.KR.DFR.LEV"))   %>%
   dplyr::mutate(obstime=ymd(obstime),
-                Yield="0M") %>% 
+                Yield="0M") %>%
     dplyr::select(Yield,obstime,obsvalue)
-  
+
 # Yields
 yields = c( paste0(c(3,6,9),"M") , paste0(seq(30),"Y"))
 df_ECB_yields = do.call("rbind",lapply(yields,function(yield) {
-  ecb::get_data(key = glue("YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_{yield}"))  %>% 
+  get_ecb_data(key = glue("YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_{yield}"))  %>%
   dplyr::mutate(obstime=ymd(obstime),
-                Yield=yield) %>% 
+                Yield=yield) %>%
     dplyr::select(Yield,obstime,obsvalue)
 }))
 
 # Combined
 df_ECB_yields =
-  df_ECB_DepositRate %>% 
-  bind_rows(df_ECB_yields) %>% 
+  df_ECB_DepositRate %>%
+  bind_rows(df_ECB_yields) %>%
   dplyr::mutate(Yield_Numeric=as.integer(paste0(recode(Yield,
                                '0M'='0',
                                '3M'='3',
@@ -1888,20 +1838,20 @@ df_ECB_yields =
                                # '27Y'=paste0(glue("{27*12}")),
                                # '28Y'=paste0(glue("{28*12}")),
                                # '29Y'=paste0(glue("{29*12}")),
-                               '30Y'=paste0(glue("{30*12}")))))) %>% 
+                               '30Y'=paste0(glue("{30*12}")))))) %>%
   dplyr::mutate(obsvalue=obsvalue/100)
 ```
 
 ## Yield Curve
 
-```{r}
+```{r, fig.alt = "Yield Curve: chart of the series described in this section"}
 
 breaks_ = unique(df_ECB_yields$Yield_Numeric)
 labels_ = unique(df_ECB_yields$Yield)
 
-df_ECB_yields %>% 
-  group_by(Yield) %>% 
-  filter(obstime==max(obstime)) %>% 
+df_ECB_yields %>%
+  group_by(Yield) %>%
+  filter(obstime==max(obstime)) %>%
   ggplot(.,aes(x=Yield_Numeric,y=obsvalue)) +
   geom_point() +
   geom_line() +
@@ -1913,29 +1863,29 @@ df_ECB_yields %>%
 
 ```
 
-```{r}
+```{r, fig.alt = "Yield Curve: chart of the series described in this section"}
 
 checkboard_yields = c('1M','3M','6M','1Y','2Y','3Y','5Y','7Y','10Y','20Y','30Y')
 
 df_checkboard = expand.grid(Yield=checkboard_yields,
                             Joined_Yield=checkboard_yields)
 
-df_yield_checkboard = 
-  df_checkboard %>% 
-  inner_join(df_ECB_yields) %>% 
-  inner_join(df_ECB_yields,by=c("Joined_Yield"="Yield","obstime"="obstime")) %>% 
-  dplyr::mutate(spread=obsvalue.x-obsvalue.y) %>% 
-  dplyr::mutate(label_=ifelse(spread<0,spread,NA)) %>% 
+df_yield_checkboard =
+  df_checkboard %>%
+  inner_join(df_ECB_yields) %>%
+  inner_join(df_ECB_yields,by=c("Joined_Yield"="Yield","obstime"="obstime")) %>%
+  dplyr::mutate(spread=obsvalue.x-obsvalue.y) %>%
+  dplyr::mutate(label_=ifelse(spread<0,spread,NA)) %>%
   dplyr::mutate(label_=scales::percent(x = label_,accuracy = 0.01,)) %>%
-  dplyr::select(Yield,Joined_Yield,obstime,spread,label_) %>% 
+  dplyr::select(Yield,Joined_Yield,obstime,spread,label_) %>%
   dplyr::mutate(Yield=factor(Yield,levels=checkboard_yields),
                 Joined_Yield=factor(Joined_Yield,levels=checkboard_yields))
 
-df_yield_checkboard %>% 
-  group_by(Yield,Joined_Yield) %>% 
-  filter(obstime==max(obstime)) %>% 
-  ungroup() %>% 
-  dplyr::mutate(spread=ifelse(Yield==Joined_Yield,NA,spread)) %>% 
+df_yield_checkboard %>%
+  group_by(Yield,Joined_Yield) %>%
+  filter(obstime==max(obstime)) %>%
+  ungroup() %>%
+  dplyr::mutate(spread=ifelse(Yield==Joined_Yield,NA,spread)) %>%
   ggplot(.,aes(x=Yield,y=Joined_Yield)) +
   geom_tile(aes(fill=spread)) +
   scale_fill_gradient2(low="green",high="red",midpoint=0,na.value = "gray70") +
@@ -1948,20 +1898,20 @@ df_yield_checkboard %>%
 
 ## Spreads
 
-### 2s10s
+## 2s10s
 
-```{r}
+```{r, fig.alt = "2s10s: chart of the series described in this section"}
 
-df_ECB_yields %>% 
-  dplyr::select(-Yield_Numeric) %>% 
-  filter(Yield %in% c("2Y","10Y")) %>% 
-  spread(Yield,obsvalue) %>% 
-  dplyr::mutate(spread=(`10Y`-`2Y`)) %>% 
+df_ECB_yields %>%
+  dplyr::select(-Yield_Numeric) %>%
+  filter(Yield %in% c("2Y","10Y")) %>%
+  spread(Yield,obsvalue) %>%
+  dplyr::mutate(spread=(`10Y`-`2Y`)) %>%
   ggplot(.,aes(x=obstime,y=spread)) +
   geom_line() +
-  geom_hline(yintercept = 0,linetype=2) + 
+  geom_hline(yintercept = 0,linetype=2) +
   scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
-  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) + 
+  scale_y_continuous(labels = scales::percent,breaks = seq(-0.1,1,by=0.0025)) +
   theme_money_printer_go_brrr(base_size=12) +
   labs(title="Spread: 2Y - 10Y",
        x="Date",
@@ -1970,58 +1920,53 @@ df_ECB_yields %>%
        )
 ```
 
-## Predict Yield
+## Legacy ECB Yield Model
 
-```{r}
+This ECB model remains an experimental scenario and has not yet passed the
+walk-forward benchmark used for the US model.
 
-num_trees=100
+```{r, fig.alt = "Legacy ECB Yield Model: chart of the series described in this section"}
+
+set.seed(1971)
+num_trees=300
 tune_grid=data.frame(mtry=c(3))
 
-train_control = caret::trainControl(method = "repeatedcv",number = 5,repeats = 5)
+train_control = caret::trainControl(method = "none")
 
-df_DF = 
-  df_ECB_yields %>% 
-  filter(Yield=="0M") %>% 
+df_DF =
+  df_ECB_yields %>%
+  filter(Yield=="0M") %>%
   dplyr::select(obstime,obsvalue)
 
-df_predict_DF = df_yield_checkboard %>% 
-  filter(Yield!=Joined_Yield) %>% 
-  dplyr::mutate(one_year_ahead=obstime+years(1)) %>% 
-  left_join(df_DF,by=c("one_year_ahead"="obstime")) %>% 
-  unite(Yield,Yield,Joined_Yield) %>% 
-  dplyr::select(obstime,Yield,spread,obsvalue) %>% 
-  dplyr::mutate(Yield=paste0("S",Yield)) %>% 
+df_predict_DF = df_yield_checkboard %>%
+  filter(Yield!=Joined_Yield) %>%
+  dplyr::mutate(one_year_ahead=obstime+years(1)) %>%
+  left_join(df_DF,by=c("one_year_ahead"="obstime")) %>%
+  unite(Yield,Yield,Joined_Yield) %>%
+  dplyr::select(obstime,Yield,spread,obsvalue) %>%
+  dplyr::mutate(Yield=paste0("S",Yield)) %>%
   spread(Yield,spread)
 
-fit_DF = caret::train(x = df_predict_DF %>% 
-                              na.omit %>% 
-                              dplyr::select(-obstime,-obsvalue) %>% 
-                              data.frame(),
-                         y = df_predict_DF %>% 
-                           na.omit %>% 
-                           .[["obsvalue"]],
-                         method = "rf",
-                         tuneGrid=tune_grid,
-                         ntree=num_trees,
-                         metric = "RMSE",
-                         trControl=train_control)
+fit_DF = yield_fit_rf(df_predict_DF, "ECB-DF", num_trees,
+                      tune_grid, train_control,
+                      date_column="obstime", value_column="obsvalue")
 fit_DF
 ```
 
-## Extrapolate
+## Experimental ECB Scenario
 
-```{r}
+```{r, fig.alt = "Experimental ECB Scenario: chart of the series described in this section"}
 
-df_predict_DF %>% 
-  dplyr::mutate(pred_DF=predict(fit_DF,.)) %>% 
-  dplyr::select(obstime,obsvalue,pred_DF) %>% 
+df_predict_DF %>%
+  dplyr::mutate(pred_DF=predict(fit_DF,.)) %>%
+  dplyr::select(obstime,obsvalue,pred_DF) %>%
   dplyr::mutate(obstime=obstime+years(1)) %>%
   gather(pred,val,obsvalue:pred_DF) %>%
-  tidyr::crossing(one_year=c(TRUE,FALSE)) %>% 
+  tidyr::crossing(one_year=c(TRUE,FALSE)) %>%
   dplyr::mutate(obstime=ifelse(one_year,
-                            ifelse(obstime>=Sys.Date()-years(1),obstime,NA),obstime)) %>% 
-  filter(!is.na(obstime)) %>% 
-  filter(one_year) %>% 
+                            ifelse(obstime>=book_date()-years(1),obstime,NA),obstime)) %>%
+  filter(!is.na(obstime)) %>%
+  filter(one_year) %>%
   dplyr::mutate(obstime=as.Date(obstime,origin="1970-01-01")) %>%
   ggplot(.,aes(x=obstime,y=val,color=pred)) +
   geom_line() +
@@ -2029,41 +1974,41 @@ df_predict_DF %>%
   scale_y_continuous(labels = scales::percent) +
   theme_money_printer_go_brrr(base_size=12) +
   # theme(axis.text.x=element_text(angle=45,hjust=1)) +
-  geom_vline(xintercept = Sys.Date(),linetype=2) +
+  geom_vline(xintercept = book_date(),linetype=2) +
   geom_hline(yintercept = 0,linetype=2) +
   facet_wrap(~one_year,scales="free",ncol=1)
 ```
 
 ## ECB to Danish Yields
 
-```{r}
+```{r, fig.alt = "ECB to Danish Yields: chart of the series described in this section"}
 
-df_DK10Y = ecb::get_data(key = "IRS.M.DK.L.L40.CI.0000.DKK.N.Z")  %>% 
+df_DK10Y = get_ecb_data(key = "IRS.M.DK.L.L40.CI.0000.DKK.N.Z")  %>%
   dplyr::mutate(obstime=ymd(paste0(obstime,"-01")),
                 Yield="10Y",
-                dk_obsvalue=obsvalue/100) %>% 
+                dk_obsvalue=obsvalue/100) %>%
     dplyr::select(Yield,obstime,dk_obsvalue)
 
-df_DK3MO = ecb::get_data(key = "FM.M.DK.DKK.DS.MM.CIBOR3M.ASKA")  %>% 
+df_DK3MO = get_ecb_data(key = "FM.M.DK.DKK.DS.MM.CIBOR3M.ASKA")  %>%
   dplyr::mutate(obstime=ymd(paste0(obstime,"-01")),
                 Yield="3M",
-                dk_obsvalue=obsvalue/100) %>% 
+                dk_obsvalue=obsvalue/100) %>%
     dplyr::select(Yield,obstime,dk_obsvalue)
 
 df_ECB_DK =
-  df_ECB_yields %>% 
-  filter(Yield %in% c("3M","10Y")) %>% 
-  inner_join( bind_rows(df_DK10Y,df_DK3MO) ) %>% 
-  dplyr::mutate(spread=dk_obsvalue-obsvalue) %>% 
-  dplyr::select(-Yield_Numeric) %>% 
-  gather(stat,val,obsvalue:spread) %>% 
+  df_ECB_yields %>%
+  filter(Yield %in% c("3M","10Y")) %>%
+  inner_join( bind_rows(df_DK10Y,df_DK3MO) ) %>%
+  dplyr::mutate(spread=dk_obsvalue-obsvalue) %>%
+  dplyr::select(-Yield_Numeric) %>%
+  gather(stat,val,obsvalue:spread) %>%
   dplyr::mutate(stat=recode(stat,
                             'obsvalue'='EU 3 Mo.',
                             'spread'='DK-EU Spread',
                             'dk_obsvalue'='DK Interbank 3 Mo.'))
 
 
-df_ECB_DK %>% 
+df_ECB_DK %>%
   ggplot(.,aes(x=obstime,y=val,color=stat)) +
   geom_line() +
   facet_wrap(~Yield) +
@@ -2079,5 +2024,3 @@ df_ECB_DK %>%
 
 
 ```
-
-

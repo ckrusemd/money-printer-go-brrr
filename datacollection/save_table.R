@@ -1,3 +1,14 @@
+if (!exists("research_path", mode = "function")) {
+  local({
+    files <- vapply(sys.frames(), function(frame) {
+      if (is.null(frame$ofile)) "" else as.character(frame$ofile)
+    }, character(1))
+    helper_dir <- dirname(normalizePath(utils::tail(files[nzchar(files)], 1L), mustWork = TRUE))
+    source(file.path(helper_dir, "..", "scripts", "research_paths.R"),
+           local = parent.env(environment()))
+  })
+}
+
 #' Remove Consecutive Duplicate Values in a Column
 #'
 #' This function removes consecutive duplicate values in a specified column by
@@ -37,63 +48,63 @@
 #' print(clean_data3)
 #'
 #' @export
-remove_duplicate_values <- function(df, 
-                                   column_name, 
-                                   replacement = "", 
+remove_duplicate_values <- function(df,
+                                   column_name,
+                                   replacement = "",
                                    keep_first = TRUE,
                                    case_sensitive = TRUE) {
-  
+
   # Input validation
   if (!is.data.frame(df)) {
     stop("Input 'df' must be a data frame")
   }
-  
+
   if (!is.character(column_name) || length(column_name) != 1) {
     stop("'column_name' must be a single character string")
   }
-  
+
   if (!column_name %in% names(df)) {
     stop(paste("Column '", column_name, "' not found in data frame", sep = ""))
   }
-  
+
   if (!is.character(replacement) || length(replacement) != 1) {
     stop("'replacement' must be a single character string")
   }
-  
+
   if (!is.logical(keep_first) || length(keep_first) != 1) {
     stop("'keep_first' must be a single logical value")
   }
-  
+
   if (!is.logical(case_sensitive) || length(case_sensitive) != 1) {
     stop("'case_sensitive' must be a single logical value")
   }
-  
+
   if (nrow(df) == 0) {
     warning("Input data frame is empty")
     return(df)
   }
-  
+
   # Create a copy of the data frame
   df_copy <- df
-  
+
   # Get the column as a vector
   col_values <- df_copy[[column_name]]
-  
+
   # Handle case sensitivity
   if (!case_sensitive) {
     comparison_values <- tolower(as.character(col_values))
   } else {
     comparison_values <- as.character(col_values)
   }
-  
+
   # Process duplicates starting from the second row
   if (length(col_values) > 1) {
     for (i in 2:length(col_values)) {
       # Check if current value matches previous value
-      if (!is.na(comparison_values[i]) && 
-          !is.na(comparison_values[i-1]) && 
+      if (!is.na(comparison_values[i]) &&
+          !is.na(comparison_values[i-1]) &&
           comparison_values[i] == comparison_values[i-1]) {
-        
+
         if (keep_first) {
           # Replace current value with replacement string
           df_copy[[column_name]][i] <- replacement
@@ -105,7 +116,7 @@ remove_duplicate_values <- function(df,
       }
     }
   }
-  
+
   return(df_copy)
 }
 
@@ -133,27 +144,27 @@ remove_duplicate_values <- function(df,
 #'
 #' @export
 remove_duplicate_values_multi <- function(df, columns, ...) {
-  
+
   # Input validation
   if (!is.data.frame(df)) {
     stop("Input 'df' must be a data frame")
   }
-  
+
   if (!is.character(columns)) {
     stop("'columns' must be a character vector")
   }
-  
+
   missing_cols <- setdiff(columns, names(df))
   if (length(missing_cols) > 0) {
     stop(paste("Columns not found in data frame:", paste(missing_cols, collapse = ", ")))
   }
-  
+
   # Apply function to each column sequentially
   result_df <- df
   for (col in columns) {
     result_df <- remove_duplicate_values(result_df, col, ...)
   }
-  
+
   return(result_df)
 }
 
@@ -171,7 +182,7 @@ remove_duplicate_values_multi <- function(df, columns, ...) {
 #'   If FALSE, all duplicates become empty. Default is TRUE
 #' @param case_sensitive Logical. If TRUE, comparison is case-sensitive.
 #'   If FALSE, comparison ignores case. Default is TRUE
-#' @param base_dir Character string specifying the base directory. Default is current working directory
+#' @param base_dir Base directory; defaults to repo datacollection or RESEARCH_OUTPUT_DIR
 #'
 #' @return Character string with the path of the saved file
 #'
@@ -198,7 +209,7 @@ save_table <- function(df,
                       replacement = "",
                       keep_first = TRUE,
                       case_sensitive = TRUE,
-                      base_dir = getwd()) {
+                      base_dir = research_path("datacollection", "RESEARCH_OUTPUT_DIR")) {
 
   # Input validation
   if (!is.data.frame(df)) {
@@ -274,9 +285,9 @@ save_table <- function(df,
 
 # Example usage and demonstration
 if (interactive()) {
-  
+
   cat("=== remove_duplicate_values() Examples ===\n\n")
-  
+
   # Example 1: Basic usage with CONSORT-style table
   cat("Example 1: Basic CONSORT table cleaning\n")
   consort_data <- data.frame(
@@ -287,14 +298,14 @@ if (interactive()) {
     `Remaining (n)` = c(3262924, 3261758, 74871, 1666787, 1659566, 179995, 1341051, 1339115, 122084),
     check.names = FALSE
   )
-  
+
   print("Original data:")
   print(consort_data)
-  
+
   clean_consort <- remove_duplicate_values(consort_data, "Database")
   print("\nAfter removing duplicate database names:")
   print(clean_consort)
-  
+
   # Example 2: Multiple columns
   cat("\n\nExample 2: Multiple columns with custom replacement\n")
   multi_col_data <- data.frame(
@@ -302,26 +313,26 @@ if (interactive()) {
     Subcategory = c("X", "X", "Y", "Y", "Z"),
     Value = 1:5
   )
-  
+
   print("Original data:")
   print(multi_col_data)
-  
-  clean_multi <- remove_duplicate_values_multi(multi_col_data, 
-                                              c("Category", "Subcategory"), 
+
+  clean_multi <- remove_duplicate_values_multi(multi_col_data,
+                                              c("Category", "Subcategory"),
                                               replacement = "—")
   print("\nAfter cleaning both columns:")
   print(clean_multi)
-  
+
   # Example 3: Case insensitive comparison
   cat("\n\nExample 3: Case insensitive comparison\n")
   case_data <- data.frame(
     Group = c("Group A", "group a", "GROUP A", "Group B"),
     Value = 1:4
   )
-  
+
   print("Original data:")
   print(case_data)
-  
+
   clean_case <- remove_duplicate_values(case_data, "Group", case_sensitive = FALSE)
   print("\nAfter case-insensitive cleaning:")
   print(clean_case)

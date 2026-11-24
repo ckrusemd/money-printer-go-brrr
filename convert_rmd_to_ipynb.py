@@ -122,7 +122,7 @@ def create_jupyter_notebook(cells):
                 nb_cell = {
                     "cell_type": "markdown",
                     "metadata": {},
-                    "source": content
+                    "source": [line + "\n" for line in content]
                 }
                 notebook["cells"].append(nb_cell)
 
@@ -144,7 +144,7 @@ def create_jupyter_notebook(cells):
                     "execution_count": None,
                     "metadata": {},
                     "outputs": [],
-                    "source": content
+                    "source": [line + "\n" for line in content]
                 }
                 notebook["cells"].append(nb_cell)
 
@@ -210,4 +210,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit("Legacy converter retired: notebooks are authoritative. See scripts/notebooks/README.md.")
