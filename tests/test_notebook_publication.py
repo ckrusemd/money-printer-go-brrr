@@ -14,6 +14,28 @@ from scripts.notebooks.migrate import convert, split_options
 from scripts.notebooks.validate import PAGES, validate
 
 
+class PublicationSizeTests(unittest.TestCase):
+    def test_artifact_size_boundary_includes_nested_assets(self):
+        from scripts.notebooks.validate import validate_size
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "assets").mkdir()
+            (root / "index.html").write_bytes(b"1234")
+            asset = root / "assets/widget.js"
+            asset.write_bytes(b"12345")
+            self.assertEqual(validate_size(root, limit=10), 9)
+            for content in (b"123456", b"1234567"):
+                asset.write_bytes(content)
+                with self.assertRaisesRegex(ValueError, "must be below 10"):
+                    validate_size(root, limit=10)
+
+    def test_missing_output_is_rejected(self):
+        from scripts.notebooks.validate import validate_size
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "Missing publication"):
+                validate_size(Path(directory) / "missing")
+
+
 class MigrationTests(unittest.TestCase):
     def test_options_keep_nested_expressions_and_quoted_equals(self):
         options = split_options('chart, fig.alt=market_chart_description("GC=F", "USD"), fig.height=30, eval=FALSE')

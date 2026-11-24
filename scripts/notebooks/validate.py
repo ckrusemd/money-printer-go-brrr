@@ -42,8 +42,23 @@ class Page(HTMLParser):
             self.missing_alt.append(attrs.get("src", ""))
 
 
+PAGES_SIZE_LIMIT = 943_718_400
+
+def validate_size(root, limit=PAGES_SIZE_LIMIT):
+    """Reject oversized publication artifacts before uploading them."""
+    root = Path(root)
+    if not root.is_dir():
+        raise ValueError("Missing publication output directory: " + str(root))
+    size = sum(path.stat().st_size for path in root.rglob("*") if path.is_file())
+    if size >= limit:
+        raise ValueError(f"Publication artifact is {size} bytes; must be below {limit} bytes")
+    print(f"Publication artifact: {size} bytes (limit {limit})")
+    return size
+
+
 def validate(root, require_results=True):
     root = Path(root).resolve()
+    validate_size(root)
     docs = {p.resolve(): Page(p.read_text()) for p in root.rglob("*.html")}
     errors = []
     for name in PAGES:
