@@ -17,6 +17,14 @@ from scripts.notebooks.book import ROOT
 from scripts.publication_image_key import image_key
 
 
+def git(arguments, root=ROOT, trust=()):
+    """Trust only this checkout and explicitly named local fetch sources."""
+    command = ["git"]
+    for path in (root, *trust):
+        command += ["-c", "safe.directory=" + str(Path(path).resolve())]
+    return subprocess.run([*command, *arguments], cwd=root, check=True)
+
+
 def snapshots(directory):
     return {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
             for p in directory.iterdir() if p.is_file()}
@@ -33,20 +41,20 @@ def compare(reference, root=ROOT):
     before = snapshots(inputs)
     evidence = root / ".cache/notebook-comparison"
     evidence.mkdir(exist_ok=True)
-    subprocess.run(["git", "fetch", "--no-tags", "origin", reference], cwd=root, check=True)
+    git(["fetch", "--no-tags", "origin", reference], root)
     with tempfile.TemporaryDirectory(prefix="money-book-baseline-") as tmp:
         baseline = Path(tmp)
         archive = baseline / "source.tar"
-        subprocess.run(["git", "archive", reference, "-o", str(archive)], cwd=root, check=True)
+        git(["archive", reference, "-o", str(archive)], root)
         with tarfile.open(archive) as tar:
             tar.extractall(baseline, filter="data")
         archive.unlink()
         if image_key(baseline) != image_key(root):
             raise ValueError("Baseline must use the same locked publication environment")
         # Preserve the source receipt without modifying the user's working tree.
-        subprocess.run(["git", "init", "--quiet"], cwd=baseline, check=True)
-        subprocess.run(["git", "fetch", "--quiet", str(root), reference], cwd=baseline, check=True)
-        subprocess.run(["git", "reset", "--mixed", "--quiet", "FETCH_HEAD"], cwd=baseline, check=True)
+        git(["init", "--quiet"], baseline)
+        git(["fetch", "--quiet", str(root), reference], baseline, trust=(root,))
+        git(["reset", "--mixed", "--quiet", "FETCH_HEAD"], baseline)
         review = root / ".cache/research-models/review.rds"
         if review.is_file():
             target = baseline / ".cache/research-models/review.rds"
